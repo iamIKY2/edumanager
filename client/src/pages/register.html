@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng ký - Edexis</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: rgba(255, 255, 255, 0.9);
+      --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.1);
+      --shadow-hover: 0 30px 60px rgba(0, 0, 0, 0.15);
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--primary-gradient);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+    .register-container {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 3rem;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: var(--shadow-soft);
+      position: relative;
+      overflow: hidden;
+    }
+    .register-container h2 {
+      font-weight: 700;
+      color: white;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .form-control, .form-select {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--glass-border);
+      color: white;
+      font-size: 1rem;
+      border-radius: 10px;
+    }
+    .form-control::placeholder {
+      color: var(--text-light);
+      opacity: 0.7;
+    }
+    .form-control:focus, .form-select:focus {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: white;
+      box-shadow: none;
+    }
+    .btn-gradient {
+      background: var(--secondary-gradient);
+      border: none;
+      color: white;
+      padding: 12px 30px;
+      font-weight: 600;
+      border-radius: 50px;
+      transition: all 0.3s ease;
+    }
+    .btn-gradient:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-hover);
+    }
+    .error-message {
+      color: #f5576c;
+      font-size: 0.9rem;
+      text-align: center;
+      display: none;
+    }
+    @media (max-width: 576px) {
+      .register-container {
+        margin: 1rem;
+        padding: 2rem;
+      }
+      .register-container h2 {
+        font-size: 1.8rem;
+      }
+    }
+
+    .form-select option {
+    background-color: #ffffff !important;
+    color: #000000 !important;         
+    }
+
+  </style>
+</head>
+<body>
+  <div class="register-container" data-aos="fade-up">
+    <h2><i class="fas fa-user-plus me-2"></i>Đăng ký tài khoản</h2>
+    <form id="registerForm">
+      <div class="mb-3">
+        <label for="username" class="form-label text-light">Tên người dùng</label>
+        <input type="text" class="form-control" id="username" name="username" placeholder="Nhập tên người dùng" required>
+      </div>
+      <div class="mb-3">
+        <label for="email" class="form-label text-light">Email</label>
+        <input type="email" class="form-control" id="email" name="email" placeholder="Nhập email" required>
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label text-light">Mật khẩu</label>
+        <input type="password" class="form-control" id="password" name="password" placeholder="Nhập mật khẩu" required>
+      </div>
+      <div class="mb-3">
+        <label for="role" class="form-label text-light">Vai trò</label>
+        <select class="form-select" id="role" name="role" required>
+          <option value="student">Học sinh</option>
+          <option value="teacher">Giáo viên</option>
+        </select>
+      </div>
+      <div id="errorMessage" class="error-message mb-3"></div>
+      <button type="submit" class="btn btn-gradient w-100"><i class="fas fa-rocket me-2"></i>Đăng ký</button>
+    </form>
+    <p class="text-center text-light mt-3">Đã có tài khoản? <a href="login.html" class="text-warning">Đăng nhập</a></p>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+  <script>
+    AOS.init({ duration: 1000, once: true });
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorMessage = document.getElementById('errorMessage');
+      errorMessage.style.display = 'none';
+
+      const formData = {
+        username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+        role: document.getElementById('role').value
+      };
+
+      try {
+        const response = await fetch('http://localhost:3000/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        const data = await response.json();
+        if (response.ok) {
+          alert('Đăng ký thành công! Vui lòng đăng nhập.');
+          window.location.href = 'login.html';
+        } else {
+          errorMessage.textContent = data.message || 'Đăng ký thất bại!';
+          errorMessage.style.display = 'block';
+        }
+      } catch (err) {
+        errorMessage.textContent = 'Lỗi kết nối server!';
+        errorMessage.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
