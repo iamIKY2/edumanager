@@ -41,6 +41,10 @@ cd client
 npm install
 cd ../server
 npm install
+npm install bcrypt@6.0.0 cors@2.8.5 dotenv@17.2.2 exceljs@4.4.0 express@5.1.0 express-fileupload@1.5.2 express-rate-limit@8.1.0 jsonwebtoken@9.0.2 multer@2.0.2 mysql2@3.15.0 nodemailer@7.0.6 openai@5.20.3 pdfkit@0.17.2 sequelize@6.37.7 socket.io@4.8.1
+
+npm install --save-dev nodemon@3.1.10
+
 ```
 
 **Bước 3:** Tạo database MySQL và cấu hình thông tin trong `server/.env`
