@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Hệ Thống Thi Trực Tuyến</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --header-height: 60px;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h4 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .nav-item {
+            margin: 5px 0;
+        }
+
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 0 10px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .stat-change {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .table-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .badge-custom {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        .progress-custom {
+            height: 8px;
+            border-radius: 10px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h4><i class="bi bi-journal-check"></i> Exam System</h4>
+            <small>Quản trị viên</small>
+        </div>
+        <ul class="nav flex-column mt-3">
+            <li class="nav-item">
+                <a class="nav-link active" href="#" data-section="dashboard">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="users">
+                    <i class="bi bi-people"></i> Người dùng
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="exams">
+                    <i class="bi bi-file-text"></i> Kỳ thi
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="questions">
+                    <i class="bi bi-question-circle"></i> Ngân hàng câu hỏi
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="subjects">
+                    <i class="bi bi-book"></i> Môn học
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="reports">
+                    <i class="bi bi-graph-up"></i> Báo cáo & Thống kê
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="settings">
+                    <i class="bi bi-gear"></i> Cài đặt
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div>
+                <button class="btn btn-link d-md-none" id="toggleSidebar">
+                    <i class="bi bi-list fs-4"></i>
+                </button>
+                <h5 class="mb-0 d-inline-block ms-2" id="pageTitle">Dashboard Tổng Quan</h5>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-sm btn-primary" id="exportReport">
+                    <i class="bi bi-download"></i> Xuất báo cáo
+                </button>
+                <div class="user-avatar">AD</div>
+            </div>
+        </div>
+
+        <div id="dashboard-section" class="content-section active">
+            <div class="row g-4 mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                        <div class="stat-label">Tổng Sinh Viên</div>
+                        <div class="stat-value">2,847</div>
+                        <div class="stat-change text-success">
+                            <i class="bi bi-arrow-up"></i> +12% so với tháng trước
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background-color: rgba(25, 135, 84, 0.1); color: #198754;">
+                            <i class="bi bi-person-badge"></i>
+                        </div>
+                        <div class="stat-label">Tổng Giáo Viên</div>
+                        <div class="stat-value">156</div>
+                        <div class="stat-change text-success">
+                            <i class="bi bi-arrow-up"></i> +5% so với tháng trước
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background-color: rgba(253, 126, 20, 0.1); color: #fd7e14;">
+                            <i class="bi bi-file-earmark-text"></i>
+                        </div>
+                        <div class="stat-label">Kỳ Thi Đang Diễn Ra</div>
+                        <div class="stat-value">23</div>
+                        <div class="stat-change text-success">
+                            <i class="bi bi-arrow-up"></i> +8% so với tháng trước
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background-color: rgba(111, 66, 193, 0.1); color: #6f42c1;">
+                            <i class="bi bi-patch-question"></i>
+                        </div>
+                        <div class="stat-label">Câu Hỏi Trong Hệ Thống</div>
+                        <div class="stat-value">12,453</div>
+                        <div class="stat-change text-success">
+                            <i class="bi bi-plus"></i> +156 câu hỏi mới
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-xl-8">
+                    <div class="chart-card">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="chart-title mb-0">Thống Kê Người Dùng Mới</h6>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary active">Sinh viên</button>
+                                <button type="button" class="btn btn-outline-primary">Giáo viên</button>
+                            </div>
+                        </div>
+                        <canvas id="userChart" height="80"></canvas>
+                    </div>
+                </div>
+                <div class="col-xl-4">
+                    <div class="chart-card">
+                        <h6 class="chart-title">Tỷ Lệ Hoàn Thành Bài Thi</h6>
+                        <canvas id="completionChart"></canvas>
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span><i class="bi bi-circle-fill text-success"></i> Hoàn thành</span>
+                                <strong>87.5%</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span><i class="bi bi-circle-fill text-warning"></i> Đang làm</span>
+                                <strong>8.2%</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span><i class="bi bi-circle-fill text-danger"></i> Bỏ dở</span>
+                                <strong>4.3%</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-xl-6">
+                    <div class="chart-card">
+                        <h6 class="chart-title">Phân Bố Điểm Số (Kỳ Thi Gần Nhất)</h6>
+                        <canvas id="scoreChart" height="100"></canvas>
+                    </div>
+                </div>
+                <div class="col-xl-6">
+                    <div class="chart-card">
+                        <h6 class="chart-title">Số Lượng Kỳ Thi Theo Tháng</h6>
+                        <canvas id="examChart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="users-section" class="content-section">
+            <div class="table-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h6 class="chart-title mb-0">Quản Lý Người Dùng</h6>
+                    <button class="btn btn-primary" id="addUserBtn">
+                        <i class="bi bi-plus-lg"></i> Thêm người dùng
+                    </button>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="userSearch" placeholder="Tìm kiếm theo tên, email...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="userRoleFilter">
+                            <option value="">Tất cả vai trò</option>
+                            <option value="student">Sinh viên</option>
+                            <option value="teacher">Giáo viên</option>
+                            <option value="admin">Quản trị viên</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="userStatusFilter">
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="active">Đang hoạt động</option>
+                            <option value="inactive">Không hoạt động</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Họ và Tên</th>
+                                <th>Email</th>
+                                <th>Vai trò</th>
+                                <th>Ngày đăng ký</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>#2847</td>
+                                <td><strong>Nguyễn Văn An</strong></td>
+                                <td>an.nguyen@student.edu.vn</td>
+                                <td><span class="badge bg-primary">Sinh viên</span></td>
+                                <td>15/09/2025</td>
+                                <td><span class="badge bg-success">Hoạt động</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#156</td>
+                                <td><strong>Trần Thị Bình</strong></td>
+                                <td>binh.tran@teacher.edu.vn</td>
+                                <td><span class="badge bg-success">Giáo viên</span></td>
+                                <td>10/08/2025</td>
+                                <td><span class="badge bg-success">Hoạt động</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#2846</td>
+                                <td><strong>Lê Văn Cường</strong></td>
+                                <td>cuong.le@student.edu.vn</td>
+                                <td><span class="badge bg-primary">Sinh viên</span></td>
+                                <td>14/09/2025</td>
+                                <td><span class="badge bg-success">Hoạt động</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#1</td>
+                                <td><strong>Admin System</strong></td>
+                                <td>admin@system.edu.vn</td>
+                                <td><span class="badge bg-danger">Admin</span></td>
+                                <td>01/01/2025</td>
+                                <td><span class="badge bg-success">Hoạt động</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <nav class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item disabled"><a class="page-link" href="#">Trước</a></li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item"><a class="page-link" href="#">Sau</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+        <div id="exams-section" class="content-section">
+            <div class="table-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h6 class="chart-title mb-0">Quản Lý Kỳ Thi</h6>
+                    <button class="btn btn-primary" id="addExamBtn">
+                        <i class="bi bi-plus-lg"></i> Tạo kỳ thi mới
+                    </button>
+                </div>
+
+                <div class="row mb-3 g-2">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="examSearch" placeholder="Tìm kiếm kỳ thi...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="examSubjectFilter">
+                            <option value="">Tất cả môn học</option>
+                            <option value="web">Lập trình Web</option>
+                            <option value="db">Cơ sở dữ liệu</option>
+                            <option value="network">Mạng máy tính</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="examStatusFilter">
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="upcoming">Sắp diễn ra</option>
+                            <option value="ongoing">Đang diễn ra</option>
+                            <option value="completed">Hoàn thành</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary w-100" id="examFilterBtn">
+                            <i class="bi bi-funnel"></i> Lọc
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tên Kỳ Thi</th>
+                                <th>Môn Học</th>
+                                <th>Giáo Viên</th>
+                                <th>Thời gian</th>
+                                <th>Số SV</th>
+                                <th>Trạng Thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>#001</td>
+                                <td><strong>Kiểm tra giữa kỳ</strong></td>
+                                <td>Lập trình Web</td>
+                                <td>Nguyễn Văn A</td>
+                                <td>60 phút</td>
+                                <td>127</td>
+                                <td><span class="badge-custom bg-success">Hoàn thành</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#002</td>
+                                <td><strong>Bài tập tuần 5</strong></td>
+                                <td>Cơ sở dữ liệu</td>
+                                <td>Trần Thị B</td>
+                                <td>45 phút</td>
+                                <td>89</td>
+                                <td><span class="badge-custom bg-primary">Đang diễn ra</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-secondary" data-action="stop"><i class="bi bi-stop"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#003</td>
+                                <td><strong>Thi cuối kỳ</strong></td>
+                                <td>Thuật toán</td>
+                                <td>Phạm Thị D</td>
+                                <td>90 phút</td>
+                                <td>0</td>
+                                <td><span class="badge-custom bg-info">Sắp diễn ra</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="questions-section" class="content-section">
+            <div class="table-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h6 class="chart-title mb-0">Ngân Hàng Câu Hỏi</h6>
+                    <button class="btn btn-primary" id="addQuestionBtn">
+                        <i class="bi bi-plus-lg"></i> Thêm câu hỏi
+                    </button>
+                </div>
+
+                <div class="row mb-3 g-2">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="questionSearch" placeholder="Tìm kiếm câu hỏi...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="questionSubjectFilter">
+                            <option value="">Tất cả môn học</option>
+                            <option value="web">Lập trình Web</option>
+                            <option value="db">Cơ sở dữ liệu</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="questionDifficultyFilter">
+                            <option value="">Tất cả mức độ</option>
+                            <option value="easy">Dễ</option>
+                            <option value="medium">Trung bình</option>
+                            <option value="hard">Khó</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" id="questionTypeFilter">
+                            <option value="">Loại câu hỏi</option>
+                            <option value="single">Một đáp án</option>
+                            <option value="multiple">Nhiều đáp án</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">ID</th>
+                                <th>Nội dung câu hỏi</th>
+                                <th>Môn học</th>
+                                <th>Mức độ</th>
+                                <th>Loại</th>
+                                <th>Tỷ lệ đúng</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>#4521</td>
+                                <td><strong>HTML là viết tắt của từ gì?</strong></td>
+                                <td>Lập trình Web</td>
+                                <td><span class="badge bg-success">Dễ</span></td>
+                                <td>Một đáp án</td>
+                                <td><span class="text-success">92%</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#5832</td>
+                                <td><strong>Câu lệnh SQL nào dùng để lấy dữ liệu?</strong></td>
+                                <td>Cơ sở dữ liệu</td>
+                                <td><span class="badge bg-warning">Trung bình</span></td>
+                                <td>Một đáp án</td>
+                                <td><span class="text-warning">68%</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#2100</td>
+                                <td><strong>Phân tích độ phức tạp của thuật toán Quick Sort</strong></td>
+                                <td>Thuật toán</td>
+                                <td><span class="badge bg-danger">Khó</span></td>
+                                <td>Nhiều đáp án</td>
+                                <td><span class="text-danger">35%</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="subjects-section" class="content-section">
+            <div class="row g-4">
+                <div class="col-md-8">
+                    <div class="table-card">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h6 class="chart-title mb-0">Danh Sách Môn Học</h6>
+                            <button class="btn btn-primary" id="addSubjectBtn">
+                                <i class="bi bi-plus-lg"></i> Thêm môn học
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Mã môn</th>
+                                        <th>Tên môn học</th>
+                                        <th>Số câu hỏi</th>
+                                        <th>Số kỳ thi</th>
+                                        <th>Trạng thái</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>CS101</strong></td>
+                                        <td>Lập trình Web</td>
+                                        <td>2,145</td>
+                                        <td>45</td>
+                                        <td><span class="badge bg-success">Hoạt động</span></td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>CS102</strong></td>
+                                        <td>Cơ sở dữ liệu</td>
+                                        <td>1,832</td>
+                                        <td>38</td>
+                                        <td><span class="badge bg-success">Hoạt động</span></td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>CS103</strong></td>
+                                        <td>Mạng máy tính</td>
+                                        <td>1,567</td>
+                                        <td>32</td>
+                                        <td><span class="badge bg-success">Hoạt động</span></td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>CS104</strong></td>
+                                        <td>Thuật toán</td>
+                                        <td>2,321</td>
+                                        <td>52</td>
+                                        <td><span class="badge bg-success">Hoạt động</span></td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>CS105</strong></td>
+                                        <td>Trí tuệ nhân tạo</td>
+                                        <td>1,245</td>
+                                        <td>28</td>
+                                        <td><span class="badge bg-warning">Tạm dừng</span></td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
+                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
+                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="stat-card mb-4">
+                        <div class="stat-icon" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
+                            <i class="bi bi-book"></i>
+                        </div>
+                        <div class="stat-label">Tổng Môn Học</div>
+                        <div class="stat-value">24</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <h6 class="mb-3">Môn học phổ biến</h6>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Lập trình Web</span>
+                                <strong>2,145</strong>
+                            </div>
+                            <div class="progress progress-custom">
+                                <div class="progress-bar bg-primary" style="width: 85%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Thuật toán</span>
+                                <strong>2,321</strong>
+                            </div>
+                            <div class="progress progress-custom">
+                                <div class="progress-bar bg-success" style="width: 92%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Cơ sở dữ liệu</span>
+                                <strong>1,832</strong>
+                            </div>
+                            <div class="progress progress-custom">
+                                <div class="progress-bar bg-warning" style="width: 73%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="reports-section" class="content-section">
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <select class="form-select" id="reportPeriod">
+                        <option value="week">7 ngày qua</option>
+                        <option value="month" selected>30 ngày qua</option>
+                        <option value="quarter">3 tháng qua</option>
+                        <option value="year">1 năm qua</option>
+                    </select>
+                </div>
+                <div class="col-md-9 text-end">
+                    <button class="btn btn-outline-primary me-2" id="exportExcel">
+                        <i class="bi bi-file-earmark-excel"></i> Xuất Excel
+                    </button>
+                    <button class="btn btn-outline-danger" id="exportPDF">
+                        <i class="bi bi-file-earmark-pdf"></i> Xuất PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div class="stat-label">Tổng số bài thi</div>
+                        <div class="stat-value">8,524</div>
+                        <div class="stat-change text-success">
+                            <i class="bi bi-arrow-up"></i> +15.3%
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background-color: rgba(25, 135, 84, 0.1); color: #198754;">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div class="stat-label">Tỷ lệ hoàn thành</div>
+                        <div class="stat-value">87.5%</div>
+                        <div class="stat-change text-success">
+                            <i class="bi bi-arrow-up"></i> +3.2%
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background-color: rgba(253, 126, 20, 0.1); color: #fd7e14;">
+                            <i class="bi bi-star"></i>
+                        </div>
+                        <div class="stat-label">Điểm trung bình</div>
+                        <div class="stat-value">7.3</div>
+                        <div class="stat-change text-success">
+                            <i class="bi bi-arrow-up"></i> +0.5
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-label">Cảnh báo gian lận</div>
+                        <div class="stat-value">26</div>
+                        <div class="stat-change text-danger">
+                            <i class="bi bi-arrow-up"></i> +8
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-xl-8">
+                    <div class="chart-card">
+                        <h6 class="chart-title">Xu Hướng Điểm Số Theo Thời Gian</h6>
+                        <canvas id="trendChart" height="80"></canvas>
+                    </div>
+                </div>
+                <div class="col-xl-4">
+                    <div class="chart-card">
+                        <h6 class="chart-title">Phân Bố Theo Môn Học</h6>
+                        <canvas id="subjectChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-12">
+                    <div class="table-card">
+                        <h6 class="chart-title">Báo Cáo Chi Tiết Theo Kỳ Thi</h6>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Kỳ thi</th>
+                                        <th>Số SV tham gia</th>
+                                        <th>Hoàn thành</th>
+                                        <th>Điểm TB</th>
+                                        <th>Điểm cao nhất</th>
+                                        <th>Điểm thấp nhất</th>
+                                        <th>Cảnh báo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Kiểm tra giữa kỳ - Web</strong></td>
+                                        <td>127</td>
+                                        <td>124 (97.6%)</td>
+                                        <td><span class="badge bg-success">7.8</span></td>
+                                        <td>9.5</td>
+                                        <td>4.0</td>
+                                        <td><span class="badge bg-warning">5</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Bài tập tuần 5 - Database</strong></td>
+                                        <td>89</td>
+                                        <td>86 (96.6%)</td>
+                                        <td><span class="badge bg-warning">6.5</span></td>
+                                        <td>9.0</td>
+                                        <td>3.5</td>
+                                        <td><span class="badge bg-danger">8</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Kiểm tra 15p - Network</strong></td>
+                                        <td>145</td>
+                                        <td>142 (97.9%)</td>
+                                        <td><span class="badge bg-success">8.2</span></td>
+                                        <td>10.0</td>
+                                        <td>5.0</td>
+                                        <td><span class="badge bg-success">2</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-section" class="content-section">
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="list-group">
+                        <a href="#" class="list-group-item list-group-item-action active">
+                            <i class="bi bi-gear me-2"></i> Cài đặt chung
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-shield-check me-2"></i> Bảo mật
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-bell me-2"></i> Thông báo
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-palette me-2"></i> Giao diện
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-envelope me-2"></i> Email
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-md-9">
+                    <div class="table-card">
+                        <h6 class="chart-title">Cài Đặt Hệ Thống</h6>
+                        
+                        <div class="mb-4">
+                            <h6 class="mb-3">Thông tin hệ thống</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Tên hệ thống</label>
+                                    <input type="text" class="form-control" id="systemName" value="Exam System">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Email liên hệ</label>
+                                    <input type="email" class="form-control" id="contactEmail" value="admin@examsystem.edu.vn">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Số điện thoại</label>
+                                    <input type="tel" class="form-control" id="contactPhone" value="0123-456-789">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Múi giờ</label>
+                                    <select class="form-select" id="timezone">
+                                        <option>GMT+7 (Vietnam)</option>
+                                        <option>GMT+8 (Singapore)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-4">
+                            <h6 class="mb-3">Cài đặt bài thi</h6>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="autoSubmit" checked>
+                                <label class="form-check-label" for="autoSubmit">
+                                    Tự động nộp bài khi hết giờ
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="shuffleQuestions" checked>
+                                <label class="form-check-label" for="shuffleQuestions">
+                                    Xáo trộn câu hỏi mặc định
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="shuffleAnswers" checked>
+                                <label class="form-check-label" for="shuffleAnswers">
+                                    Xáo trộn đáp án mặc định
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="showResults" checked>
+                                <label class="form-check-label" for="showResults">
+                                    Hiển thị kết quả ngay sau khi nộp bài
+                                </label>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-4">
+                            <h6 class="mb-3">Chống gian lận</h6>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="detectTabSwitch" checked>
+                                <label class="form-check-label" for="detectTabSwitch">
+                                    Phát hiện chuyển tab
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="disableCopy">
+                                <label class="form-check-label" for="disableCopy">
+                                    Vô hiệu hóa copy/paste
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="enableWebcam">
+                                <label class="form-check-label" for="enableWebcam">
+                                    Yêu cầu bật webcam khi thi
+                                </label>
+                            </div>
+                            <div class="row g-3 mt-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Số lần chuyển tab tối đa</label>
+                                    <input type="number" class="form-control" id="maxTabSwitches" value="3">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Thời gian cảnh báo (giây)</label>
+                                    <input type="number" class="form-control" id="warningTime" value="5">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-end">
+                            <button class="btn btn-secondary me-2" id="cancelSettings">Hủy</button>
+                            <button class="btn btn-primary" id="saveSettings">Lưu thay đổi</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Thêm Người Dùng -->
+        <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addUserModalLabel">Thêm Người Dùng</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addUserForm">
+                            <div class="mb-3">
+                                <label class="form-label">Họ và Tên</label>
+                                <input type="text" class="form-control" id="userFullName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="userEmail" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Vai trò</label>
+                                <select class="form-select" id="userRole">
+                                    <option value="student">Sinh viên</option>
+                                    <option value="teacher">Giáo viên</option>
+                                    <option value="admin">Quản trị viên</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" id="saveUserBtn">Lưu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Thêm Kỳ Thi -->
+        <div class="modal fade" id="addExamModal" tabindex="-1" aria-labelledby="addExamModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addExamModalLabel">Tạo Kỳ Thi Mới</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addExamForm">
+                            <div class="mb-3">
+                                <label class="form-label">Tên Kỳ Thi</label>
+                                <input type="text" class="form-control" id="examName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Môn Học</label>
+                                <select class="form-select" id="examSubject">
+                                    <option value="web">Lập trình Web</option>
+                                    <option value="db">Cơ sở dữ liệu</option>
+                                    <option value="network">Mạng máy tính</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Thời gian (phút)</label>
+                                <input type="number" class="form-control" id="examDuration" required>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" id="saveExamBtn">Lưu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Thêm Câu Hỏi -->
+        <div class="modal fade" id="addQuestionModal" tabindex="-1" aria-labelledby="addQuestionModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addQuestionModalLabel">Thêm Câu Hỏi</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addQuestionForm">
+                            <div class="mb-3">
+                                <label class="form-label">Nội dung câu hỏi</label>
+                                <textarea class="form-control" id="questionContent" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Môn Học</label>
+                                <select class="form-select" id="questionSubject">
+                                    <option value="web">Lập trình Web</option>
+                                    <option value="db">Cơ sở dữ liệu</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Mức độ</label>
+                                <select class="form-select" id="questionDifficulty">
+                                    <option value="easy">Dễ</option>
+                                    <option value="medium">Trung bình</option>
+                                    <option value="hard">Khó</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" id="saveQuestionBtn">Lưu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Thêm Môn Học -->
+        <div class="modal fade" id="addSubjectModal" tabindex="-1" aria-labelledby="addSubjectModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addSubjectModalLabel">Thêm Môn Học</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addSubjectForm">
+                            <div class="mb-3">
+                                <label class="form-label">Mã môn</label>
+                                <input type="text" class="form-control" id="subjectCode" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tên môn học</label>
+                                <input type="text" class="form-control" id="subjectName" required>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" id="saveSubjectBtn">Lưu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle Sidebar
+        document.getElementById('toggleSidebar')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('show');
+        });
+
+        // Navigation and Section Switching
+        const pageTitles = {
+            'dashboard': 'Dashboard Tổng Quan',
+            'users': 'Quản Lý Người Dùng',
+            'exams': 'Quản Lý Kỳ Thi',
+            'questions': 'Ngân Hàng Câu Hỏi',
+            'subjects': 'Quản Lý Môn Học',
+            'reports': 'Báo Cáo & Thống Kê',
+            'settings': 'Cài Đặt Hệ Thống'
+        };
+
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const sectionName = this.getAttribute('data-section');
+                
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+                
+                document.querySelectorAll('.content-section').forEach(section => {
+                    section.classList.remove('active');
+                });
+                
+                const targetSection = document.getElementById(sectionName + '-section');
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                }
+                
+                document.getElementById('pageTitle').textContent = pageTitles[sectionName] || 'Dashboard';
+                
+                if (sectionName === 'dashboard') {
+                    setTimeout(initDashboardCharts, 100);
+                } else if (sectionName === 'reports') {
+                    setTimeout(initReportCharts, 100);
+                }
+            });
+        });
+
+        // Handle Add Buttons
+        document.getElementById('addUserBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('addUserModal'));
+            modal.show();
+        });
+
+        document.getElementById('addExamBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('addExamModal'));
+            modal.show();
+        });
+
+        document.getElementById('addQuestionBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('addQuestionModal'));
+            modal.show();
+        });
+
+        document.getElementById('addSubjectBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('addSubjectModal'));
+            modal.show();
+        });
+
+        // Handle Save Buttons in Modals (Temporary Alert)
+        document.getElementById('saveUserBtn').addEventListener('click', function() {
+            const fullName = document.getElementById('userFullName').value;
+            const email = document.getElementById('userEmail').value;
+            const role = document.getElementById('userRole').value;
+            alert(`Lưu người dùng: ${fullName}, ${email}, ${role} (Chưa triển khai)`);
+            bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
+        });
+
+        document.getElementById('saveExamBtn').addEventListener('click', function() {
+            const name = document.getElementById('examName').value;
+            const subject = document.getElementById('examSubject').value;
+            const duration = document.getElementById('examDuration').value;
+            alert(`Lưu kỳ thi: ${name}, ${subject}, ${duration} phút (Chưa triển khai)`);
+            bootstrap.Modal.getInstance(document.getElementById('addExamModal')).hide();
+        });
+
+        document.getElementById('saveQuestionBtn').addEventListener('click', function() {
+            const content = document.getElementById('questionContent').value;
+            const subject = document.getElementById('questionSubject').value;
+            const difficulty = document.getElementById('questionDifficulty').value;
+            alert(`Lưu câu hỏi: ${content}, ${subject}, ${difficulty} (Chưa triển khai)`);
+            bootstrap.Modal.getInstance(document.getElementById('addQuestionModal')).hide();
+        });
+
+        document.getElementById('saveSubjectBtn').addEventListener('click', function() {
+            const code = document.getElementById('subjectCode').value;
+            const name = document.getElementById('subjectName').value;
+            alert(`Lưu môn học: ${code}, ${name} (Chưa triển khai)`);
+            bootstrap.Modal.getInstance(document.getElementById('addSubjectModal')).hide();
+        });
+
+        // Handle Action Buttons in Tables
+        document.querySelectorAll('.action-buttons .btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const action = this.getAttribute('data-action');
+                switch (action) {
+                    case 'view':
+                        alert('Xem chi tiết sẽ được mở! (Chưa triển khai)');
+                        break;
+                    case 'edit':
+                        alert('Chỉnh sửa sẽ được mở! (Chưa triển khai)');
+                        break;
+                    case 'delete':
+                        if (confirm('Bạn có chắc muốn xóa?')) {
+                            alert('Xóa thành công! (Chưa triển khai)');
+                        }
+                        break;
+                    case 'stop':
+                        alert('Dừng kỳ thi sẽ được mở! (Chưa triển khai)');
+                        break;
+                }
+            });
+        });
+
+        // Handle Export Buttons
+        document.getElementById('exportReport').addEventListener('click', function(e) {
+            e.preventDefault();
+            alert('Xuất báo cáo sẽ được mở! (Chưa triển khai)');
+        });
+
+        document.getElementById('exportExcel').addEventListener('click', function(e) {
+            e.preventDefault();
+            alert('Xuất Excel sẽ được mở! (Chưa triển khai)');
+        });
+
+        document.getElementById('exportPDF').addEventListener('click', function(e) {
+            e.preventDefault();
+            alert('Xuất PDF sẽ được mở! (Chưa triển khai)');
+        });
+
+        // Handle Filter Buttons
+        document.getElementById('examFilterBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            const subject = document.getElementById('examSubjectFilter').value;
+            const status = document.getElementById('examStatusFilter').value;
+            alert(`Lọc kỳ thi: Môn ${subject}, Trạng thái ${status} (Chưa triển khai)`);
+        });
+
+        // Handle Settings Save and Cancel
+        document.getElementById('saveSettings').addEventListener('click', function(e) {
+            e.preventDefault();
+            const systemName = document.getElementById('systemName').value;
+            const contactEmail = document.getElementById('contactEmail').value;
+            const contactPhone = document.getElementById('contactPhone').value;
+            const timezone = document.getElementById('timezone').value;
+            alert(`Lưu cài đặt: ${systemName}, ${contactEmail}, ${contactPhone}, ${timezone} (Chưa triển khai)`);
+        });
+
+        document.getElementById('cancelSettings').addEventListener('click', function(e) {
+            e.preventDefault();
+            alert('Hủy cài đặt! (Chưa triển khai)');
+        });
+
+        // Initialize Charts
+        function initDashboardCharts() {
+            const userCtx = document.getElementById('userChart');
+            if (userCtx && !userCtx.chartInstance) {
+                userCtx.chartInstance = new Chart(userCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'],
+                        datasets: [{
+                            label: 'Sinh viên mới',
+                            data: [45, 52, 48, 65, 72, 68, 85, 92, 88, 105],
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 20 } } }
+                    }
+                });
+            }
+
+            const completionCtx = document.getElementById('completionChart');
+            if (completionCtx && !completionCtx.chartInstance) {
+                completionCtx.chartInstance = new Chart(completionCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Hoàn thành', 'Đang làm', 'Bỏ dở'],
+                        datasets: [{
+                            data: [87.5, 8.2, 4.3],
+                            backgroundColor: ['#198754', '#ffc107', '#dc3545'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: false } },
+                        cutout: '70%'
+                    }
+                });
+            }
+
+            const scoreCtx = document.getElementById('scoreChart');
+            if (scoreCtx && !scoreCtx.chartInstance) {
+                scoreCtx.chartInstance = new Chart(scoreCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['0-2', '2-4', '4-6', '6-8', '8-10'],
+                        datasets: [{
+                            label: 'Số sinh viên',
+                            data: [5, 12, 35, 67, 45],
+                            backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#20c997', '#198754']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            const examCtx = document.getElementById('examChart');
+            if (examCtx && !examCtx.chartInstance) {
+                examCtx.chartInstance = new Chart(examCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'],
+                        datasets: [{
+                            label: 'Số kỳ thi',
+                            data: [12, 15, 18, 14, 22, 19, 25, 28, 24, 23],
+                            backgroundColor: '#6f42c1',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+        }
+
+        function initReportCharts() {
+            const trendCtx = document.getElementById('trendChart');
+            if (trendCtx && !trendCtx.chartInstance) {
+                trendCtx.chartInstance = new Chart(trendCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'],
+                        datasets: [{
+                            label: 'Điểm trung bình',
+                            data: [6.8, 7.1, 6.9, 7.3, 7.5, 7.2, 7.6, 7.4, 7.3, 7.3],
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: false, min: 6, max: 8 } }
+                    }
+                });
+            }
+
+            const subjectCtx = document.getElementById('subjectChart');
+            if (subjectCtx && !subjectCtx.chartInstance) {
+                subjectCtx.chartInstance = new Chart(subjectCtx.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: ['Web', 'Database', 'Network', 'Algorithm', 'AI'],
+                        datasets: [{
+                            data: [2145, 1832, 1567, 2321, 1245],
+                            backgroundColor: ['#0d6efd', '#198754', '#fd7e14', '#6f42c1', '#dc3545']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { padding: 15, font: { size: 12 } }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        setTimeout(initDashboardCharts, 100);
+    </script>
+</body>
+</html>

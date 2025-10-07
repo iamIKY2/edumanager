@@ -18,7 +18,42 @@
             display: flex;
         }
 
-        /* Sidebar */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: white;
+            border: none;
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            font-size: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-menu-btn:active {
+            transform: scale(0.95);
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            backdrop-filter: blur(2px);
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
         .sidebar {
             width: 280px;
             background: rgba(255, 255, 255, 0.95);
@@ -60,16 +95,16 @@
             color: #333;
         }
 
-            .menu-item:hover {
-                background: rgba(102, 126, 234, 0.1);
-                border-left-color: #667eea;
-            }
+        .menu-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            border-left-color: #667eea;
+        }
 
-            .menu-item.active {
-                background: rgba(102, 126, 234, 0.15);
-                border-left-color: #667eea;
-                color: #667eea;
-            }
+        .menu-item.active {
+            background: rgba(102, 126, 234, 0.15);
+            border-left-color: #667eea;
+            color: #667eea;
+        }
 
         .menu-icon {
             font-size: 20px;
@@ -83,9 +118,9 @@
             background: #f8f9fa;
         }
 
-            .submenu.open {
-                max-height: 500px;
-            }
+        .submenu.open {
+            max-height: 500px;
+        }
 
         .submenu-item {
             padding: 12px 20px 12px 56px;
@@ -95,21 +130,20 @@
             transition: all 0.3s ease;
         }
 
-            .submenu-item:hover {
-                background: rgba(102, 126, 234, 0.1);
-                color: #667eea;
-            }
+        .submenu-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
 
         .arrow {
             margin-left: auto;
             transition: transform 0.3s ease;
         }
 
-            .arrow.rotate {
-                transform: rotate(90deg);
-            }
+        .arrow.rotate {
+            transform: rotate(90deg);
+        }
 
-        /* Main Content */
         .main-content {
             margin-left: 280px;
             flex: 1;
@@ -141,29 +175,29 @@
             font-size: 24px;
         }
 
-            .notification-badge::after {
-                content: '3';
-                position: absolute;
-                top: -8px;
-                right: -8px;
-                background: #ff4757;
-                color: white;
-                border-radius: 50%;
-                width: 20px;
-                height: 20px;
-                font-size: 12px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
+        .notification-badge::after {
+            content: '3';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4757;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
         .content-section {
             display: none;
         }
 
-            .content-section.active {
-                display: block;
-            }
+        .content-section.active {
+            display: block;
+        }
 
         .card {
             background: rgba(255, 255, 255, 0.95);
@@ -261,13 +295,13 @@
             color: white;
         }
 
-            .btn-primary:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-            }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
 
-        .btn-danger {
-            background: linear-gradient(45deg, #ff4757, #ff6b7a);
+        .btn-success {
+            background: linear-gradient(45deg, #43e97b, #38f9d7);
             color: white;
         }
 
@@ -281,158 +315,9 @@
             margin-bottom: 15px;
         }
 
-            .input-field:focus {
-                outline: none;
-                border-color: #667eea;
-            }
-
-        /* Ranking Table */
-        .ranking-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-            .ranking-table thead {
-                background: linear-gradient(45deg, #667eea, #764ba2);
-                color: white;
-            }
-
-            .ranking-table th,
-            .ranking-table td {
-                padding: 15px;
-                text-align: left;
-                border-bottom: 1px solid #e1e8ed;
-            }
-
-            .ranking-table tr:hover {
-                background: rgba(102, 126, 234, 0.05);
-            }
-
-            .ranking-table tr.current-user {
-                background: rgba(102, 126, 234, 0.15);
-                font-weight: bold;
-            }
-
-        .rank-badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .rank-1 {
-            background: linear-gradient(45deg, #ffd700, #ffed4e);
-            color: #333;
-        }
-
-        .rank-2 {
-            background: linear-gradient(45deg, #c0c0c0, #e8e8e8);
-            color: #333;
-        }
-
-        .rank-3 {
-            background: linear-gradient(45deg, #cd7f32, #e8a87c);
-            color: white;
-        }
-
-        .schedule-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            margin: 10px 0;
-            background: rgba(102, 126, 234, 0.1);
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-        }
-
-        .schedule-date {
-            background: #667eea;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 8px;
-            font-weight: bold;
-        }
-
-        /* Test items */
-        .test-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            margin: 10px 0;
-            background: rgba(102, 126, 234, 0.1);
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-        }
-
-        .test-info {
-            flex: 1;
-        }
-
-        .test-title {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 5px;
-        }
-
-        .test-meta {
-            font-size: 12px;
-            color: #666;
-        }
-
-        .btn-success {
-            background: linear-gradient(45deg, #43e97b, #38f9d7);
-            color: white;
-        }
-
-        .countdown {
-            background: #ff4757;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-
-        /* Mobile responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-280px);
-            }
-
-                .sidebar.open {
-                    transform: translateX(0);
-                }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .profile-section {
-                grid-template-columns: 1fr;
-            }
-
-            .mobile-menu-btn {
-                display: block;
-                position: fixed;
-                top: 20px;
-                left: 20px;
-                z-index: 1001;
-                background: white;
-                border: none;
-                padding: 10px;
-                border-radius: 8px;
-                cursor: pointer;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-        }
-
-        .mobile-menu-btn {
-            display: none;
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
         }
 
         .modal {
@@ -474,16 +359,106 @@
             color: #666;
         }
 
-            .close:hover {
-                color: #333;
+        .close:hover {
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
             }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 80px 15px 15px 15px;
+            }
+
+            .header {
+                padding: 15px;
+            }
+
+            .page-title {
+                font-size: 20px;
+            }
+
+            .profile-section {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-avatar-large {
+                width: 120px;
+                height: 120px;
+                font-size: 48px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .test-item,
+            .schedule-item {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            .test-item > div:last-child {
+                display: flex;
+                gap: 10px;
+                width: 100%;
+            }
+
+            .test-item button {
+                flex: 1;
+            }
+
+            .countdown {
+                margin-left: 0;
+            }
+
+            .ranking-table {
+                font-size: 12px;
+            }
+
+            .ranking-table th,
+            .ranking-table td {
+                padding: 8px 4px;
+            }
+
+            .rank-badge {
+                font-size: 11px;
+                padding: 4px 8px;
+            }
+
+            .info-item {
+                flex-direction: column;
+                gap: 5px;
+                align-items: flex-start;
+            }
+
+            .stat-box {
+                padding: 15px;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- Mobile Menu Button -->
     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-    <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="logo">🎓 EduSystem</div>
@@ -537,17 +512,14 @@
         </div>
     </div>
 
-    <!-- Main Content -->
     <div class="main-content">
         <div class="header">
             <div class="page-title" id="pageTitle">Trang chủ</div>
             <div class="notification-badge" onclick="showNotifications()">🔔</div>
         </div>
 
-        <!-- Dashboard Section -->
         <div class="content-section active" id="dashboard">
             <div class="profile-section">
-                <!-- Left: Avatar & Stats -->
                 <div class="card profile-card">
                     <div class="profile-avatar-large" onclick="document.getElementById('avatarUpload').click()">
                         HS
@@ -555,75 +527,37 @@
                     </div>
                     <input type="file" id="avatarUpload" style="display: none;" accept="image/*" onchange="uploadAvatar(this)">
 
-                    <h3>Nguyễn Văn A</h3>
-                    <p style="color: #666; margin-bottom: 20px;">MSSV: HS20231001</p>
+                    <h3 id="userName">Đang tải...</h3>
+                    <p style="color: #666; margin-bottom: 20px;" id="userId">MSSV: Đang tải...</p>
 
                     <div class="stat-box">
-                        <div class="stat-number">8.6</div>
+                        <div class="stat-number" id="avgScore">Đang tải...</div>
                         <div class="stat-label">Điểm trung bình</div>
                     </div>
 
                     <div class="stat-box" style="background: linear-gradient(45deg, #43e97b, #38f9d7);">
-                        <div class="stat-number">#5</div>
+                        <div class="stat-number" id="rankPosition">Đang tải...</div>
                         <div class="stat-label">Xếp hạng lớp</div>
                     </div>
 
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="openModal('changePasswordModal')">🔒 Đổi mật khẩu</button>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="openModal('editProfileModal')">✏️ Cập nhật thông tin</button>
                 </div>
 
-                <!-- Right: Info & Schedule -->
                 <div>
                     <div class="card">
                         <h3 style="margin-bottom: 15px;">Thông tin cá nhân</h3>
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <span><strong>Lớp:</strong></span>
-                                <span>10A1</span>
-                            </div>
-                            <div class="info-item">
-                                <span><strong>Email:</strong></span>
-                                <span>vana@example.com</span>
-                            </div>
-                            <div class="info-item">
-                                <span><strong>Số điện thoại:</strong></span>
-                                <span>0123 456 789</span>
-                            </div>
-                            <div class="info-item">
-                                <span><strong>Ngày sinh:</strong></span>
-                                <span>15/05/2008</span>
-                            </div>
+                        <div class="info-grid" id="userInfo">
+                            <!-- Dữ liệu sẽ được điền động -->
                         </div>
                     </div>
 
-                    <div class="card" style="margin-top: 20px;">
-                        <h3 style="margin-bottom: 15px;">Lịch thi sắp tới</h3>
-                        <div class="schedule-item">
-                            <div>
-                                <div style="font-weight: 600;">Kiểm tra Toán - Chương 1</div>
-                                <div style="font-size: 12px; color: #666;">30 phút • 20 câu</div>
-                            </div>
-                            <div class="schedule-date">01/10</div>
-                        </div>
-                        <div class="schedule-item">
-                            <div>
-                                <div style="font-weight: 600;">Bài tập Vật Lý - Động học</div>
-                                <div style="font-size: 12px; color: #666;">45 phút • 15 câu</div>
-                            </div>
-                            <div class="schedule-date">03/10</div>
-                        </div>
-                        <div class="schedule-item">
-                            <div>
-                                <div style="font-weight: 600;">Kiểm tra Hóa học - Chương 2</div>
-                                <div style="font-size: 12px; color: #666;">60 phút • 25 câu</div>
-                            </div>
-                            <div class="schedule-date">05/10</div>
-                        </div>
+                    <div class="card" style="margin-top: 20px;" id="upcomingTests">
+                        <!-- Dữ liệu sẽ được điền động -->
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Join Class Section -->
         <div class="content-section" id="join-class">
             <div class="card">
                 <h3 style="margin-bottom: 20px;">Tham gia lớp học</h3>
@@ -633,85 +567,38 @@
             </div>
         </div>
 
-        <!-- My Classes Section -->
         <div class="content-section" id="my-classes">
             <div class="card">
                 <h3 style="margin-bottom: 20px;">Lớp của tôi</h3>
-                <div class="info-item">
-                    <span><strong>Toán 10A1</strong></span>
-                    <span style="color: #2ed573;">Đang học</span>
-                </div>
-                <div class="info-item">
-                    <span><strong>Lý 10A1</strong></span>
-                    <span style="color: #2ed573;">Đang học</span>
-                </div>
-                <div class="info-item">
-                    <span><strong>Hóa 10A1</strong></span>
-                    <span style="color: #2ed573;">Đang học</span>
+                <div class="info-item" id="myClassesList">
+                    <!-- Dữ liệu sẽ được điền động -->
                 </div>
             </div>
         </div>
 
-        <!-- Available Tests Section -->
         <div class="content-section" id="available-tests">
             <div class="card">
                 <h3 style="margin-bottom: 20px;">Bài kiểm tra khả dụng</h3>
-
-                <div class="test-item">
-                    <div class="test-info">
-                        <div class="test-title">Kiểm tra Toán - Chương 1</div>
-                        <div class="test-meta">Lớp: Toán 10A1 • 30 phút • 20 câu</div>
-                    </div>
-                    <div>
-                        <div class="countdown">15:30</div>
-                        <button class="btn btn-success" onclick="startTest(1)" style="margin-top: 5px;">Làm bài</button>
-                    </div>
-                </div>
-
-                <div class="test-item">
-                    <div class="test-info">
-                        <div class="test-title">Bài tập Vật Lý - Động học</div>
-                        <div class="test-meta">Lớp: Lý 10A1 • 45 phút • 15 câu</div>
-                    </div>
-                    <div>
-                        <button class="btn btn-success" onclick="startTest(2)">Làm bài</button>
-                    </div>
+                <div id="availableTestsList">
+                    <!-- Dữ liệu sẽ được điền động -->
                 </div>
             </div>
         </div>
 
-        <!-- Results Section -->
         <div class="content-section" id="my-results">
             <div class="card">
                 <h3 style="margin-bottom: 20px;">Kết quả của tôi</h3>
-
-                <div class="test-item">
-                    <div class="test-info">
-                        <div class="test-title">Kiểm tra Toán - Hàm số</div>
-                        <div class="test-meta">Ngày: 20/09/2025 • Trắc nghiệm</div>
-                    </div>
-                    <div style="font-size: 18px; font-weight: bold; color: #667eea;">8.5/10</div>
-                    <button class="btn btn-primary" onclick="viewResult(1)">Xem chi tiết</button>
-                </div>
-
-                <div class="test-item">
-                    <div class="test-info">
-                        <div class="test-title">Thực hành Lý - Thí nghiệm</div>
-                        <div class="test-meta">Ngày: 15/09/2025</div>
-                    </div>
-                    <div style="font-size: 18px; font-weight: bold; color: #667eea;">9.0/10</div>
-                    <button class="btn btn-primary" onclick="viewResult(2)">Xem chi tiết</button>
+                <div id="myResultsList">
+                    <!-- Dữ liệu sẽ được điền động -->
                 </div>
             </div>
         </div>
 
-        <!-- Ranking Section -->
         <div class="content-section" id="ranking">
             <div class="card">
                 <h3 style="margin-bottom: 20px;">Bảng xếp hạng lớp 10A1</h3>
-                <p style="color: #666; margin-bottom: 20px;">Tổng số học sinh: 40</p>
-
-                <table class="ranking-table">
+                <p style="color: #666; margin-bottom: 20px;" id="rankingTotal">Tổng số học sinh: Đang tải...</p>
+                <table class="ranking-table" id="rankingTable">
                     <thead>
                         <tr>
                             <th>Hạng</th>
@@ -721,90 +608,47 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td><span class="rank-badge rank-1">🥇 1</span></td>
-                            <td>Trần Thị B</td>
-                            <td>HS20231002</td>
-                            <td><strong>9.5</strong></td>
-                        </tr>
-                        <tr>
-                            <td><span class="rank-badge rank-2">🥈 2</span></td>
-                            <td>Lê Văn C</td>
-                            <td>HS20231003</td>
-                            <td><strong>9.2</strong></td>
-                        </tr>
-                        <tr>
-                            <td><span class="rank-badge rank-3">🥉 3</span></td>
-                            <td>Phạm Thị D</td>
-                            <td>HS20231004</td>
-                            <td><strong>9.0</strong></td>
-                        </tr>
-                        <tr>
-                            <td>4</td>
-                            <td>Hoàng Văn E</td>
-                            <td>HS20231005</td>
-                            <td>8.8</td>
-                        </tr>
-                        <tr class="current-user">
-                            <td><strong>5</strong></td>
-                            <td><strong>Nguyễn Văn A (Bạn)</strong></td>
-                            <td><strong>HS20231001</strong></td>
-                            <td><strong>8.6</strong></td>
-                        </tr>
-                        <tr>
-                            <td>6</td>
-                            <td>Đỗ Thị F</td>
-                            <td>HS20231006</td>
-                            <td>8.4</td>
-                        </tr>
-                        <tr>
-                            <td colspan="4" style="text-align: center; color: #666; padding: 10px;">
-                                ... 33 học sinh khác ...
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>40</td>
-                            <td>Vũ Văn Z</td>
-                            <td>HS20231040</td>
-                            <td>5.2</td>
-                        </tr>
+                        <!-- Dữ liệu sẽ được điền động -->
                     </tbody>
                 </table>
-
-                <div style="margin-top: 20px; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
-                    <strong>💪 Động lực:</strong> Bạn đang ở top 15% lớp! Cố gắng thêm để vào top 3 nhé!
-                </div>
             </div>
         </div>
 
-        <!-- Complaints Section -->
         <div class="content-section" id="complaints">
             <div class="card">
                 <h3 style="margin-bottom: 20px;">Khiếu nại điểm</h3>
-
                 <select class="input-field" id="complaintSubject">
                     <option>Chọn bài kiểm tra...</option>
-                    <option>Kiểm tra Toán - Hàm số (8.5/10)</option>
-                    <option>Thực hành Lý - Thí nghiệm (9.0/10)</option>
+                    <!-- Dữ liệu sẽ được điền động -->
                 </select>
-
-                <textarea class="input-field" rows="5" placeholder="Nêu lý do khiếu nại của bạn..." style="resize: vertical;"></textarea>
-
+                <textarea class="input-field" rows="5" placeholder="Nêu lý do khiếu nại của bạn..." id="complaintReason"></textarea>
                 <button class="btn" style="background: linear-gradient(45deg, #fa709a, #fee140); color: white;" onclick="submitComplaint()">Gửi khiếu nại</button>
-
-                <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e1e8ed;">
-                    <h4 style="margin-bottom: 15px;">Khiếu nại gần đây</h4>
-                    <div class="info-item">
-                        <div>
-                            <strong>Kiểm tra Toán - Đạo hàm</strong><br>
-                            <span style="color: #ff9f43;">Đang xử lý</span>
-                        </div>
-                        <div style="color: #666; font-size: 12px;">22/09/2025</div>
-                    </div>
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e1e8ed;" id="recentComplaints">
+                    <!-- Dữ liệu sẽ được điền động -->
                 </div>
             </div>
         </div>
+
     </div>
+
+    <!-- Modal chỉnh sửa thông tin -->
+    <div class="modal" id="editProfileModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>✏️ Cập nhật thông tin cá nhân</h3>
+      <span class="close" onclick="closeModal('editProfileModal')">&times;</span>
+    </div>
+    <div>
+      <!-- Giữ fullName và class -->
+      <input type="text" class="input-field" id="editFullName" placeholder="Họ và tên" value="">
+      <input type="text" class="input-field" id="editClass" placeholder="Lớp" value="">
+      <!-- Thêm phone và dob -->
+      <input type="tel" class="input-field" id="editPhone" placeholder="Số điện thoại (VD: 0123456789)" value="">
+      <input type="date" class="input-field" id="editDob" placeholder="Ngày sinh">
+      <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="saveProfileChanges()">Lưu thay đổi</button>
+    </div>
+  </div>
+</div>  
 
     <!-- Change Password Modal -->
     <div class="modal" id="changePasswordModal">
@@ -830,56 +674,240 @@
                 <span class="close" onclick="closeModal('notificationModal')">&times;</span>
             </div>
             <div id="notificationList">
-                <div class="info-item">
-                    <div>
-                        <strong>Bài kiểm tra mới</strong><br>
-                        <span style="color: #666; font-size: 13px;">Kiểm tra Anh văn - Unit 3</span>
-                    </div>
-                    <div style="color: #999; font-size: 12px;">5 phút trước</div>
-                </div>
-                <div class="info-item">
-                    <div>
-                        <strong>Kết quả đã có</strong><br>
-                        <span style="color: #666; font-size: 13px;">Bài luận Văn đã được chấm</span>
-                    </div>
-                    <div style="color: #999; font-size: 12px;">1 giờ trước</div>
-                </div>
-                <div class="info-item">
-                    <div>
-                        <strong>Khiếu nại được duyệt</strong><br>
-                        <span style="color: #666; font-size: 13px;">Khiếu nại điểm Toán đã xử lý</span>
-                    </div>
-                    <div style="color: #999; font-size: 12px;">2 giờ trước</div>
-                </div>
+                <!-- Dữ liệu sẽ được điền động -->
             </div>
             <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="markAllAsRead()">Đánh dấu đã đọc tất cả</button>
         </div>
     </div>
 
     <script>
+        // Kiểm tra đăng nhập và lấy dữ liệu
+        document.addEventListener('DOMContentLoaded', function () {
+            const token = localStorage.getItem('token');
+            const role = localStorage.getItem('role')?.toLowerCase();
+
+            if (!token || role !== 'student') {
+                alert('Bạn không có quyền truy cập trang này! Vui lòng đăng nhập lại.');
+                window.location.href = './login.html';
+                return;
+            }
+
+            fetchUserData();
+        });
+        function fetchUserData() {
+  const token = localStorage.getItem('token');
+  console.log('Token used:', token); // Kiểm tra token
+  if (!token) {
+    console.error('No token found in localStorage');
+    alert('Không có token. Vui lòng đăng nhập lại!');
+    window.location.href = './login.html';
+    return;
+  }
+
+  fetch('http://127.0.0.1:3000/api/user/profile', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => {
+    console.log('Response status:', response.status); // Log status
+    if (!response.ok) {
+      return response.json().then(errorData => {
+        throw new Error(`Lỗi: ${response.status} - ${errorData.error || response.statusText}`);
+      });
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log('Data received:', data); // Log dữ liệu
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('userName').textContent = data.user.username || 'Đang tải...';
+    document.getElementById('userId').textContent = `MSSV: ${data.user.id || 'Đang tải...'}`;
+    document.getElementById('avgScore').textContent = data.user.avgScore || 'Đang tải...';
+    document.getElementById('rankPosition').textContent = `#${data.user.rank || 'Đang tải...'}`;
+
+    const infoGrid = document.getElementById('userInfo');
+    infoGrid.innerHTML = `
+      <div class="info-item">
+        <span><strong>Lớp:</strong></span>
+        <span>${data.user.class || '<span style="color: #ff4757;">Chưa cập nhật</span>'}</span>
+      </div>
+      <div class="info-item">
+        <span><strong>Email:</strong></span>
+        <span>${data.user.email || 'Chưa cập nhật'}</span>
+      </div>
+      <div class="info-item">
+        <span><strong>Số điện thoại:</strong></span>
+        <span>${data.user.phone || '<span style="color: #ff4757;">Chưa cập nhật</span>'}</span>
+      </div>
+      <div class="info-item">
+        <span><strong>Ngày sinh:</strong></span>
+        <span>${data.user.dob || 'Chưa cập nhật'}</span>
+      </div>
+    `;
+
+    const upcomingTests = document.getElementById('upcomingTests');
+    upcomingTests.innerHTML = `
+      <h3 style="margin-bottom: 15px;">Lịch thi sắp tới</h3>
+      ${data.upcomingTests?.map(test => `
+        <div class="schedule-item">
+          <div>
+            <div style="font-weight: 600;">${test.title}</div>
+            <div style="font-size: 12px; color: #666;">${test.duration} • ${10} câu</div>
+          </div>
+          <div class="schedule-date">${test.date}</div>
+        </div>
+      `).join('') || '<p>Không có lịch thi sắp tới.</p>'}
+    `;
+
+    // Điền dữ liệu vào modal
+    document.getElementById('editFullName').value = data.user.fullName || '';
+    document.getElementById('editClass').value = data.user.class || '';
+    document.getElementById('editPhone').value = data.user.phone || '';
+    document.getElementById('editDob').value = data.user.dob ? data.user.dob.split('T')[0] : '';
+
+    // Các phần khác (myClasses, availableTests, v.v.) giữ nguyên
+    const myClassesList = document.getElementById('myClassesList');
+    myClassesList.innerHTML = data.myClasses?.map(cls => `
+      <div class="info-item">
+        <span><strong>${cls.name}</strong></span>
+        <span style="color: #2ed573;">Đang học</span>
+      </div>
+    `).join('') || '<p>Chưa tham gia lớp nào.</p>';
+
+    const availableTestsList = document.getElementById('availableTestsList');
+    availableTestsList.innerHTML = data.availableTests?.map(test => `
+      <div class="test-item">
+        <div class="test-info">
+          <div class="test-title">${test.title}</div>
+          <div class="test-meta">Lớp: ${test.class} • ${test.duration} • ${test.questions} câu</div>
+        </div>
+        <div>
+          <div class="countdown">${test.timeLeft || '00:00'}</div>
+          <button class="btn btn-success" onclick="startTest(${test.id})">Làm bài</button>
+        </div>
+      </div>
+    `).join('') || '<p>Không có bài kiểm tra khả dụng.</p>';
+
+    const myResultsList = document.getElementById('myResultsList');
+    myResultsList.innerHTML = data.myResults?.map(result => `
+      <div class="test-item">
+        <div class="test-info">
+          <div class="test-title">${result.title}</div>
+          <div class="test-meta">Ngày: ${result.date} • ${result.type}</div>
+        </div>
+        <div style="font-size: 18px; font-weight: bold; color: #667eea;">${result.score}/${result.total}</div>
+        <button class="btn btn-primary" onclick="viewResult(${result.id})">Xem chi tiết</button>
+      </div>
+    `).join('') || '<p>Chưa có kết quả.</p>';
+
+    const rankingTable = document.getElementById('rankingTable').querySelector('tbody');
+    const rankingTotal = document.getElementById('rankingTotal');
+    rankingTotal.textContent = `Tổng số học sinh: ${data.ranking?.total || 0}`;
+    rankingTable.innerHTML = data.ranking?.students?.map((student, index) => `
+      <tr ${student.id === data.user.id ? 'class="current-user"' : ''}>
+        <td><span class="rank-badge ${index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : ''}">${index + 1}${index < 3 ? ['🥇', '🥈', '🥉'][index] : ''}</span></td>
+        <td>${student.fullName || 'Chưa cập nhật'}</td>
+        <td>${student.id}</td>
+        <td><strong>${student.avgScore || '0.0'}</strong></td>
+      </tr>
+    `).join('') || '<tr><td colspan="4">Không có dữ liệu xếp hạng.</td></tr>';
+
+    const recentComplaints = document.getElementById('recentComplaints');
+    recentComplaints.innerHTML = data.recentComplaints?.map(complaint => `
+      <div class="info-item">
+        <div>
+          <strong>${complaint.title}</strong><br>
+          <span style="color: ${complaint.status === 'Đang xử lý' ? '#ff9f43' : complaint.status === 'Đã duyệt' ? '#2ed573' : '#ff4757'};">${complaint.status}</span>
+        </div>
+        <div style="color: #666; font-size: 12px;">${complaint.date}</div>
+      </div>
+    `).join('') || '<p>Chưa có khiếu nại nào.</p>';
+
+    const complaintSubject = document.getElementById('complaintSubject');
+    complaintSubject.innerHTML = '<option>Chọn bài kiểm tra...</option>' + data.myResults?.map(result => `
+      <option value="${result.id}">${result.title} (${result.score}/${result.total})</option>
+    `).join('');
+
+    const notificationList = document.getElementById('notificationList');
+    notificationList.innerHTML = data.notifications?.map(notif => `
+      <div class="info-item">
+        <div>
+          <strong>${notif.title}</strong><br>
+          <span style="color: #666; font-size: 13px;">${notif.message}</span>
+        </div>
+        <div style="color: #999; font-size: 12px;">${notif.time}</div>
+      </div>
+    `).join('') || '<p>Không có thông báo mới.</p>';
+  })
+  .catch(error => {
+    console.error('Lỗi:', error.message); // Log lỗi chi tiết
+    alert('Không thể tải dữ liệu. Vui lòng thử lại sau!');
+  });
+}
+
+        function saveProfileChanges() {
+        const token = localStorage.getItem('token');
+        const phone = document.getElementById('editPhone').value.trim();
+        const dob = document.getElementById('editDob').value.trim(); // Thêm trường dob
+
+  // Kiểm tra ít nhất một trường được điền
+  if (!phone && !dob) {
+    showToast('❌ Vui lòng điền ít nhất một trường (số điện thoại hoặc ngày sinh)!', 'error');
+    return;
+  }
+
+  // Validate phone nếu có
+  const phoneRegex = /^0[1-9][0-9]{8,9}$/;
+  if (phone && !phoneRegex.test(phone)) {
+    showToast('❌ Số điện thoại không hợp lệ! (VD: 0123456789)', 'error');
+    return;
+  }
+
+  // Gửi request đến endpoint đúng
+  fetch('http://localhost:3000/api/user/profile/update', { // Sử dụng endpoint update
+    method: 'POST', // Sử dụng POST thay vì PUT
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ phone, dob })
+  })
+  .then(response => {
+    if (!response.ok) throw new Error('Lỗi cập nhật thông tin');
+    return response.json();
+  })
+  .then(data => {
+    if (data.error) throw new Error(data.message || 'Cập nhật thất bại');
+    showToast('✅ Thông tin đã được cập nhật thành công!', 'success');
+    closeModal('editProfileModal');
+    fetchUserData(); // Cập nhật lại giao diện
+  })
+  .catch(error => {
+    console.error('Lỗi:', error);
+    showToast('❌ Lỗi khi cập nhật thông tin. Vui lòng thử lại!', 'error');
+  });
+}
         // Menu & Navigation
         function toggleSubmenu(menuId) {
             const submenu = document.getElementById(menuId + '-submenu');
             const arrow = document.getElementById(menuId + '-arrow');
-
             submenu.classList.toggle('open');
             arrow.classList.toggle('rotate');
         }
 
         function showSection(sectionId) {
-            // Hide all sections
             const sections = document.querySelectorAll('.content-section');
             sections.forEach(section => section.classList.remove('active'));
-
-            // Show selected section
             document.getElementById(sectionId).classList.add('active');
 
-            // Update active menu item
             const menuItems = document.querySelectorAll('.menu-item');
             menuItems.forEach(item => item.classList.remove('active'));
             event.target.closest('.menu-item')?.classList.add('active');
 
-            // Update page title
             const titles = {
                 'dashboard': 'Trang chủ',
                 'join-class': 'Tham gia lớp học',
@@ -893,7 +921,6 @@
             };
             document.getElementById('pageTitle').textContent = titles[sectionId] || 'EduSystem';
 
-            // Close sidebar on mobile
             if (window.innerWidth <= 768) {
                 toggleSidebar();
             }
@@ -901,6 +928,7 @@
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
         }
 
         // Modal functions
@@ -918,7 +946,7 @@
                 const reader = new FileReader();
                 reader.onload = function (e) {
                     showToast('✅ Đã cập nhật ảnh đại diện!', 'success');
-                    // In real app, would update avatar image
+                    // In real app, send to server via API
                 };
                 reader.readAsDataURL(input.files[0]);
             }
@@ -962,12 +990,14 @@
 
             showToast('🎉 Tham gia lớp thành công!', 'success');
             document.getElementById('classCode').value = '';
+            fetchUserData(); // Cập nhật lại lớp của tôi
         }
 
         function joinByLink() {
             const link = prompt('Nhập link mời:');
             if (link) {
                 showToast('🎉 Tham gia lớp thành công!', 'success');
+                fetchUserData(); // Cập nhật lại lớp của tôi
             }
         }
 
@@ -988,7 +1018,7 @@
         // Submit complaint
         function submitComplaint() {
             const subject = document.getElementById('complaintSubject').value;
-            const reason = document.querySelector('#complaints textarea').value.trim();
+            const reason = document.getElementById('complaintReason').value.trim();
 
             if (subject === 'Chọn bài kiểm tra...') {
                 showToast('❌ Vui lòng chọn bài kiểm tra!', 'error');
@@ -1001,7 +1031,7 @@
             }
 
             showToast('📨 Đã gửi khiếu nại! Giáo viên sẽ xem xét trong 48h.', 'success');
-            document.querySelector('#complaints textarea').value = '';
+            document.getElementById('complaintReason').value = '';
         }
 
         // Notifications
@@ -1019,8 +1049,10 @@
         function logout() {
             if (confirm('🔒 Bạn có chắc muốn đăng xuất?')) {
                 showToast('👋 Đăng xuất thành công!', 'success');
+                localStorage.removeItem('token');
+                localStorage.removeItem('role');
                 setTimeout(() => {
-                    window.location.href = '/login';
+                    window.location.href = './login.html';
                 }, 1500);
             }
         }
@@ -1071,34 +1103,6 @@
                 event.target.style.display = 'none';
             }
         }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function () {
-            console.log('🎓 EduSystem initialized successfully!');
-
-            // Simulate real-time ranking updates
-            setInterval(() => {
-                // Could fetch updated rankings here
-            }, 60000); // Every minute
-
-            // Add keyboard shortcuts
-            document.addEventListener('keydown', function (e) {
-                // Alt + H = Home
-                if (e.altKey && e.key === 'h') {
-                    showSection('dashboard');
-                }
-                // Alt + T = Tests
-                if (e.altKey && e.key === 't') {
-                    showSection('available-tests');
-                }
-                // Alt + R = Results
-                if (e.altKey && e.key === 'r') {
-                    showSection('my-results');
-                }
-            });
-        });
-
-        console.log('✅ All JavaScript functions loaded successfully!');
     </script>
 </body>
 </html>

@@ -71,6 +71,7 @@
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
+            justify-content: space-between;
             color: #4a5568;
             font-weight: 500;
         }
@@ -86,9 +87,64 @@
             color: white;
         }
 
-        .menu-item i {
+        .menu-item-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .menu-item-content i {
             margin-right: 10px;
             font-size: 1.2rem;
+        }
+
+        .menu-item-arrow {
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+        }
+
+        .menu-item.expanded .menu-item-arrow {
+            transform: rotate(90deg);
+        }
+
+        .submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            margin-left: 15px;
+        }
+
+        .submenu.open {
+            max-height: 500px;
+        }
+
+        .submenu-item {
+            padding: 10px 20px;
+            margin: 3px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #718096;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .submenu-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            transform: translateX(5px);
+        }
+
+        .submenu-item.active {
+            background: rgba(102, 126, 234, 0.15);
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .submenu-item i {
+            margin-right: 8px;
+            font-size: 1rem;
         }
 
         /* Main Content */
@@ -467,40 +523,178 @@
             </div>
             <div class="sidebar-menu">
                 <div class="menu-item active" data-section="dashboard">
-                    <i>📊</i> Dashboard
+                    <div class="menu-item-content">
+                        <i>📊</i> Dashboard
+                    </div>
                 </div>
-                <div class="menu-item" data-action="create-class">
-                    <i>🏫</i> Quản lý lớp học
+                
+                <!-- Quản lý lớp học với submenu -->
+                <div class="menu-item" data-has-submenu="true">
+                    <div class="menu-item-content">
+                        <i>🏫</i> Quản lý lớp học
+                    </div>
+                    <span class="menu-item-arrow">▶</span>
                 </div>
-                <div class="menu-item" data-action="grade-exam">
-                    <i>✍️</i> Chấm bài thi
+                <div class="submenu">
+                    <div class="submenu-item" data-action="create-class">
+                        <i>➕</i> Tạo lớp mới
+                    </div>
+                    <div class="submenu-item" data-action="view-classes">
+                        <i>📋</i> Danh sách lớp
+                    </div>
+                    <div class="submenu-item" data-action="manage-students">
+                        <i>👥</i> Quản lý học sinh
+                    </div>
+                    <div class="submenu-item" data-action="class-schedule">
+                        <i>📅</i> Thời khóa biểu
+                    </div>
                 </div>
-                <div class="menu-item" data-action="create-exam">
-                    <i>📝</i> Tạo bài thi
+                
+                <!-- Chấm bài thi với submenu -->
+                <div class="menu-item" data-has-submenu="true">
+                    <div class="menu-item-content">
+                        <i>✍️</i> Chấm bài thi
+                    </div>
+                    <span class="menu-item-arrow">▶</span>
                 </div>
-                <div class="menu-item" data-action="question-bank">
-                    <i>❓</i> Ngân hàng câu hỏi
+                <div class="submenu">
+                    <div class="submenu-item" data-action="grade-essay">
+                        <i>📝</i> Chấm tự luận
+                    </div>
+                    <div class="submenu-item" data-action="grade-multiple-choice">
+                        <i>☑️</i> Xem kết quả trắc nghiệm
+                    </div>
+                    <div class="submenu-item" data-action="pending-exams">
+                        <i>⏳</i> Bài chờ chấm
+                    </div>
+                    <div class="submenu-item" data-action="graded-exams">
+                        <i>✅</i> Bài đã chấm
+                    </div>
                 </div>
+                
+                <!-- Tạo bài thi với submenu -->
+                <div class="menu-item" data-has-submenu="true">
+                    <div class="menu-item-content">
+                        <i>📝</i> Tạo bài thi
+                    </div>
+                    <span class="menu-item-arrow">▶</span>
+                </div>
+                <div class="submenu">
+                    <div class="submenu-item" data-action="create-exam-ai">
+                        <i>🤖</i> Tạo với AI
+                    </div>
+                    <div class="submenu-item" data-action="create-exam-manual">
+                        <i>✏️</i> Tạo thủ công
+                    </div>
+                    <div class="submenu-item" data-action="exam-templates">
+                        <i>📄</i> Mẫu bài thi
+                    </div>
+                    <div class="submenu-item" data-action="draft-exams">
+                        <i>💾</i> Bài thi nháp
+                    </div>
+                </div>
+                
+                <!-- Ngân hàng câu hỏi với submenu -->
+                <div class="menu-item" data-has-submenu="true">
+                    <div class="menu-item-content">
+                        <i>❓</i> Ngân hàng câu hỏi
+                    </div>
+                    <span class="menu-item-arrow">▶</span>
+                </div>
+                <div class="submenu">
+                    <div class="submenu-item" data-action="add-question">
+                        <i>➕</i> Thêm câu hỏi
+                    </div>
+                    <div class="submenu-item" data-action="import-questions">
+                        <i>📥</i> Import từ Excel
+                    </div>
+                    <div class="submenu-item" data-action="browse-questions">
+                        <i>🔍</i> Duyệt câu hỏi
+                    </div>
+                    <div class="submenu-item" data-action="question-categories">
+                        <i>🏷️</i> Danh mục câu hỏi
+                    </div>
+                </div>
+                
                 <div class="menu-item" data-section="complaints">
-                    <i>⚠️</i> Xem khiếu nại
+                    <div class="menu-item-content">
+                        <i>⚠️</i> Xem khiếu nại
+                    </div>
                 </div>
-                <div class="menu-item" data-action="send-notification">
-                    <i>📢</i> Gửi thông báo
+                
+                <!-- Thông báo với submenu -->
+                <div class="menu-item" data-has-submenu="true">
+                    <div class="menu-item-content">
+                        <i>📢</i> Thông báo
+                    </div>
+                    <span class="menu-item-arrow">▶</span>
                 </div>
+                <div class="submenu">
+                    <div class="submenu-item" data-action="send-notification">
+                        <i>📤</i> Gửi thông báo
+                    </div>
+                    <div class="submenu-item" data-action="notification-history">
+                        <i>📜</i> Lịch sử thông báo
+                    </div>
+                    <div class="submenu-item" data-action="notification-templates">
+                        <i>📋</i> Mẫu thông báo
+                    </div>
+                </div>
+                
                 <div class="menu-item" data-action="export-grades">
-                    <i>📄</i> In/Xuất phiếu điểm
+                    <div class="menu-item-content">
+                        <i>📄</i> In/Xuất phiếu điểm
+                    </div>
                 </div>
-                <div class="menu-item" data-action="schedule-exam">
-                    <i>📅</i> Quản lý lịch thi
+                
+                <!-- Lịch thi với submenu -->
+                <div class="menu-item" data-has-submenu="true">
+                    <div class="menu-item-content">
+                        <i>📅</i> Quản lý lịch thi
+                    </div>
+                    <span class="menu-item-arrow">▶</span>
                 </div>
+                <div class="submenu">
+                    <div class="submenu-item" data-action="schedule-exam">
+                        <i>➕</i> Tạo lịch thi
+                    </div>
+                    <div class="submenu-item" data-action="view-schedule">
+                        <i>📆</i> Xem lịch thi
+                    </div>
+                    <div class="submenu-item" data-action="upcoming-exams">
+                        <i>⏰</i> Lịch thi sắp tới
+                    </div>
+                </div>
+                
                 <div class="menu-item" data-section="statistics">
-                    <i>📈</i> Thống kê
+                    <div class="menu-item-content">
+                        <i>📈</i> Thống kê
+                    </div>
                 </div>
+                
                 <div class="menu-item" data-action="send-feedback">
-                    <i>💬</i> Gửi phản hồi
+                    <div class="menu-item-content">
+                        <i>💬</i> Gửi phản hồi
+                    </div>
                 </div>
-                <div class="menu-item" data-action="manage-documents">
-                    <i>📁</i> Quản lý tài liệu
+                
+                <!-- Tài liệu với submenu -->
+                <div class="menu-item" data-has-submenu="true">
+                    <div class="menu-item-content">
+                        <i>📁</i> Quản lý tài liệu
+                    </div>
+                    <span class="menu-item-arrow">▶</span>
+                </div>
+                <div class="submenu">
+                    <div class="submenu-item" data-action="upload-document">
+                        <i>📤</i> Upload tài liệu
+                    </div>
+                    <div class="submenu-item" data-action="my-documents">
+                        <i>📚</i> Tài liệu của tôi
+                    </div>
+                    <div class="submenu-item" data-action="shared-documents">
+                        <i>🤝</i> Tài liệu chia sẻ
+                    </div>
                 </div>
             </div>
         </div>
@@ -597,10 +791,8 @@
 
         // Initialize Socket.IO
         function initializeSocket() {
-            // Simulate Socket.IO connection
             socket = {
                 on: function(event, callback) {
-                    // Simulate receiving notifications
                     if (event === 'notification') {
                         setTimeout(() => {
                             callback({
@@ -622,8 +814,8 @@
             initializeSocket();
             initializeChart();
             bindEvents();
+            initializeSubmenuToggle();
             
-            // Listen for real-time notifications
             if (socket) {
                 socket.on('notification', function(data) {
                     showNotification(data.message);
@@ -632,30 +824,81 @@
             }
         });
 
+        // Initialize submenu toggle functionality
+        function initializeSubmenuToggle() {
+            const menuItems = document.querySelectorAll('.menu-item[data-has-submenu="true"]');
+            
+            menuItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    
+                    const submenu = this.nextElementSibling;
+                    const isOpen = submenu.classList.contains('open');
+                    
+                    // Close all other submenus
+                    document.querySelectorAll('.submenu.open').forEach(sm => {
+                        if (sm !== submenu) {
+                            sm.classList.remove('open');
+                            sm.previousElementSibling.classList.remove('expanded');
+                        }
+                    });
+                    
+                    // Toggle current submenu
+                    if (isOpen) {
+                        submenu.classList.remove('open');
+                        this.classList.remove('expanded');
+                    } else {
+                        submenu.classList.add('open');
+                        this.classList.add('expanded');
+                    }
+                });
+            });
+            
+            // Handle submenu item clicks
+            const submenuItems = document.querySelectorAll('.submenu-item');
+            submenuItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    
+                    // Remove active class from all submenu items
+                    submenuItems.forEach(si => si.classList.remove('active'));
+                    
+                    // Add active class to clicked item
+                    this.classList.add('active');
+                    
+                    // Handle action
+                    const action = this.dataset.action;
+                    if (action) {
+                        handleAction(action);
+                    }
+                    
+                    // Close sidebar on mobile
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.remove('open');
+                    }
+                });
+            });
+        }
+
         // Bind all event listeners
         function bindEvents() {
-            // Menu toggle
             document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
             
-            // Sidebar menu items
-            document.querySelectorAll('.menu-item').forEach(item => {
+            // Regular menu items (without submenu)
+            document.querySelectorAll('.menu-item:not([data-has-submenu])').forEach(item => {
                 item.addEventListener('click', handleMenuClick);
             });
             
-            // Chart controls
             document.getElementById('classSelect').addEventListener('change', updateChart);
             document.getElementById('chartType').addEventListener('change', updateChart);
             
-            // Modal close
             document.getElementById('closeModal').addEventListener('click', closeModal);
             document.getElementById('modalOverlay').addEventListener('click', function(e) {
                 if (e.target === this) closeModal();
             });
             
-            // Notification bell
             document.getElementById('notificationBell').addEventListener('click', showNotifications);
             
-            // Close sidebar when clicking outside on mobile
             document.addEventListener('click', function(e) {
                 if (window.innerWidth <= 768) {
                     const sidebar = document.getElementById('sidebar');
@@ -668,7 +911,6 @@
             });
         }
 
-        // Toggle sidebar
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
@@ -681,13 +923,11 @@
             }
         }
 
-        // Handle menu item clicks
         function handleMenuClick(e) {
             const item = e.currentTarget;
             const action = item.dataset.action;
             const section = item.dataset.section;
             
-            // Update active state
             document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
             
@@ -697,26 +937,24 @@
                 handleSection(section);
             }
             
-            // Close sidebar on mobile after selection
             if (window.innerWidth <= 768) {
                 document.getElementById('sidebar').classList.remove('open');
             }
         }
 
-        // Handle actions that open modals
         function handleAction(action) {
             const modalContent = getModalContent(action);
             if (modalContent) {
                 showModal(modalContent.title, modalContent.content);
+            } else {
+                showNotification(`Đã thực hiện: ${action}`);
             }
         }
 
-        // Handle section navigation
         function handleSection(section) {
             showNotification(`Đã chuyển đến phần ${section}`);
         }
 
-        // Get modal content based on action
         function getModalContent(action) {
             const contents = {
                 'create-class': {
@@ -749,32 +987,112 @@
                         </form>
                     `
                 },
-                'grade-exam': {
-    title: 'Chấm bài thi',
-    content: `
-        <form onsubmit="handleFormSubmit(event, 'grade-exam')">
-            <div class="form-group">
-                <label>Loại bài thi</label>
-                <select name="examType" id="examType" onchange="updateExamForm()" required>
-                    <option value="">Chọn loại bài thi</option>
-                    <option value="essay">Tự luận</option>
-                    <option value="multiple-choice">Trắc nghiệm</option>
-                </select>
-            </div>
-            <div id="examFormContent">
-                <!-- Nội dung động sẽ được cập nhật dựa trên loại bài thi -->
-            </div>
-            <div style="margin-top: 20px;">
-                <button type="submit" class="btn btn-primary">Xác nhận</button>
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Hủy</button>
-            </div>
-        </form>
-    `
-},
-                'create-exam': {
-                    title: 'Tạo bài thi mới',
+                'view-classes': {
+                    title: 'Danh sách lớp học',
                     content: `
-                        <form onsubmit="handleFormSubmit(event, 'create-exam')">
+                        <div style="margin-bottom: 15px;">
+                            <input type="text" placeholder="Tìm kiếm lớp..." style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                        </div>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            <div style="padding: 15px; background: #f7fafc; border-radius: 8px; margin-bottom: 10px;">
+                                <h4>Lớp 10A1 - Toán học</h4>
+                                <p style="color: #718096; margin: 5px 0;">Số học sinh: 35</p>
+                                <button class="btn btn-primary" style="margin-top: 10px;">Xem chi tiết</button>
+                            </div>
+                            <div style="padding: 15px; background: #f7fafc; border-radius: 8px; margin-bottom: 10px;">
+                                <h4>Lớp 10A2 - Toán học</h4>
+                                <p style="color: #718096; margin: 5px 0;">Số học sinh: 32</p>
+                                <button class="btn btn-primary" style="margin-top: 10px;">Xem chi tiết</button>
+                            </div>
+                        </div>
+                    `
+                },
+                'manage-students': {
+                    title: 'Quản lý học sinh',
+                    content: `
+                        <form onsubmit="handleFormSubmit(event, 'manage-students')">
+                            <div class="form-group">
+                                <label>Chọn lớp</label>
+                                <select name="class" required>
+                                    <option value="">Chọn lớp</option>
+                                    <option value="10a1">10A1</option>
+                                    <option value="10a2">10A2</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Thao tác</label>
+                                <select name="operation" required>
+                                    <option value="">Chọn thao tác</option>
+                                    <option value="add">Thêm học sinh</option>
+                                    <option value="remove">Xóa học sinh</option>
+                                    <option value="edit">Chỉnh sửa thông tin</option>
+                                </select>
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <button type="submit" class="btn btn-primary">Tiếp tục</button>
+                                <button type="button" class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+                            </div>
+                        </form>
+                    `
+                },
+                'grade-essay': {
+                    title: 'Chấm bài thi tự luận',
+                    content: `
+                        <form onsubmit="handleFormSubmit(event, 'grade-essay')">
+                            <div class="form-group">
+                                <label>Bài thi</label>
+                                <select name="exam" required>
+                                    <option value="">Chọn bài thi</option>
+                                    <option value="essay1">Kiểm tra tự luận Toán 10A1</option>
+                                    <option value="essay2">Kiểm tra tự luận Văn 11A1</option>
+                                </select>
+                            </div>
+                            <div style="padding: 15px; background: #f7fafc; border-radius: 8px; margin-top: 15px;">
+                                <p><strong>Số bài chờ chấm:</strong> 25 bài</p>
+                                <p><strong>Số bài đã chấm:</strong> 10 bài</p>
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <button type="submit" class="btn btn-primary">Bắt đầu chấm</button>
+                                <button type="button" class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+                            </div>
+                        </form>
+                    `
+                },
+                'create-exam-ai': {
+                    title: 'Tạo bài thi với AI',
+                    content: `
+                        <form onsubmit="handleFormSubmit(event, 'create-exam-ai')">
+                            <div class="form-group">
+                                <label>Tên bài thi</label>
+                                <input type="text" name="examName" required placeholder="VD: Kiểm tra 15 phút - Chương 1">
+                            </div>
+                            <div class="form-group">
+                                <label>Chủ đề/Nội dung</label>
+                                <textarea name="topic" required placeholder="Nhập chủ đề hoặc nội dung cần ra đề..." rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Số câu hỏi</label>
+                                <input type="number" name="questionCount" required min="5" max="50" value="10">
+                            </div>
+                            <div class="form-group">
+                                <label>Độ khó</label>
+                                <select name="difficulty" required>
+                                    <option value="easy">Dễ</option>
+                                    <option value="medium">Trung bình</option>
+                                    <option value="hard">Khó</option>
+                                </select>
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <button type="submit" class="btn btn-primary">Tạo với AI</button>
+                                <button type="button" class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+                            </div>
+                        </form>
+                    `
+                },
+                'create-exam-manual': {
+                    title: 'Tạo bài thi thủ công',
+                    content: `
+                        <form onsubmit="handleFormSubmit(event, 'create-exam-manual')">
                             <div class="form-group">
                                 <label>Tên bài thi</label>
                                 <input type="text" name="examName" required placeholder="VD: Kiểm tra 15 phút - Chương 1">
@@ -785,19 +1103,11 @@
                                     <option value="">Chọn lớp</option>
                                     <option value="10a1">10A1</option>
                                     <option value="10a2">10A2</option>
-                                    <option value="11a1">11A1</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label>Thời gian làm bài (phút)</label>
                                 <input type="number" name="duration" required min="1" value="45">
-                            </div>
-                            <div class="form-group">
-                                <label>Phương thức tạo</label>
-                                <select name="method" required>
-                                    <option value="ai">Tạo với AI</option>
-                                    <option value="manual">Tạo thủ công</option>
-                                </select>
                             </div>
                             <div style="margin-top: 20px;">
                                 <button type="submit" class="btn btn-primary">Tạo bài thi</button>
@@ -806,17 +1116,9 @@
                         </form>
                     `
                 },
-                'question-bank': {
-                    title: 'Quản lý ngân hàng câu hỏi',
+                'import-questions': {
+                    title: 'Import câu hỏi từ Excel',
                     content: `
-                        <div style="margin-bottom: 20px;">
-                            <button class="btn btn-primary" style="margin-right: 10px;" onclick="importQuestions()">
-                                📥 Import từ Excel
-                            </button>
-                            <button class="btn btn-secondary" onclick="manageQuestions()">
-                                ✏️ Quản lý câu hỏi
-                            </button>
-                        </div>
                         <div class="form-group">
                             <label>Upload file Excel</label>
                             <input type="file" accept=".xlsx,.xls" onchange="handleFileUpload(this)">
@@ -824,7 +1126,19 @@
                                 Chỉ hỗ trợ file Excel (.xlsx, .xls)
                             </small>
                         </div>
+                        <div style="padding: 15px; background: #f7fafc; border-radius: 8px; margin-top: 15px;">
+                            <p><strong>Hướng dẫn:</strong></p>
+                            <ul style="margin-left: 20px; color: #718096;">
+                                <li>Cột A: Nội dung câu hỏi</li>
+                                <li>Cột B: Đáp án A</li>
+                                <li>Cột C: Đáp án B</li>
+                                <li>Cột D: Đáp án C</li>
+                                <li>Cột E: Đáp án D</li>
+                                <li>Cột F: Đáp án đúng</li>
+                            </ul>
+                        </div>
                         <div style="margin-top: 20px;">
+                            <button class="btn btn-primary" onclick="importQuestions()">Import</button>
                             <button type="button" class="btn btn-secondary" onclick="closeModal()">Đóng</button>
                         </div>
                     `
@@ -875,7 +1189,6 @@
                                     <option value="">Chọn bài thi</option>
                                     <option value="exam1">Kiểm tra 15 phút - Toán 10</option>
                                     <option value="exam2">Kiểm tra cuối kỳ - Văn 11</option>
-                                    <option value="exam3">Bài thi thử - Anh 12</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -889,10 +1202,6 @@
                             <div class="form-group">
                                 <label>Phòng thi</label>
                                 <input type="text" name="examRoom" required placeholder="VD: Phòng 301">
-                            </div>
-                            <div class="form-group">
-                                <label>Ghi chú</label>
-                                <textarea name="notes" placeholder="Ghi chú thêm về lịch thi..."></textarea>
                             </div>
                             <div style="margin-top: 20px;">
                                 <button type="submit" class="btn btn-primary">Tạo lịch thi</button>
@@ -912,7 +1221,6 @@
                                     <option value="bug">Báo lỗi</option>
                                     <option value="feature">Đề xuất tính năng</option>
                                     <option value="improvement">Cải thiện</option>
-                                    <option value="other">Khác</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -921,55 +1229,13 @@
                             </div>
                             <div class="form-group">
                                 <label>Mô tả chi tiết</label>
-                                <textarea name="description" required placeholder="Mô tả chi tiết vấn đề hoặc đề xuất..." rows="5"></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>Mức độ ưu tiên</label>
-                                <select name="priority">
-                                    <option value="low">Thấp</option>
-                                    <option value="medium">Trung bình</option>
-                                    <option value="high">Cao</option>
-                                </select>
+                                <textarea name="description" required placeholder="Mô tả chi tiết..." rows="5"></textarea>
                             </div>
                             <div style="margin-top: 20px;">
                                 <button type="submit" class="btn btn-primary">Gửi phản hồi</button>
                                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Hủy</button>
                             </div>
                         </form>
-                    `
-                },
-                'manage-documents': {
-                    title: 'Quản lý tài liệu',
-                    content: `
-                        <div style="margin-bottom: 20px;">
-                            <button class="btn btn-primary" onclick="uploadDocument()">
-                                📤 Upload tài liệu
-                            </button>
-                        </div>
-                        <div class="form-group">
-                            <label>Chọn file tài liệu</label>
-                            <input type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" onchange="handleDocumentUpload(this)">
-                            <small style="color: #718096; display: block; margin-top: 5px;">
-                                Hỗ trợ: PDF, DOC, DOCX, PPT, PPTX, TXT
-                            </small>
-                        </div>
-                        <div class="form-group">
-                            <label>Mô tả tài liệu</label>
-                            <textarea placeholder="Mô tả ngắn gọn về tài liệu..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Phân loại</label>
-                            <select>
-                                <option value="lesson">Bài giảng</option>
-                                <option value="exercise">Bài tập</option>
-                                <option value="exam">Đề thi</option>
-                                <option value="reference">Tài liệu tham khảo</option>
-                            </select>
-                        </div>
-                        <div style="margin-top: 20px;">
-                            <button class="btn btn-primary">Lưu tài liệu</button>
-                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Đóng</button>
-                        </div>
                     `
                 },
                 'export-grades': {
@@ -982,17 +1248,6 @@
                                     <option value="">Chọn lớp</option>
                                     <option value="10a1">10A1</option>
                                     <option value="10a2">10A2</option>
-                                    <option value="11a1">11A1</option>
-                                    <option value="12a1">12A1</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Kỳ thi</label>
-                                <select name="examPeriod" required>
-                                    <option value="">Chọn kỳ thi</option>
-                                    <option value="midterm">Giữa kỳ</option>
-                                    <option value="final">Cuối kỳ</option>
-                                    <option value="monthly">Kiểm tra tháng</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1001,12 +1256,6 @@
                                     <option value="pdf">PDF</option>
                                     <option value="excel">Excel</option>
                                 </select>
-                            </div>
-                            <div class="form-group">
-                                <label>
-                                    <input type="checkbox" name="includeStatistics"> 
-                                    Bao gồm thống kê
-                                </label>
                             </div>
                             <div style="margin-top: 20px;">
                                 <button type="submit" class="btn btn-primary">Xuất phiếu điểm</button>
@@ -1020,155 +1269,18 @@
             return contents[action];
         }
 
-        // Show modal
         function showModal(title, content) {
             document.getElementById('modalTitle').textContent = title;
             document.getElementById('modalContent').innerHTML = content;
             document.getElementById('modalOverlay').style.display = 'block';
             document.body.style.overflow = 'hidden';
         }
-        // hàm tạo giả lập nha 
-        function updateExamForm() {
-    const examType = document.getElementById('examType').value;
-    const examFormContent = document.getElementById('examFormContent');
-    
-    if (examType === 'essay') {
-        // Nội dung cho bài thi tự luận
-        examFormContent.innerHTML = `
-            <div class="form-group">
-                <label>Bài thi</label>
-                <select name="exam" id="examSelect" onchange="updateExamDetails()" required>
-                    <option value="">Chọn bài thi</option>
-                    <option value="essay1">Kiểm tra tự luận Toán 10A1</option>
-                    <option value="essay2">Kiểm tra tự luận Văn 11A1</option>
-                    <option value="essay3">Kiểm tra tự luận Anh 12A1</option>
-                </select>
-            </div>
-            <div id="examDetails" style="margin-top: 15px;">
-                <!-- Chi tiết bài thi sẽ được cập nhật tại đây -->
-            </div>
-        `;
-    } else if (examType === 'multiple-choice') {
-        // Nội dung cho bài thi trắc nghiệm
-        examFormContent.innerHTML = `
-            <div style="padding: 15px; background: #f7fafc; border-radius: 8px;">
-                <p style="color: #4a5568; margin-bottom: 10px;">
-                    Bài thi trắc nghiệm đã được chấm tự động ngay sau khi học sinh nộp bài.
-                </p>
-                <p style="color: #4a5568;">
-                    Kết quả đã được lưu và có thể xem trong mục "Thống kê".
-                </p>
-                <button type="button" class="btn btn-primary" style="margin-top: 10px;" onclick="viewResults()">
-                    Xem kết quả
-                </button>
-            </div>
-        `;
-    } else {
-        examFormContent.innerHTML = '';
-    }
-}
-        // 
-        function updateExamDetails() {
-    const examSelect = document.getElementById('examSelect');
-    const examDetails = document.getElementById('examDetails');
-    
-    if (!examSelect) return;
 
-    const selectedExam = examSelect.value;
-    
-    // Dữ liệu giả lập về bài thi tự luận
-    const examData = {
-        essay1: {
-            class: '10A1',
-            subject: 'Toán',
-            status: 'Chưa chấm',
-            submissions: 25,
-            graded: 0
-        },
-        essay2: {
-            class: '11A1',
-            subject: 'Văn',
-            status: 'Đang chấm',
-            submissions: 30,
-            graded: 15
-        },
-        essay3: {
-            class: '12A1',
-            subject: 'Anh',
-            status: 'Đã chấm xong',
-            submissions: 28,
-            graded: 28
-        }
-    };
-
-    const data = examData[selectedExam] || {};
-    
-    if (selectedExam) {
-        examDetails.innerHTML = `
-            <div style="padding: 15px; background: #f7fafc; border-radius: 8px;">
-                <p><strong>Lớp:</strong> ${data.class || 'Không xác định'}</p>
-                <p><strong>Môn học:</strong> ${data.subject || 'Không xác định'}</p>
-                <p><strong>Trạng thái chấm bài:</strong> ${data.status || 'Không xác định'}</p>
-                <p><strong>Số bài nộp:</strong> ${data.submissions || 0}</p>
-                <p><strong>Số bài đã chấm:</strong> ${data.graded || 0}</p>
-                <button type="button" class="btn btn-primary" style="margin-top: 10px;" 
-                    ${data.status === 'Đã chấm xong' ? 'disabled' : ''} 
-                    onclick="startGrading('${selectedExam}')">
-                    Bắt đầu chấm
-                </button>
-            </div>
-        `;
-    } else {
-        examDetails.innerHTML = '';
-    }
-}
-//
-function startGrading(examId) {
-    showNotification(`Bắt đầu chấm bài thi ${examId}`);
-    // Logic để chuyển đến giao diện chấm bài (có thể mở modal mới hoặc chuyển trang)
-    // Ví dụ: window.location.href = `/grade-exam/${examId}`;
-}
-
-function viewResults() {
-    showNotification('Chuyển đến trang kết quả trắc nghiệm');
-    // Logic để xem kết quả trắc nghiệm (có thể mở modal hoặc chuyển trang)
-    // Ví dụ: window.location.href = '/exam-results/multiple-choice';
-}
-//
-function handleFormSubmit(event, action) {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    const data = {};
-    
-    for (let [key, value] of formData.entries()) {
-        data[key] = value;
-    }
-    
-    console.log(`Submitting ${action}:`, data);
-    
-    if (action === 'grade-exam') {
-        if (data.examType === 'essay' && data.exam) {
-            showNotification(`Đã chọn chấm bài thi ${data.exam}`);
-            startGrading(data.exam);
-        } else if (data.examType === 'multiple-choice') {
-            showNotification('Kết quả trắc nghiệm đã được hiển thị');
-            viewResults();
-        }
-    } else {
-        // Xử lý các action khác như trước
-        setTimeout(() => {
-            showNotification(`${getActionName(action)} thành công!`);
-            closeModal();
-        }, 1000);
-    }
-}
-        // Close modal
         function closeModal() {
             document.getElementById('modalOverlay').style.display = 'none';
             document.body.style.overflow = 'auto';
         }
 
-        // Handle form submissions
         function handleFormSubmit(event, action) {
             event.preventDefault();
             const formData = new FormData(event.target);
@@ -1180,53 +1292,37 @@ function handleFormSubmit(event, action) {
             
             console.log(`Submitting ${action}:`, data);
             
-            // Simulate API call
             setTimeout(() => {
                 showNotification(`${getActionName(action)} thành công!`);
                 closeModal();
             }, 1000);
         }
 
-        // Get action name for notifications
         function getActionName(action) {
             const names = {
                 'create-class': 'Tạo lớp học',
-                'create-exam': 'Tạo bài thi',
+                'create-exam-ai': 'Tạo bài thi với AI',
+                'create-exam-manual': 'Tạo bài thi thủ công',
                 'send-notification': 'Gửi thông báo',
                 'schedule-exam': 'Tạo lịch thi',
                 'send-feedback': 'Gửi phản hồi',
-                'export-grades': 'Xuất phiếu điểm'
+                'export-grades': 'Xuất phiếu điểm',
+                'grade-essay': 'Chấm bài tự luận',
+                'manage-students': 'Quản lý học sinh'
             };
             return names[action] || 'Thao tác';
         }
 
-        // File upload handlers
         function handleFileUpload(input) {
             if (input.files.length > 0) {
                 showNotification(`Đã chọn ${input.files.length} file để import`);
             }
         }
 
-        function handleDocumentUpload(input) {
-            if (input.files.length > 0) {
-                showNotification(`Đã chọn ${input.files.length} tài liệu để upload`);
-            }
-        }
-
-        // Additional functions for question bank
         function importQuestions() {
             showNotification('Đang import câu hỏi từ Excel...');
         }
 
-        function manageQuestions() {
-            showNotification('Chuyển đến trang quản lý câu hỏi');
-        }
-
-        function uploadDocument() {
-            showNotification('Chuẩn bị upload tài liệu...');
-        }
-
-        // Chart initialization and management
         function initializeChart() {
             const ctx = document.getElementById('statisticsChart').getContext('2d');
             
@@ -1289,7 +1385,6 @@ function handleFormSubmit(event, action) {
             });
         }
 
-        // Update chart based on selections
         function updateChart() {
             const chartType = document.getElementById('chartType').value;
             const selectedClass = document.getElementById('classSelect').value;
@@ -1299,8 +1394,6 @@ function handleFormSubmit(event, action) {
             }
             
             const ctx = document.getElementById('statisticsChart').getContext('2d');
-            
-            // Sample data - would be dynamic based on class selection
             let chartData = getChartData(selectedClass);
             
             const config = {
@@ -1310,21 +1403,18 @@ function handleFormSubmit(event, action) {
             };
             
             currentChart = new Chart(ctx, config);
-            
-            showNotification(`Đã cập nhật biểu đồ ${chartType === 'bar' ? 'cột' : chartType === 'pie' ? 'tròn' : 'đường'}`);
+            showNotification(`Đã cập nhật biểu đồ`);
         }
 
-        // Get chart data based on class selection
         function getChartData(selectedClass) {
-            const baseData = {
+            return {
                 labels: ['Giỏi', 'Khá', 'Trung bình', 'Yếu'],
                 datasets: [{
                     label: 'Số lượng học sinh',
                     data: selectedClass === 'all' ? [25, 45, 65, 21] : 
                           selectedClass === '10a1' ? [8, 15, 20, 7] :
                           selectedClass === '10a2' ? [6, 12, 18, 4] :
-                          selectedClass === '11a1' ? [7, 10, 15, 8] :
-                          [4, 8, 12, 2],
+                          [7, 10, 15, 8],
                     backgroundColor: [
                         'rgba(72, 187, 120, 0.8)',
                         'rgba(66, 153, 225, 0.8)',
@@ -1340,11 +1430,8 @@ function handleFormSubmit(event, action) {
                     borderWidth: 2
                 }]
             };
-            
-            return baseData;
         }
 
-        // Get chart options based on type
         function getChartOptions(chartType) {
             const baseOptions = {
                 responsive: true,
@@ -1386,7 +1473,6 @@ function handleFormSubmit(event, action) {
             return baseOptions;
         }
 
-        // Notification system
         function showNotification(message, type = 'success') {
             const toast = document.getElementById('toast');
             const toastMessage = document.getElementById('toastMessage');
@@ -1422,7 +1508,6 @@ function handleFormSubmit(event, action) {
             countElement.textContent = currentCount + 1;
         }
 
-        // Handle window resize
         window.addEventListener('resize', function() {
             if (window.innerWidth > 768) {
                 const sidebar = document.getElementById('sidebar');
@@ -1437,64 +1522,16 @@ function handleFormSubmit(event, action) {
             }
         });
 
-        // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
-            // Escape key to close modal
             if (e.key === 'Escape') {
                 closeModal();
             }
             
-            // Ctrl+M to toggle sidebar
             if (e.ctrlKey && e.key === 'm') {
                 e.preventDefault();
                 toggleSidebar();
             }
         });
-
-        // Auto-save functionality (simulated)
-        function autoSave() {
-            // This would typically save current state to localStorage or server
-            console.log('Auto-saving dashboard state...');
-        }
-
-        // Set up auto-save every 5 minutes
-        setInterval(autoSave, 5 * 60 * 1000);
-
-        // Load user preferences
-        function loadUserPreferences() {
-            // This would typically load from localStorage or server
-            const preferences = {
-                sidebarClosed: false,
-                preferredChartType: 'bar',
-                selectedClass: 'all'
-            };
-            
-            if (preferences.sidebarClosed && window.innerWidth > 768) {
-                toggleSidebar();
-            }
-            
-            document.getElementById('chartType').value = preferences.preferredChartType;
-            document.getElementById('classSelect').value = preferences.selectedClass;
-        }
-
-        // Save user preferences
-        function saveUserPreferences() {
-            const preferences = {
-                sidebarClosed: document.getElementById('sidebar').classList.contains('closed'),
-                preferredChartType: document.getElementById('chartType').value,
-                selectedClass: document.getElementById('classSelect').value
-            };
-            
-            // This would typically save to localStorage or server
-            console.log('Saving user preferences:', preferences);
-        }
-
-        // Load preferences on page load
-        setTimeout(loadUserPreferences, 100);
-
-        // Save preferences when changed
-        document.getElementById('chartType').addEventListener('change', saveUserPreferences);
-        document.getElementById('classSelect').addEventListener('change', saveUserPreferences);
     </script>
 </body>
 </html>

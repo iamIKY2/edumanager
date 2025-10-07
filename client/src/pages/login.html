@@ -94,9 +94,24 @@
         font-size: 1.8rem;
       }
     }
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: var(--text-light);
+    }
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1050;
+    }
   </style>
 </head>
 <body>
+  <div class="toast-container"></div>
   <div class="login-container" data-aos="zoom-in">
     <h2><i class="fas fa-sign-in-alt me-2"></i>Đăng nhập vào Edexis</h2>
     <form id="loginForm">
@@ -104,12 +119,15 @@
         <label for="email" class="form-label text-light">Email</label>
         <input type="email" class="form-control" id="email" name="email" placeholder="Nhập email" required>
       </div>
-      <div class="mb-3">
+      <div class="mb-3 position-relative">
         <label for="password" class="form-label text-light">Mật khẩu</label>
         <input type="password" class="form-control" id="password" name="password" placeholder="Nhập mật khẩu" required>
+        <i class="fas fa-eye password-toggle" id="togglePassword"></i>
       </div>
       <div id="errorMessage" class="error-message mb-3"></div>
-      <button type="submit" class="btn btn-gradient w-100"><i class="fas fa-sign-in-alt me-2"></i>Đăng nhập</button>
+      <button type="submit" id="submitButton" class="btn btn-gradient w-100">
+        <i class="fas fa-sign-in-alt me-2"></i>Đăng nhập
+      </button>
     </form>
     <p class="text-center text-light mt-3">Chưa có tài khoản? <a href="register.html" class="text-warning">Đăng ký</a></p>
     <p class="text-center text-light"><a href="forgot_password.html" class="text-warning">Quên mật khẩu?</a></p>
@@ -119,37 +137,130 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
   <script>
     AOS.init({ duration: 800, once: true });
+
+    // Hiển thị toast
+    function showToast(message, type = 'danger') {
+      const toastContainer = document.querySelector('.toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast align-items-center text-white bg-${type} border-0`;
+      toast.role = 'alert';
+      toast.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      `;
+      toastContainer.appendChild(toast);
+      const bsToast = new bootstrap.Toast(toast);
+      bsToast.show();
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Hiện/ẩn mật khẩu
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    togglePassword.addEventListener('click', () => {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      togglePassword.classList.toggle('fa-eye');
+      togglePassword.classList.toggle('fa-eye-slash');
+    });
+
+    // Xử lý submit form
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const errorMessage = document.getElementById('errorMessage');
+      const submitButton = document.getElementById('submitButton');
+
+      // Reset trạng thái
       errorMessage.style.display = 'none';
+      submitButton.disabled = true;
+      submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý...';
 
-      const formData = {
-        email: document.getElementById('email').value,
-        password: document.getElementById('password').value
-      };
+      // Lấy dữ liệu form
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
 
+      console.log('Dữ liệu gửi đi:', { email, password }); // Log dữ liệu gửi đi
+
+      // Kiểm tra dữ liệu
+      if (!email || !password) {
+        showToast('Vui lòng nhập đầy đủ email và mật khẩu!', 'danger');
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Đăng nhập';
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        showToast('Email không hợp lệ!', 'danger');
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Đăng nhập';
+        return;
+      }
+
+      if (password.length < 6) {
+        showToast('Mật khẩu phải có ít nhất 6 ký tự!', 'danger');
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Đăng nhập';
+        return;
+      }
+
+      // Gửi request
+      const formData = { email, password };
       try {
         const response = await fetch('http://localhost:3000/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         });
+
+        console.log('Phản hồi thô từ server:', await response.clone().text()); // Log phản hồi thô
         const data = await response.json();
-        if (response.ok) {
-          localStorage.setItem('token', data.token); 
-          if (data.role === 'teacher') {
-            window.location.href = 'teacher_dashboard.html';
-          } else {
-            window.location.href = 'student_dashboard.html';
-          }
+        console.log('Dữ liệu JSON:', data); // Log dữ liệu JSON
+
+        if (!response.ok) {
+          showToast(data.message || 'Đăng nhập thất bại!', 'danger');
         } else {
-          errorMessage.textContent = data.message || 'Đăng nhập thất bại!';
-          errorMessage.style.display = 'block';
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('role', data.role); // Lấy role từ data.user.role
+
+          showToast('Đăng nhập thành công!', 'success');
+
+          // Chuyển trang theo role
+          setTimeout(() => {
+            const role = data.role ? data.role.toLowerCase() : '';
+            console.log('Vai trò nhận được:', role); // Log vai trò
+            console.log('Token:', data.token); // Log token
+            if (role && data.token) {
+              switch (role) {
+                case 'student':
+                  window.location.href = './student_dashboard.html'; // Đường dẫn tương đối
+                  break;
+                case 'teacher':
+                  window.location.href = './src/pages/teacher_dashboard.html';
+                  break;
+                case 'admin':
+                  window.location.href = './src/pages/admin.html';
+                  break;
+                default:
+                  showToast('Vai trò không hợp lệ! Vui lòng liên hệ hỗ trợ.', 'danger');
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('role');
+              }
+            } else {
+              showToast('Dữ liệu đăng nhập không hợp lệ!', 'danger');
+              localStorage.removeItem('token');
+              localStorage.removeItem('role');
+            }
+          }, 1000);
         }
       } catch (err) {
-        errorMessage.textContent = 'Lỗi kết nối server!';
-        errorMessage.style.display = 'block';
+        console.error('Lỗi chi tiết:', err); // Log lỗi chi tiết
+        showToast('Lỗi kết nối server! Vui lòng thử lại.', 'danger');
+      } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Đăng nhập';
       }
     });
   </script>
