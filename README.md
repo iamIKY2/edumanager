@@ -51,9 +51,9 @@ npm install --save-dev nodemon@3.1.10
 
 **Bước 4:** Khởi động server
 ```sh
-npm run dev
+node app.js
 ```
-Server chạy tại `http://localhost:3000`
+Server chạy tại ` Backend running at http://127.0.0.1:3000`
 
 **Bước 5:** Mở giao diện client
 - Mở file `client/index.html` trên trình duyệt
