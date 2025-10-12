@@ -56,11 +56,13 @@
       font-size: 1rem;
       border-radius: 10px;
       transition: all 0.3s ease;
+      padding-right: 45px;
     }
     .form-control:focus {
       background: rgba(255, 255, 255, 0.2);
       border-color: white;
       box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+      color: white;
     }
     .form-control::placeholder {
       color: var(--text-light);
@@ -85,6 +87,28 @@
       text-align: center;
       display: none;
     }
+    .password-wrapper {
+      position: relative;
+    }
+    .password-toggle {
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: var(--text-light);
+      transition: color 0.3s ease;
+      z-index: 10;
+    }
+    .password-toggle:hover {
+      color: white;
+    }
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1050;
+    }
     @media (max-width: 576px) {
       .login-container {
         margin: 1rem;
@@ -93,20 +117,6 @@
       .login-container h2 {
         font-size: 1.8rem;
       }
-    }
-    .password-toggle {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      cursor: pointer;
-      color: var(--text-light);
-    }
-    .toast-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1050;
     }
   </style>
 </head>
@@ -119,10 +129,12 @@
         <label for="email" class="form-label text-light">Email</label>
         <input type="email" class="form-control" id="email" name="email" placeholder="Nhập email" required>
       </div>
-      <div class="mb-3 position-relative">
+      <div class="mb-3">
         <label for="password" class="form-label text-light">Mật khẩu</label>
-        <input type="password" class="form-control" id="password" name="password" placeholder="Nhập mật khẩu" required>
-        <i class="fas fa-eye password-toggle" id="togglePassword"></i>
+        <div class="password-wrapper">
+          <input type="password" class="form-control" id="password" name="password" placeholder="Nhập mật khẩu" required>
+          <i class="fas fa-eye password-toggle" id="togglePassword"></i>
+        </div>
       </div>
       <div id="errorMessage" class="error-message mb-3"></div>
       <button type="submit" id="submitButton" class="btn btn-gradient w-100">
@@ -215,33 +227,33 @@
           body: JSON.stringify(formData)
         });
 
-        console.log('Phản hồi thô từ server:', await response.clone().text()); // Log phản hồi thô
+        console.log('Phản hồi thô từ server:', await response.clone().text()); 
         const data = await response.json();
-        console.log('Dữ liệu JSON:', data); // Log dữ liệu JSON
+        console.log('Dữ liệu JSON:', data); 
 
         if (!response.ok) {
           showToast(data.message || 'Đăng nhập thất bại!', 'danger');
         } else {
           localStorage.setItem('token', data.token);
-          localStorage.setItem('role', data.role); // Lấy role từ data.user.role
+          localStorage.setItem('role', data.role); 
 
           showToast('Đăng nhập thành công!', 'success');
 
           // Chuyển trang theo role
           setTimeout(() => {
             const role = data.role ? data.role.toLowerCase() : '';
-            console.log('Vai trò nhận được:', role); // Log vai trò
-            console.log('Token:', data.token); // Log token
+            console.log('Vai trò nhận được:', role); 
+            console.log('Token:', data.token); 
             if (role && data.token) {
               switch (role) {
                 case 'student':
-                  window.location.href = './student_dashboard.html'; // Đường dẫn tương đối
+                  window.location.href = './student_dashboard.html'; 
                   break;
                 case 'teacher':
-                  window.location.href = './src/pages/teacher_dashboard.html';
+                  window.location.href = './teacher_dashboard.html';
                   break;
                 case 'admin':
-                  window.location.href = './src/pages/admin.html';
+                  window.location.href = './admin.html';
                   break;
                 default:
                   showToast('Vai trò không hợp lệ! Vui lòng liên hệ hỗ trợ.', 'danger');
@@ -256,7 +268,7 @@
           }, 1000);
         }
       } catch (err) {
-        console.error('Lỗi chi tiết:', err); // Log lỗi chi tiết
+        console.error('Lỗi chi tiết:', err); 
         showToast('Lỗi kết nối server! Vui lòng thử lại.', 'danger');
       } finally {
         submitButton.disabled = false;
