@@ -1,13 +1,14 @@
-const { Sequelize } = require('sequelize');
-const dotenv = require('dotenv');
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
-// Tải file .env từ thư mục gốc của dự án
-dotenv.config({ path: require('path').resolve(__dirname, '../../.env') });
-
-const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
+const pool = mysql.createPool({
   host: process.env.DB_HOST,
-  dialect: 'mysql',
-  logging: false
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
-module.exports = sequelize;
+module.exports = pool;

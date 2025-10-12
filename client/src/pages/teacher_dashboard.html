@@ -6,6 +6,7 @@
     <title>Dashboard Giáo Viên</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <link rel="stylesheet" href="/client/public/css/teacher.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -50,7 +51,8 @@
                     <button class="menu-toggle" id="menuToggle">☰</button>
                     <h1 class="header-title" id="pageTitle">Dashboard</h1>
                 </div>
-                <div>Chào mừng, Thầy/Cô Nguyễn Văn A</div>
+                <div id="welcomeMessage" style="font-size:18px; font-weight:600; color:#555;"></div>
+                <div class="notification-badge" onclick="showNotifications()" title="Thông báo">🔔</div>
             </div>
 
             <!-- DASHBOARD SECTION -->
@@ -621,768 +623,1135 @@
     </div>
 
     <script>
-        // Data storage
-        let appData = {
-            classes: [
-                { id: 1, name: 'Toán 10A1', subject: 'Đại số & Hình học', students: 35, exams: 8, avgScore: 8.2, code: 'MATH10A1', icon: '📐', status: 'active' },
-                { id: 2, name: 'Văn 11A1', subject: 'Ngữ văn', students: 32, exams: 6, avgScore: 8.7, code: 'VAN11A1', icon: '📖', status: 'active' },
-                { id: 3, name: 'Anh 12A1', subject: 'Tiếng Anh', students: 30, exams: 10, avgScore: 8.5, code: 'ENG12A1', icon: '🇬🇧', status: 'active' },
-                { id: 4, name: 'Lý 10A2', subject: 'Vật lý', students: 28, exams: 7, avgScore: 7.8, code: 'PHY10A2', icon: '⚛️', status: 'active' },
-                { id: 5, name: 'Hóa 11A2', subject: 'Hóa học', students: 33, exams: 9, avgScore: 8.1, code: 'CHEM11A2', icon: '🧪', status: 'active' },
-            ],
-            students: [
-                { id: 1, name: 'Nguyễn Văn A', studentId: 'SV001', email: 'nguyenvana@email.com', avgScore: 8.5, examsCompleted: 8 },
-                { id: 2, name: 'Trần Thị B', studentId: 'SV002', email: 'tranthib@email.com', avgScore: 9.0, examsCompleted: 8 },
-                { id: 3, name: 'Lê Văn C', studentId: 'SV003', email: 'levanc@email.com', avgScore: 7.5, examsCompleted: 7 },
-                { id: 4, name: 'Phạm Thị D', studentId: 'SV004', email: 'phamthid@email.com', avgScore: 8.8, examsCompleted: 8 },
-                { id: 5, name: 'Hoàng Văn E', studentId: 'SV005', email: 'hoangvane@email.com', avgScore: 7.2, examsCompleted: 6 },
-            ],
-            exams: [
-                { id: 1, name: 'Kiểm tra 15 phút - Chương 1', date: '2024-11-15', duration: '45', status: 'upcoming', submissions: 0, classId: 1 },
-                { id: 2, name: 'Kiểm tra giữa kỳ', date: '2024-10-20', duration: '90', status: 'completed', submissions: 35, classId: 1 },
-                { id: 3, name: 'Bài tập về nhà số 5', date: '2024-10-25', duration: '60', status: 'active', submissions: 28, classId: 1 },
-            ],
-            currentClassId: null,
-            currentChart: null
-        };
+// Data storage
+let appData = {
+    classes: [],
+    students: [],
+    exams: [],
+    currentClassId: null,
+    currentChart: null
+};
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            bindEvents();
-            renderDashboard();
-            renderClassGrid();
-            initializeChart();
-            updateStatsDropdown();
+let unreadCount = 0;
+
+document.addEventListener('DOMContentLoaded', async function() {
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role')?.toLowerCase();
+
+    if (!token || role !== 'teacher') {
+        showNotification('❌ Vui lòng đăng nhập để truy cập dashboard!', 'error');
+        setTimeout(() => window.location.href = './login.html', 1500);
+        return;
+    }
+
+    const socket = io('http://localhost:3000', {
+        auth: { token }
+    });
+
+    socket.on('connect', () => {
+        console.log('Connected to Socket.io');
+        socket.emit('join', `user_${localStorage.getItem('user_id')}`);
+    });
+
+    socket.on('connect_error', (error) => {
+        console.error('Socket.io connection error:', error);
+        showNotification('❌ Lỗi kết nối thời gian thực', 'error');
+    });
+
+    socket.on('notification', (notification) => {
+        showNotification(notification.content, notification.type.toLowerCase());
+        unreadCount++;
+        updateNotificationBadge();
+        fetchNotifications();
+    });
+
+    try {
+        const res = await fetch('http://localhost:3000/api/user/profile', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
         });
 
-        // Event bindings
-        function bindEvents() {
-            document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
-            
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    const section = this.dataset.section;
-                    navigateTo(section);
-                    
-                    if (window.innerWidth <= 768) {
-                        document.getElementById('sidebar').classList.remove('open');
-                    }
-                });
-            });
-
-            document.getElementById('searchClass').addEventListener('input', function(e) {
-                filterClasses(e.target.value);
-            });
-
-            document.getElementById('filterClass').addEventListener('change', function(e) {
-                filterClasses(document.getElementById('searchClass').value, e.target.value);
-            });
-
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const tabName = this.dataset.tab;
-                    switchTab(tabName);
-                });
-            });
-
-            document.getElementById('searchStudent').addEventListener('input', function(e) {
-                filterStudents(e.target.value);
-            });
-
-            document.addEventListener('click', function(e) {
-                if (window.innerWidth <= 768) {
-                    const sidebar = document.getElementById('sidebar');
-                    const menuToggle = document.getElementById('menuToggle');
-                    
-                    if (!sidebar.contains(e.target) && e.target !== menuToggle) {
-                        sidebar.classList.remove('open');
-                    }
-                }
-            });
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể token không hợp lệ');
         }
 
-        // Navigation
-        function navigateTo(section) {
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('active');
-                if (item.dataset.section === section) {
-                    item.classList.add('active');
-                }
-            });
-
-            document.querySelectorAll('.content-section').forEach(sec => {
-                sec.classList.remove('active');
-            });
-
-            document.getElementById(section).classList.add('active');
-
-            const titles = {
-                'dashboard': 'Dashboard',
-                'classes': 'Quản lý lớp học',
-                'exams': 'Tạo bài thi',
-                'grading': 'Chấm bài thi',
-                'questions': 'Ngân hàng câu hỏi',
-                'schedule': 'Lịch thi',
-                'statistics': 'Thống kê',
-                'notifications': 'Thông báo'
-            };
-            document.getElementById('pageTitle').textContent = titles[section] || section;
-
-            if (section !== 'classes') {
-                backToClassList();
-            }
-
-            if (section === 'exams') {
-                renderAllExams();
-            }
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Lỗi tải thông tin giáo viên');
         }
 
-        // Sidebar toggle
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
+        const data = await res.json();
+        if (data && data.user) {
+            document.getElementById('welcomeMessage').textContent =
+                `👋 Chào mừng Thầy/Cô ${data.user.full_name || data.user.username}`;
+            localStorage.setItem('user_id', data.user.user_id);
+        }
+    } catch (err) {
+        console.error('Không thể tải thông tin giáo viên:', err);
+        showNotification('❌ Lỗi tải thông tin giáo viên. Vui lòng đăng nhập lại.', 'error');
+        setTimeout(() => window.location.href = './login.html', 1500);
+    }
+
+    await fetchClasses();
+    await fetchNotifications();
+    bindEvents();
+    renderDashboard();
+    initializeChart();
+    updateStatsDropdown();
+});
+
+function showNotifications() {
+    fetchNotifications(); // Lấy danh sách thông báo
+    const notificationList = document.querySelector('#notifications .notification-list');
+    const popup = document.createElement('div');
+    popup.className = 'notification-popup';
+    popup.innerHTML = `
+        <div class="popup-content">
+            <h3>Thông báo nhận được</h3>
+            <div class="notification-list">${notificationList.innerHTML}</div>
+            <button class="btn btn-secondary" onclick="this.parentElement.parentElement.remove()">Đóng</button>
+        </div>
+    `;
+    document.body.appendChild(popup);
+}
+
+// Fetch classes from API
+async function fetchClasses() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('http://localhost:3000/api/classes', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi tải danh sách lớp');
+        }
+
+        appData.classes = await response.json();
+        renderClassGrid();
+        renderDashboard();
+        updateStatsDropdown();
+    } catch (error) {
+        console.error('Lỗi trong fetchClasses:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Fetch notifications from API
+async function fetchNotifications() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('http://localhost:3000/api/notifications', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi tải danh sách thông báo');
+        }
+
+        const notifications = await response.json();
+        unreadCount = notifications.filter(n => !n.is_read).length;
+        updateNotificationBadge();
+        renderNotifications(notifications);
+    } catch (error) {
+        console.error('Lỗi trong fetchNotifications:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Update notification badge
+function updateNotificationBadge() {
+    const badge = document.querySelector('.notification-badge');
+    badge.style.position = 'relative';
+    if (unreadCount > 0) {
+        badge.innerHTML = `🔔 <span>${unreadCount}</span>`;
+    } else {
+        badge.innerHTML = '🔔';
+    }
+}
+
+// Render notifications
+function renderNotifications(notifications = []) {
+    const notificationList = document.querySelector('#notifications .notification-list');
+    if (notifications.length === 0) {
+        notificationList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📢</div>
+                <div class="empty-state-text">Chưa có thông báo nào</div>
+            </div>
+        `;
+        return;
+    }
+
+    notificationList.innerHTML = notifications.map(n => `
+        <div class="notification-item${n.is_read ? '' : ' unread'}" onclick="markNotificationAsRead(${n.notification_id})">
+            <div class="notification-header">
+                <span class="notification-title">${n.content}</span>
+                <span class="notification-time">${new Date(n.created_at).toLocaleString('vi-VN')}</span>
+            </div>
+            <div class="notification-content">
+                ${n.related_type}: ${n.related_id}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Mark notification as read
+async function markNotificationAsRead(notificationId) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`http://localhost:3000/api/notifications/${notificationId}/read`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi đánh dấu thông báo');
+        }
+
+        unreadCount = Math.max(0, unreadCount - 1);
+        updateNotificationBadge();
+        fetchNotifications();
+    } catch (error) {
+        console.error('Lỗi trong markNotificationAsRead:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Event bindings
+function bindEvents() {
+    document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+    
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const section = this.dataset.section;
+            navigateTo(section);
             
             if (window.innerWidth <= 768) {
-                sidebar.classList.toggle('open');
-            } else {
-                sidebar.classList.toggle('closed');
-                mainContent.classList.toggle('expanded');
-            }
-        }
-
-        // Dashboard rendering
-        function renderDashboard() {
-            const recentClasses = appData.classes.slice(0, 2);
-            const grid = document.getElementById('dashboardClasses');
-            
-            grid.innerHTML = recentClasses.map(cls => `
-                <div class="class-card" onclick="viewClass(${cls.id})">
-                    <div class="class-card-header">
-                        <div>
-                            <div class="class-name">${cls.name}</div>
-                            <div class="class-subject">${cls.subject}</div>
-                        </div>
-                        <div style="font-size: 2rem;">${cls.icon}</div>
-                    </div>
-                    <div class="class-info">
-                        <div class="class-info-item">
-                            <div class="class-info-label">Học sinh</div>
-                            <div class="class-info-value">${cls.students}</div>
-                        </div>
-                        <div class="class-info-item">
-                            <div class="class-info-label">Bài thi</div>
-                            <div class="class-info-value">${cls.exams}</div>
-                        </div>
-                        <div class="class-info-item">
-                            <div class="class-info-label">Điểm TB</div>
-                            <div class="class-info-value">${cls.avgScore}</div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            updateDashboardStats();
-        }
-
-        function updateDashboardStats() {
-            const totalStudents = appData.classes.reduce((sum, cls) => sum + cls.students, 0);
-            const totalExams = appData.classes.reduce((sum, cls) => sum + cls.exams, 0);
-            const avgScore = (appData.classes.reduce((sum, cls) => sum + cls.avgScore, 0) / appData.classes.length).toFixed(1);
-
-            document.getElementById('totalClasses').textContent = appData.classes.length;
-            document.getElementById('totalStudents').textContent = totalStudents;
-            document.getElementById('totalExams').textContent = totalExams;
-            document.getElementById('avgScore').textContent = avgScore;
-        }
-
-        // Class management
-        function renderClassGrid() {
-            const grid = document.getElementById('classGrid');
-            grid.innerHTML = appData.classes.map(cls => `
-                <div class="class-card" onclick="viewClass(${cls.id})">
-                    <div class="class-card-header">
-                        <div>
-                            <div class="class-name">${cls.name}</div>
-                            <div class="class-subject">${cls.subject}</div>
-                        </div>
-                        <div style="font-size: 2rem;">${cls.icon}</div>
-                    </div>
-                    <div class="class-info">
-                        <div class="class-info-item">
-                            <div class="class-info-label">Học sinh</div>
-                            <div class="class-info-value">${cls.students}</div>
-                        </div>
-                        <div class="class-info-item">
-                            <div class="class-info-label">Bài thi</div>
-                            <div class="class-info-value">${cls.exams}</div>
-                        </div>
-                        <div class="class-info-item">
-                            <div class="class-info-label">Điểm TB</div>
-                            <div class="class-info-value">${cls.avgScore}</div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function filterClasses(searchTerm, status = 'all') {
-            let filtered = appData.classes;
-
-            if (status !== 'all') {
-                filtered = filtered.filter(cls => cls.status === status);
-            }
-
-            if (searchTerm) {
-                filtered = filtered.filter(cls => 
-                    cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    cls.subject.toLowerCase().includes(searchTerm.toLowerCase())
-                );
-            }
-            
-            const grid = document.getElementById('classGrid');
-            if (filtered.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1/-1;">
-                        <div class="empty-state-icon">🔍</div>
-                        <div class="empty-state-text">Không tìm thấy lớp học</div>
-                    </div>
-                `;
-                return;
-            }
-
-            grid.innerHTML = filtered.map(cls => `
-                <div class="class-card" onclick="viewClass(${cls.id})">
-                    <div class="class-card-header">
-                        <div>
-                            <div class="class-name">${cls.name}</div>
-                            <div class="class-subject">${cls.subject}</div>
-                        </div>
-                        <div style="font-size: 2rem;">${cls.icon}</div>
-                    </div>
-                    <div class="class-info">
-                        <div class="class-info-item">
-                            <div class="class-info-label">Học sinh</div>
-                            <div class="class-info-value">${cls.students}</div>
-                        </div>
-                        <div class="class-info-item">
-                            <div class="class-info-label">Bài thi</div>
-                            <div class="class-info-value">${cls.exams}</div>
-                        </div>
-                        <div class="class-info-item">
-                            <div class="class-info-label">Điểm TB</div>
-                            <div class="class-info-value">${cls.avgScore}</div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function viewClass(classId) {
-            appData.currentClassId = classId;
-            const cls = appData.classes.find(c => c.id === classId);
-            
-            if (!cls) return;
-
-            document.getElementById('classList').style.display = 'none';
-            document.getElementById('createClassForm').style.display = 'none';
-            document.getElementById('addStudentForm').style.display = 'none';
-            document.getElementById('addExamForm').style.display = 'none';
-            document.getElementById('classDetail').classList.add('active');
-            
-            document.getElementById('detailClassName').textContent = cls.name;
-            document.getElementById('detailClassCode').textContent = cls.code;
-            
-            document.getElementById('studentCount').textContent = appData.students.length;
-            document.getElementById('examCount').textContent = appData.exams.filter(e => e.classId === classId).length;
-            
-            renderStudents();
-            renderExams();
-            renderGrades();
-        }
-
-        function backToClassList() {
-            document.getElementById('classList').style.display = 'block';
-            document.getElementById('classDetail').classList.remove('active');
-            document.getElementById('createClassForm').style.display = 'none';
-            document.getElementById('addStudentForm').style.display = 'none';
-            document.getElementById('addExamForm').style.display = 'none';
-            appData.currentClassId = null;
-        }
-
-        function showCreateClass() {
-            document.getElementById('classList').style.display = 'none';
-            document.getElementById('classDetail').classList.remove('active');
-            document.getElementById('createClassForm').style.display = 'block';
-        }
-
-        function hideCreateClass() {
-            document.getElementById('createClassForm').style.display = 'none';
-            document.getElementById('classList').style.display = 'block';
-        }
-
-        function handleCreateClass(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            
-            const newClass = {
-                id: appData.classes.length + 1,
-                name: formData.get('className'),
-                subject: formData.get('subject'),
-                students: 0,
-                exams: 0,
-                avgScore: 0,
-                code: generateClassCode(),
-                icon: formData.get('icon'),
-                status: 'active'
-            };
-            
-            appData.classes.push(newClass);
-            renderClassGrid();
-            renderDashboard();
-            updateStatsDropdown();
-            hideCreateClass();
-            showNotification('✅ Tạo lớp học thành công! Mã lớp: ' + newClass.code);
-        }
-
-        function generateClassCode() {
-            return 'CLS' + Math.random().toString(36).substr(2, 6).toUpperCase();
-        }
-
-        function editClass() {
-            showNotification('Tính năng chỉnh sửa lớp đang được phát triển', 'info');
-        }
-
-        // Tab switching
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            event.target.classList.add('active');
-            document.getElementById(tabName + '-tab').classList.add('active');
-        }
-
-        // Student management
-        function renderStudents() {
-            const list = document.getElementById('studentList');
-            
-            if (appData.students.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">👥</div>
-                        <div class="empty-state-text">Chưa có học sinh nào</div>
-                        <div class="empty-state-subtext">Thêm học sinh vào lớp học của bạn</div>
-                    </div>
-                `;
-                return;
-            }
-
-            list.innerHTML = appData.students.map(student => `
-                <div class="student-item">
-                    <div class="student-info">
-                        <div class="student-avatar">${student.name.charAt(0)}</div>
-                        <div class="student-details">
-                            <h4>${student.name}</h4>
-                            <p>MSSV: ${student.studentId} • ${student.email}</p>
-                        </div>
-                    </div>
-                    <div class="student-actions">
-                        <span style="font-weight: 600; color: #667eea; margin-right: 10px;">Điểm TB: ${student.avgScore}</span>
-                        <button class="btn btn-small btn-danger" onclick="removeStudent(${student.id}, event)">Xóa</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function filterStudents(searchTerm) {
-            const filtered = appData.students.filter(student =>
-                student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-
-            const list = document.getElementById('studentList');
-            list.innerHTML = filtered.map(student => `
-                <div class="student-item">
-                    <div class="student-info">
-                        <div class="student-avatar">${student.name.charAt(0)}</div>
-                        <div class="student-details">
-                            <h4>${student.name}</h4>
-                            <p>MSSV: ${student.studentId} • ${student.email}</p>
-                        </div>
-                    </div>
-                    <div class="student-actions">
-                        <span style="font-weight: 600; color: #667eea; margin-right: 10px;">Điểm TB: ${student.avgScore}</span>
-                        <button class="btn btn-small btn-danger" onclick="removeStudent(${student.id}, event)">Xóa</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function showAddStudent() {
-            document.getElementById('classDetail').classList.remove('active');
-            document.getElementById('addStudentForm').style.display = 'block';
-        }
-
-        function hideAddStudent() {
-            document.getElementById('addStudentForm').style.display = 'none';
-            document.getElementById('classDetail').classList.add('active');
-        }
-
-        function handleAddStudent(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            
-            const newStudent = {
-                id: appData.students.length + 1,
-                name: formData.get('studentName'),
-                studentId: formData.get('studentId'),
-                email: formData.get('email') || '',
-                avgScore: 0,
-                examsCompleted: 0
-            };
-            
-            appData.students.push(newStudent);
-            
-            if (appData.currentClassId) {
-                const cls = appData.classes.find(c => c.id === appData.currentClassId);
-                if (cls) cls.students++;
-            }
-            
-            renderStudents();
-            renderDashboard();
-            updateDashboardStats();
-            hideAddStudent();
-            showNotification('✅ Thêm học sinh thành công!');
-            event.target.reset();
-        }
-
-        function removeStudent(id, event) {
-            event.stopPropagation();
-            if (confirm('Bạn có chắc muốn xóa học sinh này khỏi lớp?')) {
-                appData.students = appData.students.filter(s => s.id !== id);
-                
-                if (appData.currentClassId) {
-                    const cls = appData.classes.find(c => c.id === appData.currentClassId);
-                    if (cls && cls.students > 0) cls.students--;
-                }
-                
-                renderStudents();
-                renderDashboard();
-                updateDashboardStats();
-                showNotification('✅ Đã xóa học sinh');
-            }
-        }
-
-        // Exam management
-        function renderExams() {
-            const list = document.getElementById('examList');
-            const classExams = appData.exams.filter(e => e.classId === appData.currentClassId);
-            
-            if (classExams.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📝</div>
-                        <div class="empty-state-text">Chưa có bài thi nào</div>
-                        <div class="empty-state-subtext">Thêm bài thi cho lớp học của bạn</div>
-                    </div>
-                `;
-                return;
-            }
-
-            list.innerHTML = classExams.map(exam => {
-                const statusText = {
-                    'upcoming': 'Sắp diễn ra',
-                    'active': 'Đang diễn ra',
-                    'completed': 'Đã kết thúc'
-                };
-                
-                return `
-                    <div class="exam-item">
-                        <div class="exam-header">
-                            <div>
-                                <div class="exam-title">${exam.name}</div>
-                                <div class="exam-meta">
-                                    <span>📅 ${exam.date}</span>
-                                    <span>⏱️ ${exam.duration} phút</span>
-                                    <span>👥 ${exam.submissions} bài nộp</span>
-                                </div>
-                            </div>
-                            <span class="exam-status status-${exam.status}">${statusText[exam.status]}</span>
-                        </div>
-                        <div class="exam-actions">
-                            <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.id})">Xem chi tiết</button>
-                            <button class="btn btn-small btn-secondary" onclick="editExam(${exam.id})">Chỉnh sửa</button>
-                            <button class="btn btn-small btn-danger" onclick="deleteExam(${exam.id}, event)">Xóa</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderAllExams() {
-            const list = document.getElementById('allExamsList');
-            
-            if (appData.exams.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📝</div>
-                        <div class="empty-state-text">Chưa có bài thi nào</div>
-                        <div class="empty-state-subtext">Tạo bài thi mới để bắt đầu</div>
-                    </div>
-                `;
-                return;
-            }
-
-            list.innerHTML = appData.exams.map(exam => {
-                const cls = appData.classes.find(c => c.id === exam.classId);
-                const statusText = {
-                    'upcoming': 'Sắp diễn ra',
-                    'active': 'Đang diễn ra',
-                    'completed': 'Đã kết thúc'
-                };
-                
-                return `
-                    <div class="exam-item">
-                        <div class="exam-header">
-                            <div>
-                                <div class="exam-title">${exam.name}</div>
-                                <div class="exam-meta">
-                                    <span>🏫 ${cls ? cls.name : 'N/A'}</span>
-                                    <span>📅 ${exam.date}</span>
-                                    <span>⏱️ ${exam.duration} phút</span>
-                                    <span>👥 ${exam.submissions} bài nộp</span>
-                                </div>
-                            </div>
-                            <span class="exam-status status-${exam.status}">${statusText[exam.status]}</span>
-                        </div>
-                        <div class="exam-actions">
-                            <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.id})">Xem chi tiết</button>
-                            <button class="btn btn-small btn-secondary" onclick="editExam(${exam.id})">Chỉnh sửa</button>
-                            <button class="btn btn-small btn-danger" onclick="deleteExam(${exam.id}, event)">Xóa</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function showAddExam() {
-            document.getElementById('classDetail').classList.remove('active');
-            document.getElementById('addExamForm').style.display = 'block';
-        }
-
-        function hideAddExam() {
-            document.getElementById('addExamForm').style.display = 'none';
-            document.getElementById('classDetail').classList.add('active');
-        }
-
-        function handleAddExam(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            
-            const newExam = {
-                id: appData.exams.length + 1,
-                name: formData.get('examName'),
-                date: formData.get('examDate'),
-                duration: formData.get('duration'),
-                status: formData.get('status'),
-                submissions: 0,
-                classId: appData.currentClassId
-            };
-            
-            appData.exams.push(newExam);
-            
-            if (appData.currentClassId) {
-                const cls = appData.classes.find(c => c.id === appData.currentClassId);
-                if (cls) cls.exams++;
-            }
-            
-            renderExams();
-            renderDashboard();
-            updateDashboardStats();
-            hideAddExam();
-            showNotification('✅ Thêm bài thi thành công!');
-            event.target.reset();
-        }
-
-        function viewExamDetail(examId) {
-            showNotification('Tính năng xem chi tiết bài thi đang được phát triển', 'info');
-        }
-
-        function editExam(examId) {
-            showNotification('Tính năng chỉnh sửa bài thi đang được phát triển', 'info');
-        }
-
-        function deleteExam(examId, event) {
-            event.stopPropagation();
-            if (confirm('Bạn có chắc muốn xóa bài thi này?')) {
-                const exam = appData.exams.find(e => e.id === examId);
-                appData.exams = appData.exams.filter(e => e.id !== examId);
-                
-                if (exam && exam.classId) {
-                    const cls = appData.classes.find(c => c.id === exam.classId);
-                    if (cls && cls.exams > 0) cls.exams--;
-                }
-                
-                renderExams();
-                renderAllExams();
-                renderDashboard();
-                updateDashboardStats();
-                showNotification('✅ Đã xóa bài thi');
-            }
-        }
-
-        // Grades
-        function renderGrades() {
-            const table = document.getElementById('gradesTable');
-            
-            if (appData.students.length === 0) {
-                table.innerHTML = `
-                    <tr>
-                        <td colspan="3" style="text-align: center; padding: 40px; color: #718096;">
-                            Chưa có dữ liệu điểm
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            table.innerHTML = appData.students.map(student => `
-                <tr style="border-bottom: 1px solid #e2e8f0;">
-                    <td style="padding: 12px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="student-avatar" style="width: 35px; height: 35px; font-size: 0.9rem;">${student.name.charAt(0)}</div>
-                            <div>
-                                <div style="font-weight: 500;">${student.name}</div>
-                                <div style="font-size: 0.85rem; color: #718096;">${student.studentId}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td style="padding: 12px; text-align: center;">${student.examsCompleted}</td>
-                    <td style="padding: 12px; text-align: center;">
-                        <span style="font-weight: 600; color: ${student.avgScore >= 8 ? '#48bb78' : student.avgScore >= 6.5 ? '#4299e1' : '#f56565'};">
-                            ${student.avgScore}
-                        </span>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        // Chart
-        function initializeChart() {
-            const ctx = document.getElementById('statisticsChart').getContext('2d');
-            appData.currentChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Giỏi (8-10)', 'Khá (6.5-8)', 'Trung bình (5-6.5)', 'Yếu (<5)'],
-                    datasets: [{
-                        label: 'Số lượng học sinh',
-                        data: [25, 45, 65, 21],
-                        backgroundColor: [
-                            'rgba(72, 187, 120, 0.8)',
-                            'rgba(66, 153, 225, 0.8)',
-                            'rgba(236, 201, 75, 0.8)',
-                            'rgba(245, 101, 101, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(72, 187, 120, 1)',
-                            'rgba(66, 153, 225, 1)',
-                            'rgba(236, 201, 75, 1)',
-                            'rgba(245, 101, 101, 1)'
-                        ],
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: { beginAtZero: true }
-                    }
-                }
-            });
-        }
-
-        function updateStatsDropdown() {
-            const select = document.getElementById('statsClass');
-            select.innerHTML = '<option value="all">Tất cả lớp</option>' + 
-                appData.classes.map(cls => `<option value="${cls.id}">${cls.name}</option>`).join('');
-        }
-
-        function updateStatistics() {
-            showNotification('Đang cập nhật thống kê...', 'info');
-        }
-
-        function updateChartType() {
-            const chartType = document.getElementById('chartType').value;
-            if (appData.currentChart) {
-                appData.currentChart.destroy();
-            }
-
-            const ctx = document.getElementById('statisticsChart').getContext('2d');
-            appData.currentChart = new Chart(ctx, {
-                type: chartType,
-                data: {
-                    labels: ['Giỏi (8-10)', 'Khá (6.5-8)', 'Trung bình (5-6.5)', 'Yếu (<5)'],
-                    datasets: [{
-                        label: 'Số lượng học sinh',
-                        data: [25, 45, 65, 21],
-                        backgroundColor: [
-                            'rgba(72, 187, 120, 0.8)',
-                            'rgba(66, 153, 225, 0.8)',
-                            'rgba(236, 201, 75, 0.8)',
-                            'rgba(245, 101, 101, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(72, 187, 120, 1)',
-                            'rgba(66, 153, 225, 1)',
-                            'rgba(236, 201, 75, 1)',
-                            'rgba(245, 101, 101, 1)'
-                        ],
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: chartType === 'pie', position: 'bottom' }
-                    },
-                    scales: chartType !== 'pie' ? {
-                        y: { beginAtZero: true }
-                    } : {}
-                }
-            });
-        }
-
-        // Notifications
-        function handleSendNotification(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            showNotification('✅ Đã gửi thông báo thành công!');
-            event.target.reset();
-        }
-
-        function showNotification(message, type = 'success') {
-            const toast = document.getElementById('toast');
-            const toastMessage = document.getElementById('toastMessage');
-            
-            toastMessage.textContent = message;
-            toast.className = `toast ${type}`;
-            toast.classList.add('show');
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
-        }
-
-        // Responsive
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 768) {
                 document.getElementById('sidebar').classList.remove('open');
             }
         });
-    </script>
+    });
+
+    document.getElementById('searchClass').addEventListener('input', function(e) {
+        filterClasses(e.target.value);
+    });
+
+    document.getElementById('filterClass').addEventListener('change', function(e) {
+        filterClasses(document.getElementById('searchClass').value, e.target.value);
+    });
+
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabName = this.dataset.tab;
+            switchTab(tabName);
+        });
+    });
+
+    document.getElementById('searchStudent').addEventListener('input', function(e) {
+        filterStudents(e.target.value);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+            const sidebar = document.getElementById('sidebar');
+            const menuToggle = document.getElementById('menuToggle');
+            
+            if (!sidebar.contains(e.target) && e.target !== menuToggle) {
+                sidebar.classList.remove('open');
+            }
+        }
+    });
+}
+
+// Navigation
+function navigateTo(section) {
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.section === section) {
+            item.classList.add('active');
+        }
+    });
+
+    document.querySelectorAll('.content-section').forEach(sec => {
+        sec.classList.remove('active');
+    });
+
+    document.getElementById(section).classList.add('active');
+
+    const titles = {
+        'dashboard': 'Dashboard',
+        'classes': 'Quản lý lớp học',
+        'exams': 'Tạo bài thi',
+        'grading': 'Chấm bài thi',
+        'questions': 'Ngân hàng câu hỏi',
+        'schedule': 'Lịch thi',
+        'statistics': 'Thống kê',
+        'notifications': 'Thông báo'
+    };
+    document.getElementById('pageTitle').textContent = titles[section] || section;
+
+    if (section !== 'classes') {
+        backToClassList();
+    }
+
+    if (section === 'exams') {
+        renderAllExams();
+    }
+
+    if (section === 'notifications') {
+        fetchNotifications();
+    }
+}
+
+// Sidebar toggle
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    
+    if (window.innerWidth <= 768) {
+        sidebar.classList.toggle('open');
+    } else {
+        sidebar.classList.toggle('closed');
+        mainContent.classList.toggle('expanded');
+    }
+}
+
+// Dashboard rendering
+async function renderDashboard() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('http://localhost:3000/api/classes', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) throw new Error('Lỗi tải dữ liệu dashboard');
+        const classes = await response.json();
+        
+        const recentClasses = classes.slice(0, 2);
+        const grid = document.getElementById('dashboardClasses');
+        
+        grid.innerHTML = recentClasses.map(cls => `
+            <div class="class-card" onclick="viewClass(${cls.class_id})">
+                <div class="class-card-header">
+                    <div>
+                        <div class="class-name">${cls.class_name}</div>
+                        <div class="class-subject">${cls.subject_name} • Mã lớp: ${cls.class_code}</div>
+                    </div>
+                    <div style="font-size: 2rem;">${cls.icon}</div>
+                </div>
+                <div class="class-info">
+                    <div class="class-info-item">
+                        <div class="class-info-label">Học sinh</div>
+                        <div class="class-info-value">${cls.students || 0}</div>
+                    </div>
+                    <div class="class-info-item">
+                        <div class="class-info-label">Bài thi</div>
+                        <div class="class-info-value">${cls.exams || 0}</div>
+                    </div>
+                    <div class="class-info-item">
+                        <div class="class-info-label">Điểm TB</div>
+                        <div class="class-info-value">${cls.avg_score || 0}</div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        updateDashboardStats(classes);
+    } catch (error) {
+        console.error('Lỗi trong renderDashboard:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+function updateDashboardStats(classes) {
+    const totalStudents = classes.reduce((sum, cls) => sum + (cls.students || 0), 0);
+    const totalExams = classes.reduce((sum, cls) => sum + (cls.exams || 0), 0);
+    const avgScore = classes.length > 0 
+        ? (classes.reduce((sum, cls) => sum + (cls.avg_score || 0), 0) / classes.length).toFixed(1) 
+        : 0;
+
+    document.getElementById('totalClasses').textContent = classes.length;
+    document.getElementById('totalStudents').textContent = totalStudents;
+    document.getElementById('totalExams').textContent = totalExams;
+    document.getElementById('avgScore').textContent = avgScore;
+}
+
+// Class management
+function renderClassGrid() {
+    const grid = document.getElementById('classGrid');
+    grid.innerHTML = appData.classes.map(cls => `
+        <div class="class-card" onclick="viewClass(${cls.class_id})">
+            <div class="class-card-header">
+                <div>
+                    <div class="class-name">${cls.class_name}</div>
+                    <div class="class-subject">${cls.subject_name} • Mã lớp: ${cls.class_code}</div>
+                </div>
+                <div style="font-size: 2rem;">${cls.icon}</div>
+            </div>
+            <div class="class-info">
+                <div class="class-info-item">
+                    <div class="class-info-label">Học sinh</div>
+                    <div class="class-info-value">${cls.students || 0}</div>
+                </div>
+                <div class="class-info-item">
+                    <div class="class-info-label">Bài thi</div>
+                    <div class="class-info-value">${cls.exams || 0}</div>
+                </div>
+                <div class="class-info-item">
+                    <div class="class-info-label">Điểm TB</div>
+                    <div class="class-info-value">${cls.avg_score || 0}</div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterClasses(searchTerm, status = 'all') {
+    let filtered = appData.classes;
+
+    if (status !== 'all') {
+        filtered = filtered.filter(cls => cls.status === status);
+    }
+
+    if (searchTerm) {
+        filtered = filtered.filter(cls => 
+            cls.class_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            cls.subject_name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }
+    
+    const grid = document.getElementById('classGrid');
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state" style="grid-column: 1/-1;">
+                <div class="empty-state-icon">🔍</div>
+                <div class="empty-state-text">Không tìm thấy lớp học</div>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(cls => `
+        <div class="class-card" onclick="viewClass(${cls.class_id})">
+            <div class="class-card-header">
+                <div>
+                    <div class="class-name">${cls.class_name}</div>
+                    <div class="class-subject">${cls.subject_name} • Mã lớp: ${cls.class_code}</div>
+                </div>
+                <div style="font-size: 2rem;">${cls.icon}</div>
+            </div>
+            <div class="class-info">
+                <div class="class-info-item">
+                    <div class="class-info-label">Học sinh</div>
+                    <div class="class-info-value">${cls.students || 0}</div>
+                </div>
+                <div class="class-info-item">
+                    <div class="class-info-label">Bài thi</div>
+                    <div class="class-info-value">${cls.exams || 0}</div>
+                </div>
+                <div class="class-info-item">
+                    <div class="class-info-label">Điểm TB</div>
+                    <div class="class-info-value">${cls.avg_score || 0}</div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function viewClass(classId) {
+    appData.currentClassId = classId;
+    const cls = appData.classes.find(c => c.class_id === classId);
+    
+    if (!cls) return;
+
+    document.getElementById('classList').style.display = 'none';
+    document.getElementById('createClassForm').style.display = 'none';
+    document.getElementById('addStudentForm').style.display = 'none';
+    document.getElementById('addExamForm').style.display = 'none';
+    document.getElementById('classDetail').classList.add('active');
+    
+    document.getElementById('detailClassName').textContent = cls.class_name;
+    document.getElementById('detailClassCode').textContent = cls.class_code;
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3000/api/classes/${classId}/students`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) throw new Error('Lỗi tải danh sách học sinh');
+        appData.students = await response.json();
+        document.getElementById('studentCount').textContent = appData.students.length;
+    } catch (error) {
+        console.error('Lỗi trong viewClass:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+
+    await renderExams();
+    document.getElementById('examCount').textContent = appData.exams.filter(e => e.class_id === classId).length;
+    
+    renderStudents();
+    renderGrades();
+}
+
+function backToClassList() {
+    document.getElementById('classList').style.display = 'block';
+    document.getElementById('classDetail').classList.remove('active');
+    document.getElementById('createClassForm').style.display = 'none';
+    document.getElementById('addStudentForm').style.display = 'none';
+    document.getElementById('addExamForm').style.display = 'none';
+    appData.currentClassId = null;
+}
+
+function showCreateClass() {
+    document.getElementById('classList').style.display = 'none';
+    document.getElementById('classDetail').classList.remove('active');
+    document.getElementById('createClassForm').style.display = 'block';
+}
+
+function hideCreateClass() {
+    document.getElementById('createClassForm').style.display = 'none';
+    document.getElementById('classList').style.display = 'block';
+}
+
+async function handleCreateClass(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch('http://localhost:3000/api/classes', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                className: formData.get('className'),
+                subject: formData.get('subject'),
+                description: formData.get('description'),
+                academicYear: formData.get('academicYear'),
+                icon: formData.get('icon')
+            })
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi tạo lớp');
+        }
+
+        const { class: newClass } = await response.json();
+        appData.classes.push({
+            class_id: newClass.id,
+            class_name: newClass.className,
+            subject_name: newClass.subject,
+            students: 0,
+            exams: 0,
+            avg_score: 0,
+            class_code: newClass.classCode,
+            icon: newClass.icon,
+            status: newClass.status
+        });
+
+        renderClassGrid();
+        renderDashboard();
+        updateStatsDropdown();
+        hideCreateClass();
+        showNotification(`✅ Tạo lớp học thành công! Mã lớp: ${newClass.classCode}`);
+    } catch (error) {
+        console.error('Lỗi trong handleCreateClass:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+function editClass() {
+    showNotification('Tính năng chỉnh sửa lớp đang được phát triển', 'info');
+}
+
+// Tab switching
+function switchTab(tabName) {
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById(tabName + '-tab').classList.add('active');
+}
+
+// Student management
+async function renderStudents() {
+    const list = document.getElementById('studentList');
+    
+    if (appData.students.length === 0) {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">👥</div>
+                <div class="empty-state-text">Chưa có học sinh nào</div>
+                <div class="empty-state-subtext">Thêm học sinh vào lớp học của bạn</div>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = appData.students.map(student => `
+        <div class="student-item">
+            <div class="student-info">
+                <div class="student-avatar">${student.full_name.charAt(0)}</div>
+                <div class="student-details">
+                    <h4>${student.full_name}</h4>
+                    <p>MSSV: ${student.student_id} • ${student.email}</p>
+                </div>
+            </div>
+            <div class="student-actions">
+                <span style="font-weight: 600; color: #667eea; margin-right: 10px;">Điểm TB: ${student.avg_score || 0}</span>
+                <button class="btn btn-small btn-danger" onclick="removeStudent(${student.user_id}, event)">Xóa</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterStudents(searchTerm) {
+    const filtered = appData.students.filter(student =>
+        student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.student_id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const list = document.getElementById('studentList');
+    list.innerHTML = filtered.map(student => `
+        <div class="student-item">
+            <div class="student-info">
+                <div class="student-avatar">${student.full_name.charAt(0)}</div>
+                <div class="student-details">
+                    <h4>${student.full_name}</h4>
+                    <p>MSSV: ${student.student_id} • ${student.email}</p>
+                </div>
+            </div>
+            <div class="student-actions">
+                <span style="font-weight: 600; color: #667eea; margin-right: 10px;">Điểm TB: ${student.avg_score || 0}</span>
+                <button class="btn btn-small btn-danger" onclick="removeStudent(${student.user_id}, event)">Xóa</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showAddStudent() {
+    document.getElementById('classDetail').classList.remove('active');
+    document.getElementById('addStudentForm').style.display = 'block';
+}
+
+function hideAddStudent() {
+    document.getElementById('addStudentForm').style.display = 'none';
+    document.getElementById('classDetail').classList.add('active');
+}
+
+async function handleAddStudent(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/classes/${appData.currentClassId}/students`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                studentId: formData.get('studentId'),
+                email: formData.get('email')
+            })
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi thêm học sinh');
+        }
+
+        const newStudent = await response.json();
+        appData.students.push(newStudent);
+        
+        const cls = appData.classes.find(c => c.class_id === appData.currentClassId);
+        if (cls) cls.students = (cls.students || 0) + 1;
+        
+        renderStudents();
+        renderDashboard();
+        updateDashboardStats();
+        hideAddStudent();
+        showNotification('✅ Thêm học sinh thành công!');
+        event.target.reset();
+    } catch (error) {
+        console.error('Lỗi trong handleAddStudent:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+async function removeStudent(id, event) {
+    event.stopPropagation();
+    if (!confirm('Bạn có chắc muốn xóa học sinh này khỏi lớp?')) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`http://localhost:3000/api/classes/${appData.currentClassId}/students/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi xóa học sinh');
+        }
+
+        appData.students = appData.students.filter(s => s.user_id !== id);
+        const cls = appData.classes.find(c => c.class_id === appData.currentClassId);
+        if (cls && cls.students > 0) cls.students--;
+        
+        renderStudents();
+        renderDashboard();
+        updateDashboardStats();
+        showNotification('✅ Đã xóa học sinh');
+    } catch (error) {
+        console.error('Lỗi trong removeStudent:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Exam management
+async function renderExams() {
+    const list = document.getElementById('examList');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/classes/${appData.currentClassId}/exams`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi tải danh sách bài thi');
+        }
+
+        appData.exams = await response.json();
+        const classExams = appData.exams.filter(e => e.class_id === appData.currentClassId);
+        
+        if (classExams.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <div class="empty-state-text">Chưa có bài thi nào</div>
+                    <div class="empty-state-subtext">Thêm bài thi cho lớp học của bạn</div>
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = classExams.map(exam => {
+            const statusText = {
+                'upcoming': 'Sắp diễn ra',
+                'active': 'Đang diễn ra',
+                'completed': 'Đã kết thúc'
+            };
+            
+            return `
+                <div class="exam-item">
+                    <div class="exam-header">
+                        <div>
+                            <div class="exam-title">${exam.title}</div>
+                            <div class="exam-meta">
+                                <span>📅 ${exam.exam_date}</span>
+                                <span>⏱️ ${exam.duration} phút</span>
+                                <span>👥 ${exam.submissions || 0} bài nộp</span>
+                            </div>
+                        </div>
+                        <span class="exam-status status-${exam.status}">${statusText[exam.status]}</span>
+                    </div>
+                    <div class="exam-actions">
+                        <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.exam_id})">Xem chi tiết</button>
+                        <button class="btn btn-small btn-secondary" onclick="editExam(${exam.exam_id})">Chỉnh sửa</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteExam(${exam.exam_id}, event)">Xóa</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Lỗi trong renderExams:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+async function renderAllExams() {
+    const list = document.getElementById('allExamsList');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch('http://localhost:3000/api/exams', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi tải danh sách bài thi');
+        }
+
+        const allExams = await response.json();
+        if (allExams.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <div class="empty-state-text">Chưa có bài thi nào</div>
+                    <div class="empty-state-subtext">Tạo bài thi mới để bắt đầu</div>
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = allExams.map(exam => {
+            const cls = appData.classes.find(c => c.class_id === exam.class_id);
+            const statusText = {
+                'upcoming': 'Sắp diễn ra',
+                'active': 'Đang diễn ra',
+                'completed': 'Đã kết thúc'
+            };
+            
+            return `
+                <div class="exam-item">
+                    <div class="exam-header">
+                        <div>
+                            <div class="exam-title">${exam.title}</div>
+                            <div class="exam-meta">
+                                <span>🏫 ${cls ? cls.class_name : 'N/A'}</span>
+                                <span>📅 ${exam.exam_date}</span>
+                                <span>⏱️ ${exam.duration} phút</span>
+                                <span>👥 ${exam.submissions || 0} bài nộp</span>
+                            </div>
+                        </div>
+                        <span class="exam-status status-${exam.status}">${statusText[exam.status]}</span>
+                    </div>
+                    <div class="exam-actions">
+                        <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.exam_id})">Xem chi tiết</button>
+                        <button class="btn btn-small btn-secondary" onclick="editExam(${exam.exam_id})">Chỉnh sửa</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteExam(${exam.exam_id}, event)">Xóa</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Lỗi trong renderAllExams:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+function showAddExam() {
+    document.getElementById('classDetail').classList.remove('active');
+    document.getElementById('addExamForm').style.display = 'block';
+}
+
+function hideAddExam() {
+    document.getElementById('addExamForm').style.display = 'none';
+    document.getElementById('classDetail').classList.add('active');
+}
+
+async function handleAddExam(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/classes/${appData.currentClassId}/exams`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                examName: formData.get('examName'),
+                examDate: formData.get('examDate'),
+                duration: formData.get('duration'),
+                description: formData.get('description'),
+                status: formData.get('status')
+            })
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi tạo bài thi');
+        }
+
+        const { exam } = await response.json();
+        appData.exams.push(exam);
+        
+        const cls = appData.classes.find(c => c.class_id === appData.currentClassId);
+        if (cls) cls.exams = (cls.exams || 0) + 1;
+        
+        renderExams();
+        renderDashboard();
+        updateDashboardStats();
+        hideAddExam();
+        showNotification('✅ Thêm bài thi thành công!');
+        event.target.reset();
+    } catch (error) {
+        console.error('Lỗi trong handleAddExam:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+function viewExamDetail(examId) {
+    showNotification('Tính năng xem chi tiết bài thi đang được phát triển', 'info');
+}
+
+function editExam(examId) {
+    showNotification('Tính năng chỉnh sửa bài thi đang được phát triển', 'info');
+}
+
+async function deleteExam(examId, event) {
+    event.stopPropagation();
+    if (!confirm('Bạn có chắc muốn xóa bài thi này?')) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`http://localhost:3000/api/exams/${examId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Phản hồi không phải JSON, có thể server trả về HTML');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi xóa bài thi');
+        }
+
+        appData.exams = appData.exams.filter(e => e.exam_id !== examId);
+        const cls = appData.classes.find(c => c.class_id === appData.currentClassId);
+        if (cls && cls.exams > 0) cls.exams--;
+        
+        renderExams();
+        renderAllExams();
+        renderDashboard();
+        updateDashboardStats();
+        showNotification('✅ Đã xóa bài thi');
+    } catch (error) {
+        console.error('Lỗi trong deleteExam:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Grades
+function renderGrades() {
+    const table = document.getElementById('gradesTable');
+    
+    if (appData.students.length === 0) {
+        table.innerHTML = `
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 40px; color: #718096;">
+                    Chưa có dữ liệu điểm
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    table.innerHTML = appData.students.map(student => `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="student-avatar" style="width: 35px; height: 35px; font-size: 0.9rem;">${student.full_name.charAt(0)}</div>
+                    <div>
+                        <div style="font-weight: 500;">${student.full_name}</div>
+                        <div style="font-size: 0.85rem; color: #718096;">${student.student_id}</div>
+                    </div>
+                </div>
+            </td>
+            <td style="padding: 12px; text-align: center;">${student.exams_completed || 0}</td>
+            <td style="padding: 12px; text-align: center;">
+                <span style="font-weight: 600; color: ${student.avg_score >= 8 ? '#48bb78' : student.avg_score >= 6.5 ? '#4299e1' : '#f56565'};">
+                    ${student.avg_score || 0}
+                </span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Chart
+function initializeChart() {
+    const ctx = document.getElementById('statisticsChart').getContext('2d');
+    appData.currentChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Giỏi (8-10)', 'Khá (6.5-8)', 'Trung bình (5-6.5)', 'Yếu (<5)'],
+            datasets: [{
+                label: 'Số lượng học sinh',
+                data: [25, 45, 65, 21],
+                backgroundColor: [
+                    'rgba(72, 187, 120, 0.8)',
+                    'rgba(66, 153, 225, 0.8)',
+                    'rgba(236, 201, 75, 0.8)',
+                    'rgba(245, 101, 101, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(72, 187, 120, 1)',
+                    'rgba(66, 153, 225, 1)',
+                    'rgba(236, 201, 75, 1)',
+                    'rgba(245, 101, 101, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+function updateStatsDropdown() {
+    const select = document.getElementById('statsClass');
+    select.innerHTML = '<option value="all">Tất cả lớp</option>' + 
+        appData.classes.map(cls => `<option value="${cls.class_id}">${cls.class_name}</option>`).join('');
+}
+
+function updateStatistics() {
+    showNotification('Đang cập nhật thống kê...', 'info');
+}
+
+function updateChartType() {
+    const chartType = document.getElementById('chartType').value;
+    if (appData.currentChart) {
+        appData.currentChart.destroy();
+    }
+
+    const ctx = document.getElementById('statisticsChart').getContext('2d');
+    appData.currentChart = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels: ['Giỏi (8-10)', 'Khá (6.5-8)', 'Trung bình (5-6.5)', 'Yếu (<5)'],
+            datasets: [{
+                label: 'Số lượng học sinh',
+                data: [25, 45, 65, 21],
+                backgroundColor: [
+                    'rgba(72, 187, 120, 0.8)',
+                    'rgba(66, 153, 225, 0.8)',
+                    'rgba(236, 201, 75, 0.8)',
+                    'rgba(245, 101, 101, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(72, 187, 120, 1)',
+                    'rgba(66, 153, 225, 1)',
+                    'rgba(236, 201, 75, 1)',
+                    'rgba(245, 101, 101, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: chartType === 'pie', position: 'bottom' }
+            },
+            scales: chartType !== 'pie' ? {
+                y: { beginAtZero: true }
+            } : {}
+        }
+    });
+}
+
+// Notifications
+function handleSendNotification(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    showNotification('✅ Đã gửi thông báo thành công!');
+    event.target.reset();
+}
+
+function showNotification(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    
+    toastMessage.textContent = message;
+    toast.className = `toast ${type}`;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+// Responsive
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        document.getElementById('sidebar').classList.remove('open');
+    }
+});
+</script>
 </body>
 </html>

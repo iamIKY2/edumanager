@@ -320,14 +320,30 @@
     document.getElementById('editPhone').value = data.user.phone || '';
     document.getElementById('editDob').value = data.user.dob ? data.user.dob.split('T')[0] : '';
 
-    // Các phần khác (myClasses, availableTests, v.v.) giữ nguyên
-    const myClassesList = document.getElementById('myClassesList');
-    myClassesList.innerHTML = data.myClasses?.map(cls => `
-      <div class="info-item">
-        <span><strong>${cls.name}</strong></span>
-        <span style="color: #2ed573;">Đang học</span>
-      </div>
-    `).join('') || '<p>Chưa tham gia lớp nào.</p>';
+   // Lấy danh sách lớp của học sinh từ backend
+const myClassesList = document.getElementById('myClassesList');
+
+fetch('http://127.0.0.1:3000/api/classes/my', {
+  headers: { 'Authorization': `Bearer ${token}` }
+})
+  .then(res => res.json())
+  .then(classData => {
+    if (classData.myClasses?.length > 0) {
+      myClassesList.innerHTML = classData.myClasses.map(cls => `
+        <div class="info-item">
+          <span><strong>${cls.class_name}</strong> (${cls.subject_name || 'Chưa có môn'})</span>
+          <span style="color: #2ed573;">📘 ${cls.academic_year}</span>
+        </div>
+      `).join('');
+    } else {
+      myClassesList.innerHTML = '<p>Chưa tham gia lớp nào.</p>';
+    }
+  })
+  .catch(err => {
+    console.error('Lỗi khi tải lớp học:', err);
+    myClassesList.innerHTML = '<p>Lỗi tải dữ liệu lớp học.</p>';
+  });
+
 
     const availableTestsList = document.getElementById('availableTestsList');
     availableTestsList.innerHTML = data.availableTests?.map(test => `
@@ -527,22 +543,37 @@
         }
 
         // Join class
-        function joinClass() {
-            const code = document.getElementById('classCode').value.trim();
-            if (!code) {
-                showToast('❌ Vui lòng nhập mã lớp!', 'error');
-                return;
-            }
+        async function joinClass() {
+  const code = document.getElementById('classCode').value.trim();
+  const token = localStorage.getItem('token');
 
-            if (code.length < 6) {
-                showToast('❌ Mã lớp không hợp lệ!', 'error');
-                return;
-            }
+  if (!code) return showToast('❌ Vui lòng nhập mã lớp!', 'error');
+  if (code.length < 6) return showToast('❌ Mã lớp không hợp lệ!', 'error');
 
-            showToast('🎉 Tham gia lớp thành công!', 'success');
-            document.getElementById('classCode').value = '';
-            fetchUserData(); // Cập nhật lại lớp của tôi
-        }
+  try {
+    const res = await fetch('http://127.0.0.1:3000/api/classes/join', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ classCode: code })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Không thể tham gia lớp.');
+    }
+
+    showToast('🎉 Tham gia lớp thành công!', 'success');
+    document.getElementById('classCode').value = '';
+    fetchUserData(); // cập nhật lại danh sách lớp
+  } catch (err) {
+    console.error('Lỗi tham gia lớp:', err);
+    showToast(`❌ ${err.message}`, 'error');
+  }
+}
 
         function joinByLink() {
             const link = prompt('Nhập link mời:');
