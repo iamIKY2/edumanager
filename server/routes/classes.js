@@ -22,21 +22,49 @@ const createNotification = async (db, io, userId, content, type, relatedId, rela
   }
 };
 
+// ========== ROUTES CHO GIÁO VIÊN ==========
+
 // Tạo lớp học
 router.post('/', authMiddleware, async (req, res) => {
-  const { className, subject, description, academicYear, icon } = req.body;
+  const { className, subject, subjectId, description, academicYear, icon } = req.body;
   const teacherId = req.user.id;
 
-  if (!className || !subject) {
-    return res.status(400).json({ error: 'Tên lớp và môn học là bắt buộc' });
+  if (!className) {
+    return res.status(400).json({ error: 'Tên lớp là bắt buộc' });
   }
 
   try {
+    let finalSubjectId = null;
+
+    // Nếu có subjectId, dùng nó trực tiếp
+    if (subjectId) {
+      finalSubjectId = subjectId;
+    } 
+    // Nếu có subject name, tìm hoặc tạo môn học
+    else if (subject) {
+      const [subjectResult] = await req.db.query(
+        `SELECT subject_id FROM subjects WHERE subject_name = ?`,
+        [subject]
+      );
+      
+      if (subjectResult.length > 0) {
+        // Môn học đã tồn tại
+        finalSubjectId = subjectResult[0].subject_id;
+      } else {
+        // Tạo môn học mới
+        const [insertResult] = await req.db.query(
+          `INSERT INTO subjects (subject_name, description, created_by) VALUES (?, ?, ?)`,
+          [subject, `Môn học: ${subject}`, teacherId]
+        );
+        finalSubjectId = insertResult.insertId;
+      }
+    }
+
     const classCode = 'CLS' + Math.random().toString(36).substr(2, 6).toUpperCase();
     const [result] = await req.db.query(
       `INSERT INTO classes (class_name, subject_id, teacher_id, description, academic_year, class_code, icon, status)
-       VALUES (?, (SELECT subject_id FROM subjects WHERE subject_name = ?), ?, ?, ?, ?, ?, 'active')`,
-      [className, subject, teacherId, description || '', academicYear || '2024-2025', classCode, icon || '📚']
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
+      [className, finalSubjectId, teacherId, description || '', academicYear || '2024-2025', classCode, icon || '📚']
     );
 
     await createNotification(
@@ -66,15 +94,15 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Lấy danh sách lớp học
+// Lấy danh sách lớp học của giáo viên
 router.get('/', authMiddleware, async (req, res) => {
   const teacherId = req.user.id;
 
   try {
     const [classes] = await req.db.query(
       `SELECT c.class_id, c.class_name, s.subject_name, c.description, c.academic_year, c.class_code, c.icon, c.status,
-              COUNT(cs.student_id) as students,
-              COUNT(e.exam_id) as exams,
+              COUNT(DISTINCT cs.student_id) as students,
+              COUNT(DISTINCT e.exam_id) as exams,
               AVG(ea.score) as avg_score
        FROM classes c
        LEFT JOIN subjects s ON c.subject_id = s.subject_id
@@ -90,60 +118,6 @@ router.get('/', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Lỗi khi lấy danh sách lớp', details: err.message });
-  }
-});
-
-// Tham gia lớp học bằng mã code
-router.post('/join', authMiddleware, async (req, res) => {
-  const { classCode } = req.body;
-  const studentId = req.user.id;
-
-  if (!classCode) {
-    return res.status(400).json({ error: 'Mã lớp là bắt buộc' });
-  }
-
-  try {
-    const [classResult] = await req.db.query(
-      `SELECT class_id, class_name, teacher_id FROM classes WHERE class_code = ? AND status = 'active'`,
-      [classCode]
-    );
-
-    if (classResult.length === 0) {
-      return res.status(404).json({ error: 'Lớp học không tồn tại hoặc mã lớp không đúng' });
-    }
-
-    const classId = classResult[0].class_id;
-    const teacherId = classResult[0].teacher_id;
-
-    const [existing] = await req.db.query(
-      `SELECT * FROM class_students WHERE class_id = ? AND student_id = ?`,
-      [classId, studentId]
-    );
-
-    if (existing.length > 0) {
-      return res.status(400).json({ error: 'Bạn đã tham gia lớp này' });
-    }
-
-    await req.db.query(
-      `INSERT INTO class_students (class_id, student_id, joined_at) VALUES (?, ?, NOW())`,
-      [classId, studentId]
-    );
-
-    const [student] = await req.db.query('SELECT full_name FROM users WHERE user_id = ?', [studentId]);
-    await createNotification(
-      req.db,
-      req.io,
-      teacherId,
-      `Học sinh ${student[0].full_name} đã tham gia lớp ${classResult[0].class_name}`,
-      'Info',
-      classId,
-      'Class'
-    );
-
-    res.json({ message: 'Tham gia lớp học thành công', classId });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Lỗi khi tham gia lớp', details: err.message });
   }
 });
 
@@ -415,6 +389,62 @@ router.put('/:classId', authMiddleware, async (req, res) => {
   }
 });
 
+// ========== ROUTES CHO HỌC SINH ==========
+
+// Tham gia lớp học bằng mã code
+router.post('/join', authMiddleware, async (req, res) => {
+  const { classCode } = req.body;
+  const studentId = req.user.id;
+
+  if (!classCode) {
+    return res.status(400).json({ error: 'Mã lớp là bắt buộc' });
+  }
+
+  try {
+    const [classResult] = await req.db.query(
+      `SELECT class_id, class_name, teacher_id FROM classes WHERE class_code = ? AND status = 'active'`,
+      [classCode]
+    );
+
+    if (classResult.length === 0) {
+      return res.status(404).json({ error: 'Lớp học không tồn tại hoặc mã lớp không đúng' });
+    }
+
+    const classId = classResult[0].class_id;
+    const teacherId = classResult[0].teacher_id;
+
+    const [existing] = await req.db.query(
+      `SELECT * FROM class_students WHERE class_id = ? AND student_id = ?`,
+      [classId, studentId]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Bạn đã tham gia lớp này' });
+    }
+
+    await req.db.query(
+      `INSERT INTO class_students (class_id, student_id, joined_at) VALUES (?, ?, NOW())`,
+      [classId, studentId]
+    );
+
+    const [student] = await req.db.query('SELECT full_name FROM users WHERE user_id = ?', [studentId]);
+    await createNotification(
+      req.db,
+      req.io,
+      teacherId,
+      `Học sinh ${student[0].full_name} đã tham gia lớp ${classResult[0].class_name}`,
+      'Info',
+      classId,
+      'Class'
+    );
+
+    res.json({ message: 'Tham gia lớp học thành công', classId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi khi tham gia lớp', details: err.message });
+  }
+});
+
 // Lấy danh sách lớp học mà học sinh đã tham gia
 router.get('/my', authMiddleware, async (req, res) => {
   const studentId = req.user.id;
@@ -424,7 +454,7 @@ router.get('/my', authMiddleware, async (req, res) => {
       `SELECT 
           c.class_id,
           c.class_name,
-          s.subject_name,
+          COALESCE(s.subject_name, 'Chưa có môn học') as subject_name,
           c.class_code,
           c.icon,
           c.academic_year,
@@ -442,6 +472,91 @@ router.get('/my', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Lỗi lấy lớp học:', err);
     res.status(500).json({ error: 'Lỗi khi tải danh sách lớp học', details: err.message });
+  }
+});
+
+// Lấy chi tiết lớp học (cho học sinh)
+router.get('/:classId/detail', authMiddleware, async (req, res) => {
+  const { classId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    // Kiểm tra xem user có trong lớp không
+    const [membership] = await req.db.query(
+      `SELECT cs.*, c.teacher_id 
+       FROM class_students cs
+       JOIN classes c ON cs.class_id = c.class_id
+       WHERE cs.class_id = ? AND cs.student_id = ?`,
+      [classId, userId]
+    );
+
+    if (membership.length === 0) {
+      return res.status(403).json({ error: 'Bạn không có quyền truy cập lớp này' });
+    }
+
+    // Lấy thông tin giáo viên
+    const [teacher] = await req.db.query(
+      `SELECT u.full_name 
+       FROM users u
+       WHERE u.user_id = ?`,
+      [membership[0].teacher_id]
+    );
+
+    // Lấy danh sách học sinh
+    const [students] = await req.db.query(
+      `SELECT u.user_id, u.username, u.email, u.full_name
+       FROM class_students cs
+       JOIN users u ON cs.student_id = u.user_id
+       WHERE cs.class_id = ?
+       ORDER BY u.full_name ASC`,
+      [classId]
+    );
+
+    // Lấy danh sách bài kiểm tra
+    const [tests] = await req.db.query(
+      `SELECT 
+          e.exam_id as test_id,
+          e.exam_name as title,
+          e.start_time,
+          e.duration,
+          e.description,
+          0 as total_questions
+       FROM exams e
+       WHERE e.class_id = ? AND e.status IN ('active', 'upcoming')
+       ORDER BY e.start_time DESC`,
+      [classId]
+    );
+
+    // Lấy thông báo (nếu có bảng announcements)
+    let announcements = [];
+    try {
+      const [result] = await req.db.query(
+        `SELECT 
+            announcement_id,
+            title,
+            content,
+            created_at
+         FROM announcements
+         WHERE class_id = ?
+         ORDER BY created_at DESC
+         LIMIT 10`,
+        [classId]
+      );
+      announcements = result || [];
+    } catch (err) {
+      console.log('Bảng announcements chưa tồn tại hoặc có lỗi');
+    }
+
+    res.json({
+      teacher: teacher[0]?.full_name || 'Chưa có giáo viên',
+      students: students,
+      tests: tests,
+      announcements: announcements
+    });
+
+  } catch (err) {
+    console.error('Lỗi lấy chi tiết lớp:', err);
+    res.status(500).json({ error: 'Lỗi khi tải chi tiết lớp học', details: err.message });
   }
 });
 

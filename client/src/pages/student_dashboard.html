@@ -121,8 +121,72 @@
         <div class="content-section" id="my-classes">
             <div class="card">
                 <h3 style="margin-bottom: 20px;">Lớp của tôi</h3>
-                <div class="info-item" id="myClassesList">
+                <div id="myClassesList">
                     <!-- Dữ liệu sẽ được điền động -->
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section" id="class-detail">
+            <button class="btn" style="margin-bottom: 20px;" onclick="backToMyClasses()">← Quay lại danh sách lớp</button>
+            
+            <!-- Thông tin lớp học -->
+            <div class="card" style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; margin-bottom: 20px;">
+                <h3 style="color: white; margin-bottom: 20px;" id="classDetailTitle">Chi tiết lớp học</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div>
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">📚 Mã lớp</div>
+                        <div style="font-size: 18px; font-weight: bold;" id="detailClassCode">-</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">📖 Môn học</div>
+                        <div style="font-size: 18px; font-weight: bold;" id="detailSubject">-</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">👨‍🏫 Giáo viên</div>
+                        <div style="font-size: 18px; font-weight: bold;" id="detailTeacher">-</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">📅 Năm học</div>
+                        <div style="font-size: 18px; font-weight: bold;" id="detailYear">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="class-tabs-container">
+                <button class="class-tab active" onclick="switchClassTab('students')">
+                    <span class="tab-icon">👥</span>
+                    <span>Học sinh</span>
+                    <span class="tab-count" id="studentsCount">(0)</span>
+                </button>
+                <button class="class-tab" onclick="switchClassTab('tests')">
+                    <span class="tab-icon">📝</span>
+                    <span>Bài kiểm tra</span>
+                    <span class="tab-count" id="testsCount">(0)</span>
+                </button>
+                <button class="class-tab" onclick="switchClassTab('announcements')">
+                    <span class="tab-icon">📢</span>
+                    <span>Thông báo</span>
+                    <span class="tab-count" id="announcementsCount">(0)</span>
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="card">
+                <div id="classTabStudents" class="class-tab-content active">
+                    <h3 style="margin-bottom: 20px;">👥 Danh sách học sinh</h3>
+                    <div id="studentsList"></div>
+                </div>
+
+                <div id="classTabTests" class="class-tab-content">
+                    <h3 style="margin-bottom: 20px;">📝 Bài kiểm tra</h3>
+                    <div id="testsList"></div>
+                </div>
+
+                <div id="classTabAnnouncements" class="class-tab-content">
+                    <h3 style="margin-bottom: 20px;">📢 Thông báo từ giáo viên</h3>
+                    <div id="announcementsList"></div>
                 </div>
             </div>
         </div>
@@ -184,22 +248,20 @@
 
     <!-- Modal chỉnh sửa thông tin -->
     <div class="modal" id="editProfileModal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>✏️ Cập nhật thông tin cá nhân</h3>
-      <span class="close" onclick="closeModal('editProfileModal')">&times;</span>
-    </div>
-    <div>
-      <!-- Giữ fullName và class -->
-      <input type="text" class="input-field" id="editFullName" placeholder="Họ và tên" value="">
-      <input type="text" class="input-field" id="editClass" placeholder="Lớp" value="">
-      <!-- Thêm phone và dob -->
-      <input type="tel" class="input-field" id="editPhone" placeholder="Số điện thoại (VD: 0123456789)" value="">
-      <input type="date" class="input-field" id="editDob" placeholder="Ngày sinh">
-      <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="saveProfileChanges()">Lưu thay đổi</button>
-    </div>
-  </div>
-</div>  
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Cập nhật thông tin cá nhân</h3>
+                <span class="close" onclick="closeModal('editProfileModal')">&times;</span>
+            </div>
+            <div>
+                <input type="text" class="input-field" id="editFullName" placeholder="Họ và tên" value="">
+                <input type="text" class="input-field" id="editClass" placeholder="Lớp" value="">
+                <input type="tel" class="input-field" id="editPhone" placeholder="Số điện thoại (VD: 0123456789)" value="">
+                <input type="date" class="input-field" id="editDob" placeholder="Ngày sinh">
+                <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="saveProfileChanges()">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>  
 
     <!-- Change Password Modal -->
     <div class="modal" id="changePasswordModal">
@@ -245,219 +307,226 @@
 
             fetchUserData();
         });
+
         function fetchUserData() {
-  const token = localStorage.getItem('token');
-  console.log('Token used:', token); 
-  if (!token) {
-    console.error('No token found in localStorage');
-    alert('Không có token. Vui lòng đăng nhập lại!');
-    window.location.href = './login.html';
-    return;
-  }
+            const token = localStorage.getItem('token');
+            console.log('Token used:', token); 
+            if (!token) {
+                console.error('No token found in localStorage');
+                alert('Không có token. Vui lòng đăng nhập lại!');
+                window.location.href = './login.html';
+                return;
+            }
 
-  fetch('http://127.0.0.1:3000/api/user/profile', {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-  })
-  .then(response => {
-    console.log('Response status:', response.status); 
-    if (!response.ok) {
-      return response.json().then(errorData => {
-        throw new Error(`Lỗi: ${response.status} - ${errorData.error || response.statusText}`);
-      });
-    }
-    return response.json();
-  })
-  .then(data => {
-    console.log('Data received:', data); 
-    if (data.error) throw new Error(data.error);
+            fetch('http://127.0.0.1:3000/api/user/profile', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                console.log('Response status:', response.status); 
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(`Lỗi: ${response.status} - ${errorData.error || response.statusText}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Data received:', data); 
+                if (data.error) throw new Error(data.error);
 
-    document.getElementById('userName').textContent = data.user.username || 'Đang tải...';
-    document.getElementById('userId').textContent = `MSSV: ${data.user.id || 'Đang tải...'}`;
-    document.getElementById('avgScore').textContent = data.user.avgScore || 'Đang tải...';
-    document.getElementById('rankPosition').textContent = `#${data.user.rank || 'Đang tải...'}`;
+                document.getElementById('userName').textContent = data.user.username || 'Đang tải...';
+                document.getElementById('userId').textContent = `MSSV: ${data.user.id || 'Đang tải...'}`;
+                document.getElementById('avgScore').textContent = data.user.avgScore || 'Đang tải...';
+                document.getElementById('rankPosition').textContent = `#${data.user.rank || 'Đang tải...'}`;
 
-    const infoGrid = document.getElementById('userInfo');
-    infoGrid.innerHTML = `
-      <div class="info-item">
-        <span><strong>Lớp:</strong></span>
-        <span>${data.user.class || '<span style="color: #ff4757;">Chưa cập nhật</span>'}</span>
-      </div>
-      <div class="info-item">
-        <span><strong>Email:</strong></span>
-        <span>${data.user.email || 'Chưa cập nhật'}</span>
-      </div>
-      <div class="info-item">
-        <span><strong>Số điện thoại:</strong></span>
-        <span>${data.user.phone || '<span style="color: #ff4757;">Chưa cập nhật</span>'}</span>
-      </div>
-      <div class="info-item">
-        <span><strong>Ngày sinh:</strong></span>
-        <span>${data.user.dob || 'Chưa cập nhật'}</span>
-      </div>
-    `;
+                const infoGrid = document.getElementById('userInfo');
+                infoGrid.innerHTML = `
+                    <div class="info-item">
+                        <span><strong>Lớp:</strong></span>
+                        <span>${data.user.class || '<span style="color: #ff4757;">Chưa cập nhật</span>'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span><strong>Email:</strong></span>
+                        <span>${data.user.email || 'Chưa cập nhật'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span><strong>Số điện thoại:</strong></span>
+                        <span>${data.user.phone || '<span style="color: #ff4757;">Chưa cập nhật</span>'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span><strong>Ngày sinh:</strong></span>
+                        <span>${data.user.dob || 'Chưa cập nhật'}</span>
+                    </div>
+                `;
 
-    const upcomingTests = document.getElementById('upcomingTests');
-    upcomingTests.innerHTML = `
-      <h3 style="margin-bottom: 15px;">Lịch thi sắp tới</h3>
-      ${data.upcomingTests?.map(test => `
-        <div class="schedule-item">
-          <div>
-            <div style="font-weight: 600;">${test.title}</div>
-            <div style="font-size: 12px; color: #666;">${test.duration} • ${10} câu</div>
-          </div>
-          <div class="schedule-date">${test.date}</div>
-        </div>
-      `).join('') || '<p>Không có lịch thi sắp tới.</p>'}
-    `;
+                const upcomingTests = document.getElementById('upcomingTests');
+                upcomingTests.innerHTML = `
+                    <h3 style="margin-bottom: 15px;">Lịch thi sắp tới</h3>
+                    ${data.upcomingTests?.map(test => `
+                        <div class="schedule-item">
+                            <div>
+                                <div style="font-weight: 600;">${test.title}</div>
+                                <div style="font-size: 12px; color: #666;">${test.duration} • ${10} câu</div>
+                            </div>
+                            <div class="schedule-date">${test.date}</div>
+                        </div>
+                    `).join('') || '<p>Không có lịch thi sắp tới.</p>'}
+                `;
 
-    // Điền dữ liệu vào modal
-    document.getElementById('editFullName').value = data.user.fullName || '';
-    document.getElementById('editClass').value = data.user.class || '';
-    document.getElementById('editPhone').value = data.user.phone || '';
-    document.getElementById('editDob').value = data.user.dob ? data.user.dob.split('T')[0] : '';
+                // Điền dữ liệu vào modal
+                document.getElementById('editFullName').value = data.user.fullName || '';
+                document.getElementById('editClass').value = data.user.class || '';
+                document.getElementById('editPhone').value = data.user.phone || '';
+                document.getElementById('editDob').value = data.user.dob ? data.user.dob.split('T')[0] : '';
 
-   // Lấy danh sách lớp của học sinh từ backend
-const myClassesList = document.getElementById('myClassesList');
+                // Lấy danh sách lớp của học sinh từ backend
+                const myClassesList = document.getElementById('myClassesList');
 
-fetch('http://127.0.0.1:3000/api/classes/my', {
-  headers: { 'Authorization': `Bearer ${token}` }
-})
-  .then(res => res.json())
-  .then(classData => {
-    if (classData.myClasses?.length > 0) {
-      myClassesList.innerHTML = classData.myClasses.map(cls => `
-        <div class="info-item">
-          <span><strong>${cls.class_name}</strong> (${cls.subject_name || 'Chưa có môn'})</span>
-          <span style="color: #2ed573;">📘 ${cls.academic_year}</span>
-        </div>
-      `).join('');
-    } else {
-      myClassesList.innerHTML = '<p>Chưa tham gia lớp nào.</p>';
-    }
-  })
-  .catch(err => {
-    console.error('Lỗi khi tải lớp học:', err);
-    myClassesList.innerHTML = '<p>Lỗi tải dữ liệu lớp học.</p>';
-  });
+                fetch('http://127.0.0.1:3000/api/classes/my', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(res => res.json())
+                .then(classData => {
+                    if (classData.myClasses?.length > 0) {
+                        myClassesList.innerHTML = classData.myClasses.map(cls => `
+                            <div class="class-card" onclick="viewClassDetail(${cls.class_id}, '${cls.class_name}', '${cls.subject_name || 'Chưa có môn'}', '${cls.academic_year}')">
+                                <div class="class-card-header">
+                                    <div>
+                                        <div class="class-card-title">${cls.class_name}</div>
+                                        <div class="class-card-subject">${cls.subject_name || 'Chưa có môn'}</div>
+                                    </div>
+                                    <div class="class-card-icon">📚</div>
+                                </div>
+                                <div class="class-card-footer">
+                                    <span>📅 ${cls.academic_year}</span>
+                                    <span style="color: #667eea; font-weight: 600;">Xem chi tiết →</span>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        myClassesList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">Chưa tham gia lớp nào. Hãy tham gia lớp học để bắt đầu!</p>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Lỗi khi tải lớp học:', err);
+                    myClassesList.innerHTML = '<p style="text-align: center; color: #ff4757;">Lỗi tải dữ liệu lớp học.</p>';
+                });
 
+                const availableTestsList = document.getElementById('availableTestsList');
+                availableTestsList.innerHTML = data.availableTests?.map(test => `
+                    <div class="test-item">
+                        <div class="test-info">
+                            <div class="test-title">${test.title}</div>
+                            <div class="test-meta">Lớp: ${test.class} • ${test.duration} • ${test.questions} câu</div>
+                        </div>
+                        <div>
+                            <div class="countdown">${test.timeLeft || '00:00'}</div>
+                            <button class="btn btn-success" onclick="startTest(${test.id})">Làm bài</button>
+                        </div>
+                    </div>
+                `).join('') || '<p>Không có bài kiểm tra khả dụng.</p>';
 
-    const availableTestsList = document.getElementById('availableTestsList');
-    availableTestsList.innerHTML = data.availableTests?.map(test => `
-      <div class="test-item">
-        <div class="test-info">
-          <div class="test-title">${test.title}</div>
-          <div class="test-meta">Lớp: ${test.class} • ${test.duration} • ${test.questions} câu</div>
-        </div>
-        <div>
-          <div class="countdown">${test.timeLeft || '00:00'}</div>
-          <button class="btn btn-success" onclick="startTest(${test.id})">Làm bài</button>
-        </div>
-      </div>
-    `).join('') || '<p>Không có bài kiểm tra khả dụng.</p>';
+                const myResultsList = document.getElementById('myResultsList');
+                myResultsList.innerHTML = data.myResults?.map(result => `
+                    <div class="test-item">
+                        <div class="test-info">
+                            <div class="test-title">${result.title}</div>
+                            <div class="test-meta">Ngày: ${result.date} • ${result.type}</div>
+                        </div>
+                        <div style="font-size: 18px; font-weight: bold; color: #667eea;">${result.score}/${result.total}</div>
+                        <button class="btn btn-primary" onclick="viewResult(${result.id})">Xem chi tiết</button>
+                    </div>
+                `).join('') || '<p>Chưa có kết quả.</p>';
 
-    const myResultsList = document.getElementById('myResultsList');
-    myResultsList.innerHTML = data.myResults?.map(result => `
-      <div class="test-item">
-        <div class="test-info">
-          <div class="test-title">${result.title}</div>
-          <div class="test-meta">Ngày: ${result.date} • ${result.type}</div>
-        </div>
-        <div style="font-size: 18px; font-weight: bold; color: #667eea;">${result.score}/${result.total}</div>
-        <button class="btn btn-primary" onclick="viewResult(${result.id})">Xem chi tiết</button>
-      </div>
-    `).join('') || '<p>Chưa có kết quả.</p>';
+                const rankingTable = document.getElementById('rankingTable').querySelector('tbody');
+                const rankingTotal = document.getElementById('rankingTotal');
+                rankingTotal.textContent = `Tổng số học sinh: ${data.ranking?.total || 0}`;
+                rankingTable.innerHTML = data.ranking?.students?.map((student, index) => `
+                    <tr ${student.id === data.user.id ? 'class="current-user"' : ''}>
+                        <td><span class="rank-badge ${index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : ''}">${index + 1}${index < 3 ? ['🥇', '🥈', '🥉'][index] : ''}</span></td>
+                        <td>${student.fullName || 'Chưa cập nhật'}</td>
+                        <td>${student.id}</td>
+                        <td><strong>${student.avgScore || '0.0'}</strong></td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4">Không có dữ liệu xếp hạng.</td></tr>';
 
-    const rankingTable = document.getElementById('rankingTable').querySelector('tbody');
-    const rankingTotal = document.getElementById('rankingTotal');
-    rankingTotal.textContent = `Tổng số học sinh: ${data.ranking?.total || 0}`;
-    rankingTable.innerHTML = data.ranking?.students?.map((student, index) => `
-      <tr ${student.id === data.user.id ? 'class="current-user"' : ''}>
-        <td><span class="rank-badge ${index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : ''}">${index + 1}${index < 3 ? ['🥇', '🥈', '🥉'][index] : ''}</span></td>
-        <td>${student.fullName || 'Chưa cập nhật'}</td>
-        <td>${student.id}</td>
-        <td><strong>${student.avgScore || '0.0'}</strong></td>
-      </tr>
-    `).join('') || '<tr><td colspan="4">Không có dữ liệu xếp hạng.</td></tr>';
+                const recentComplaints = document.getElementById('recentComplaints');
+                recentComplaints.innerHTML = data.recentComplaints?.map(complaint => `
+                    <div class="info-item">
+                        <div>
+                            <strong>${complaint.title}</strong><br>
+                            <span style="color: ${complaint.status === 'Đang xử lý' ? '#ff9f43' : complaint.status === 'Đã duyệt' ? '#2ed573' : '#ff4757'};">${complaint.status}</span>
+                        </div>
+                        <div style="color: #666; font-size: 12px;">${complaint.date}</div>
+                    </div>
+                `).join('') || '<p>Chưa có khiếu nại nào.</p>';
 
-    const recentComplaints = document.getElementById('recentComplaints');
-    recentComplaints.innerHTML = data.recentComplaints?.map(complaint => `
-      <div class="info-item">
-        <div>
-          <strong>${complaint.title}</strong><br>
-          <span style="color: ${complaint.status === 'Đang xử lý' ? '#ff9f43' : complaint.status === 'Đã duyệt' ? '#2ed573' : '#ff4757'};">${complaint.status}</span>
-        </div>
-        <div style="color: #666; font-size: 12px;">${complaint.date}</div>
-      </div>
-    `).join('') || '<p>Chưa có khiếu nại nào.</p>';
+                const complaintSubject = document.getElementById('complaintSubject');
+                complaintSubject.innerHTML = '<option>Chọn bài kiểm tra...</option>' + data.myResults?.map(result => `
+                    <option value="${result.id}">${result.title} (${result.score}/${result.total})</option>
+                `).join('');
 
-    const complaintSubject = document.getElementById('complaintSubject');
-    complaintSubject.innerHTML = '<option>Chọn bài kiểm tra...</option>' + data.myResults?.map(result => `
-      <option value="${result.id}">${result.title} (${result.score}/${result.total})</option>
-    `).join('');
-
-    const notificationList = document.getElementById('notificationList');
-    notificationList.innerHTML = data.notifications?.map(notif => `
-      <div class="info-item">
-        <div>
-          <strong>${notif.title}</strong><br>
-          <span style="color: #666; font-size: 13px;">${notif.message}</span>
-        </div>
-        <div style="color: #999; font-size: 12px;">${notif.time}</div>
-      </div>
-    `).join('') || '<p>Không có thông báo mới.</p>';
-  })
-  .catch(error => {
-    console.error('Lỗi:', error.message); // Log lỗi chi tiết
-    alert('Không thể tải dữ liệu. Vui lòng thử lại sau!');
-  });
-}
+                const notificationList = document.getElementById('notificationList');
+                notificationList.innerHTML = data.notifications?.map(notif => `
+                    <div class="info-item">
+                        <div>
+                            <strong>${notif.title}</strong><br>
+                            <span style="color: #666; font-size: 13px;">${notif.message}</span>
+                        </div>
+                        <div style="color: #999; font-size: 12px;">${notif.time}</div>
+                    </div>
+                `).join('') || '<p>Không có thông báo mới.</p>';
+            })
+            .catch(error => {
+                console.error('Lỗi:', error.message);
+                alert('Không thể tải dữ liệu. Vui lòng thử lại sau!');
+            });
+        }
 
         function saveProfileChanges() {
-        const token = localStorage.getItem('token');
-        const phone = document.getElementById('editPhone').value.trim();
-        const dob = document.getElementById('editDob').value.trim(); 
+            const token = localStorage.getItem('token');
+            const phone = document.getElementById('editPhone').value.trim();
+            const dob = document.getElementById('editDob').value.trim(); 
 
-  // Kiểm tra ít nhất một trường được điền
-  if (!phone && !dob) {
-    showToast('❌ Vui lòng điền ít nhất một trường (số điện thoại hoặc ngày sinh)!', 'error');
-    return;
-  }
+            if (!phone && !dob) {
+                showToast('❌ Vui lòng điền ít nhất một trường (số điện thoại hoặc ngày sinh)!', 'error');
+                return;
+            }
 
-  
-  const phoneRegex = /^0[1-9][0-9]{8,9}$/;
-  if (phone && !phoneRegex.test(phone)) {
-    showToast('❌ Số điện thoại không hợp lệ! (VD: 0123456789)', 'error');
-    return;
-  }
+            const phoneRegex = /^0[1-9][0-9]{8,9}$/;
+            if (phone && !phoneRegex.test(phone)) {
+                showToast('❌ Số điện thoại không hợp lệ! (VD: 0123456789)', 'error');
+                return;
+            }
 
-  // Gửi request đến endpoint đúng
-  fetch('http://localhost:3000/api/user/profile/update', { 
-    method: 'POST', 
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ phone, dob })
-  })
-  .then(response => {
-    if (!response.ok) throw new Error('Lỗi cập nhật thông tin');
-    return response.json();
-  })
-  .then(data => {
-    if (data.error) throw new Error(data.message || 'Cập nhật thất bại');
-    showToast('✅ Thông tin đã được cập nhật thành công!', 'success');
-    closeModal('editProfileModal');
-    fetchUserData(); 
-  })
-  .catch(error => {
-    console.error('Lỗi:', error);
-    showToast('❌ Lỗi khi cập nhật thông tin. Vui lòng thử lại!', 'error');
-  });
-}
+            fetch('http://localhost:3000/api/user/profile/update', { 
+                method: 'POST', 
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ phone, dob })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Lỗi cập nhật thông tin');
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) throw new Error(data.message || 'Cập nhật thất bại');
+                showToast('✅ Thông tin đã được cập nhật thành công!', 'success');
+                closeModal('editProfileModal');
+                fetchUserData(); 
+            })
+            .catch(error => {
+                console.error('Lỗi:', error);
+                showToast('❌ Lỗi khi cập nhật thông tin. Vui lòng thử lại!', 'error');
+            });
+        }
+
         // Menu & Navigation
         function toggleSubmenu(menuId) {
             const submenu = document.getElementById(menuId + '-submenu');
@@ -473,12 +542,15 @@ fetch('http://127.0.0.1:3000/api/classes/my', {
 
             const menuItems = document.querySelectorAll('.menu-item');
             menuItems.forEach(item => item.classList.remove('active'));
-            event.target.closest('.menu-item')?.classList.add('active');
+            if (event && event.target) {
+                event.target.closest('.menu-item')?.classList.add('active');
+            }
 
             const titles = {
                 'dashboard': 'Trang chủ',
                 'join-class': 'Tham gia lớp học',
                 'my-classes': 'Lớp của tôi',
+                'class-detail': 'Chi tiết lớp học',
                 'available-tests': 'Bài kiểm tra khả dụng',
                 'test-history': 'Lịch sử làm bài',
                 'my-results': 'Kết quả của tôi',
@@ -513,7 +585,6 @@ fetch('http://127.0.0.1:3000/api/classes/my', {
                 const reader = new FileReader();
                 reader.onload = function (e) {
                     showToast('✅ Đã cập nhật ảnh đại diện!', 'success');
-                    // In real app, send to server via API
                 };
                 reader.readAsDataURL(input.files[0]);
             }
@@ -544,57 +615,170 @@ fetch('http://127.0.0.1:3000/api/classes/my', {
 
         // Join class
         async function joinClass() {
-  const code = document.getElementById('classCode').value.trim();
-  const token = localStorage.getItem('token');
+            const code = document.getElementById('classCode').value.trim();
+            const token = localStorage.getItem('token');
 
-  if (!code) return showToast('❌ Vui lòng nhập mã lớp!', 'error');
-  if (code.length < 6) return showToast('❌ Mã lớp không hợp lệ!', 'error');
+            if (!code) return showToast('❌ Vui lòng nhập mã lớp!', 'error');
+            if (code.length < 6) return showToast('❌ Mã lớp không hợp lệ!', 'error');
 
-  try {
-    const res = await fetch('http://127.0.0.1:3000/api/classes/join', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ classCode: code })
-    });
+            try {
+                const res = await fetch('http://127.0.0.1:3000/api/classes/join', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ classCode: code })
+                });
 
-    const data = await res.json();
+                const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data.error || 'Không thể tham gia lớp.');
-    }
+                if (!res.ok) {
+                    throw new Error(data.error || 'Không thể tham gia lớp.');
+                }
 
-    showToast('🎉 Tham gia lớp thành công!', 'success');
-    document.getElementById('classCode').value = '';
-    fetchUserData(); // cập nhật lại danh sách lớp
-  } catch (err) {
-    console.error('Lỗi tham gia lớp:', err);
-    showToast(`❌ ${err.message}`, 'error');
-  }
-}
+                showToast('🎉 Tham gia lớp thành công!', 'success');
+                document.getElementById('classCode').value = '';
+                fetchUserData();
+            } catch (err) {
+                console.error('Lỗi tham gia lớp:', err);
+                showToast(`❌ ${err.message}`, 'error');
+            }
+        }
 
         function joinByLink() {
             const link = prompt('Nhập link mời:');
             if (link) {
                 showToast('🎉 Tham gia lớp thành công!', 'success');
-                fetchUserData(); // Cập nhật lại lớp của tôi
+                fetchUserData();
             }
+        }
+
+        // View class detail
+        async function viewClassDetail(classId, className, subject, year) {
+            const token = localStorage.getItem('token');
+            
+            showSection('class-detail');
+            document.getElementById('pageTitle').textContent = `Chi tiết lớp: ${className}`;
+            
+            document.getElementById('classDetailTitle').textContent = className;
+            document.getElementById('detailClassCode').textContent = className;
+            document.getElementById('detailSubject').textContent = subject;
+            document.getElementById('detailYear').textContent = year;
+            document.getElementById('detailTeacher').textContent = 'Đang tải...';
+
+            document.getElementById('studentsList').innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">⏳ Đang tải dữ liệu...</p>';
+            document.getElementById('testsList').innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">⏳ Đang tải dữ liệu...</p>';
+            document.getElementById('announcementsList').innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">⏳ Đang tải dữ liệu...</p>';
+
+            try {
+                const response = await fetch(`http://127.0.0.1:3000/api/classes/${classId}/detail`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error('Không thể tải thông tin lớp');
+
+                const data = await response.json();
+
+                document.getElementById('detailTeacher').textContent = data.teacher || 'Chưa có thông tin';
+
+                document.getElementById('studentsCount').textContent = `(${data.students?.length || 0})`;
+                document.getElementById('testsCount').textContent = `(${data.tests?.length || 0})`;
+                document.getElementById('announcementsCount').textContent = `(${data.announcements?.length || 0})`;
+
+                const studentsList = document.getElementById('studentsList');
+                if (data.students && data.students.length > 0) {
+                    studentsList.innerHTML = data.students.map((student, index) => `
+                        <div class="student-item">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="student-number">#${index + 1}</div>
+                                <div class="student-avatar">${student.username?.charAt(0).toUpperCase() || 'S'}</div>
+                                <div>
+                                    <div class="student-name">${student.username || 'Không rõ'}</div>
+                                    <div class="student-id">MSSV: ${student.user_id || 'N/A'}</div>
+                                </div>
+                            </div>
+                            ${student.email ? `<div class="student-email">📧 ${student.email}</div>` : ''}
+                        </div>
+                    `).join('');
+                } else {
+                    studentsList.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Chưa có học sinh nào trong lớp</p></div>';
+                }
+
+                const testsList = document.getElementById('testsList');
+                if (data.tests && data.tests.length > 0) {
+                    testsList.innerHTML = data.tests.map(test => `
+                        <div class="test-detail-item">
+                            <div class="test-detail-header">
+                                <div>
+                                    <div class="test-detail-title">${test.title || 'Bài kiểm tra'}</div>
+                                    <div class="test-detail-meta">
+                                        📅 ${test.start_time ? new Date(test.start_time).toLocaleString('vi-VN') : 'Chưa xác định'}
+                                    </div>
+                                </div>
+                                <button class="btn btn-success" onclick="startTest(${test.test_id})">Làm bài</button>
+                            </div>
+                            <div class="test-detail-stats">
+                                <span>⏱️ ${test.duration || 'N/A'} phút</span>
+                                <span>❓ ${test.total_questions || 0} câu hỏi</span>
+                                <span>📊 ${test.total_marks || 0} điểm</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    testsList.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><p>Chưa có bài kiểm tra nào</p></div>';
+                }
+
+                const announcementsList = document.getElementById('announcementsList');
+                if (data.announcements && data.announcements.length > 0) {
+                    announcementsList.innerHTML = data.announcements.map(ann => `
+                        <div class="announcement-item">
+                            <div class="announcement-icon">📢</div>
+                            <div class="announcement-content">
+                                <div class="announcement-title">${ann.title || 'Thông báo'}</div>
+                                <div class="announcement-text">${ann.content || 'Không có nội dung'}</div>
+                                <div class="announcement-time">🕐 ${ann.created_at ? new Date(ann.created_at).toLocaleString('vi-VN') : ''}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    announcementsList.innerHTML = '<div class="empty-state"><div class="empty-icon">📢</div><p>Chưa có thông báo nào từ giáo viên</p></div>';
+                }
+
+            } catch (error) {
+                console.error('Lỗi khi tải chi tiết lớp:', error);
+                showToast('❌ Không thể tải thông tin lớp học!', 'error');
+                document.getElementById('studentsList').innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu</p></div>';
+                document.getElementById('testsList').innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu</p></div>';
+                document.getElementById('announcementsList').innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu</p></div>';
+            }
+        }
+
+        // Back to my classes
+        function backToMyClasses() {
+            showSection('my-classes');
+            document.getElementById('pageTitle').textContent = 'Lớp của tôi';
+        }
+
+        // Switch tabs in class detail
+        function switchClassTab(tabName) {
+            document.querySelectorAll('.class-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.class-tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(`classTab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.add('active');
         }
 
         // Start test
         function startTest(testId) {
             if (confirm('Bạn có sẵn sàng bắt đầu làm bài kiểm tra?')) {
                 showToast('🚀 Đang tải bài kiểm tra...', 'info');
-                // Redirect to test interface
             }
         }
 
         // View result
         function viewResult(resultId) {
             showToast('📊 Đang tải kết quả...', 'info');
-            // Show result details
         }
 
         // Submit complaint
@@ -650,19 +834,19 @@ fetch('http://127.0.0.1:3000/api/classes/my', {
             };
 
             toast.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    padding: 15px 20px;
-                    background: ${colors[type] || colors.info};
-                    color: white;
-                    border-radius: 10px;
-                    font-weight: 600;
-                    z-index: 10000;
-                    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-                    transform: translateX(400px);
-                    transition: transform 0.3s ease;
-                `;
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                background: ${colors[type] || colors.info};
+                color: white;
+                border-radius: 10px;
+                font-weight: 600;
+                z-index: 10000;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+                transform: translateX(400px);
+                transition: transform 0.3s ease;
+            `;
             toast.textContent = message;
 
             document.body.appendChild(toast);
