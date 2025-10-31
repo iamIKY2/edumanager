@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết Quả Bài Thi - EDEXIS</title>
+    <link rel="icon" type="image/png" href="/client/public/images/edu.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .result-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .result-header {
+            background: linear-gradient(135deg, #26de81 0%, #20bf6b 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .result-header h1 {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        .score-display {
+            font-size: 64px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .result-meta {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+
+        .result-body {
+            padding: 40px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .summary-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .summary-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .summary-label {
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .question-result {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 5px solid #ddd;
+        }
+
+        .question-result.correct {
+            border-left-color: #26de81;
+            background: #f0fff4;
+        }
+
+        .question-result.incorrect {
+            border-left-color: #ff4757;
+            background: #fff5f5;
+        }
+
+        .question-result.unanswered {
+            border-left-color: #ffa502;
+            background: #fffbf0;
+        }
+
+        .question-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-icon {
+            font-size: 20px;
+        }
+
+        .answer-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e1e8ed;
+        }
+
+        .answer-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .answer-value {
+            font-weight: 600;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 5px;
+            display: inline-block;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .option-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: white;
+        }
+
+        .option-item.correct-answer {
+            background: #d4edda;
+            border: 2px solid #26de81;
+            font-weight: 600;
+        }
+
+        .option-item.student-wrong {
+            background: #f8d7da;
+            border: 2px solid #ff4757;
+        }
+
+        .option-item.student-correct {
+            background: #d4edda;
+            border: 2px solid #26de81;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .result-header {
+                padding: 30px 20px;
+            }
+
+            .result-body {
+                padding: 20px;
+            }
+
+            .score-display {
+                font-size: 48px;
+            }
+
+            .result-meta {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="result-container">
+        <div class="result-header">
+            <h1>🎉 Hoàn Thành Bài Thi!</h1>
+            <div class="score-display" id="scoreDisplay">--/--</div>
+            <p style="font-size: 18px; opacity: 0.9;">Bạn đã hoàn thành bài thi</p>
+            
+            <div class="result-meta">
+                <div class="meta-item">
+                    <div>📅 Ngày thi</div>
+                    <div id="examDate">--</div>
+                </div>
+                <div class="meta-item">
+                    <div>⏱️ Thời gian làm bài</div>
+                    <div id="timeTaken">--</div>
+                </div>
+                <div class="meta-item">
+                    <div>📊 Trạng thái</div>
+                    <div id="examStatus">Đã hoàn thành</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-body">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-number" style="color: #26de81;" id="correctCount">0</div>
+                    <div class="summary-label">Câu đúng</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-number" style="color: #ff4757;" id="incorrectCount">0</div>
+                    <div class="summary-label">Câu sai</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-number" style="color: #ffa502;" id="unansweredCount">0</div>
+                    <div class="summary-label">Chưa trả lời</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-number" style="color: #667eea;" id="percentScore">0%</div>
+                    <div class="summary-label">Tỷ lệ đạt</div>
+                </div>
+            </div>
+
+            <h2 style="margin-bottom: 20px;">📋 Chi tiết từng câu hỏi</h2>
+            <div id="questionResults">
+                <p style="text-align: center; color: #666; padding: 40px;">⏳ Đang tải kết quả...</p>
+            </div>
+
+            <div class="actions">
+                <a href="./student_dashboard.html" class="btn btn-primary">🏠 Về trang chủ</a>
+                <button class="btn btn-secondary" onclick="window.print()">🖨️ In kết quả</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API_URL = 'http://127.0.0.1:3000/api';
+    const token = localStorage.getItem('token');
+
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!token) {
+            alert('❌ Vui lòng đăng nhập!');
+            window.location.href = './login.html';
+            return;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const examId = params.get('exam_id');
+        const attemptId = params.get('attempt_id');
+
+        if (!examId || !attemptId) {
+            alert('❌ Không tìm thấy thông tin bài thi!');
+            window.location.href = './student_dashboard.html';
+            return;
+        }
+
+        await loadResult(examId, attemptId);
+    });
+
+    async function loadResult(examId, attemptId) {
+    try {
+        console.log('🔍 Fetching result:', { examId, attemptId });
+
+        const response = await fetch(`${API_URL}/student/exams/${examId}/result/${attemptId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            console.error('❌ Response not OK:', response.status, response.statusText);
+            throw new Error('Không thể tải kết quả');
+        }
+
+        const data = await response.json();
+        console.log('✅ Result data:', data);
+
+        if (!data.attempt || !data.results) {
+            console.error('❌ Dữ liệu không hợp lệ:', data);
+            throw new Error('Dữ liệu kết quả không hợp lệ');
+        }
+
+        displayResult(data);
+    } catch (error) {
+        console.error('❌ Error:', error);
+        document.getElementById('questionResults').innerHTML = `
+            <div style="text-align: center; color: #ff4757; padding: 40px;">
+                <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
+                <p>${error.message}</p>
+                <button class="btn btn-primary" style="margin-top: 20px;" onclick="window.location.href='./student_dashboard.html'">
+                    Về trang chủ
+                </button>
+            </div>
+        `;
+    }
+}
+
+  function displayResult(data) {
+    const attempt = data.attempt;
+    const results = data.results; // ⭐ LƯU BIẾN GỐC
+
+    console.log('📊 Raw data:', data);
+    console.log('📊 Results length:', results.length);
+
+    // Hiển thị điểm
+    const displayScore = parseFloat(attempt.score || 0).toFixed(1);
+    const displayTotal = parseFloat(attempt.total_points || 0).toFixed(1);
+    document.getElementById('scoreDisplay').textContent = `${displayScore}/${displayTotal}`;
+    
+    document.getElementById('examDate').textContent = new Date(attempt.start_time).toLocaleDateString('vi-VN');
+    
+    const startTime = new Date(attempt.start_time);
+    const endTime = new Date(attempt.end_time || new Date());
+    const timeTaken = Math.floor((endTime - startTime) / 1000 / 60);
+    document.getElementById('timeTaken').textContent = `${timeTaken} phút`;
+
+    // ⭐ TÍNH THỐNG KÊ - LOGIC ĐƠN GIẢN HƠN
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let unansweredCount = 0;
+
+    results.forEach((r, idx) => {
+        // ⭐ KIỂM TRA ĐÃ TRẢ LỜI CHƯA
+        const hasAnswer = (r.option_id !== null && r.option_id !== undefined) || 
+                          (r.student_answer !== null && r.student_answer !== undefined && r.student_answer !== '');
+        
+        console.log(`Câu ${idx + 1}:`, {
+            question_id: r.question_id,
+            hasAnswer,
+            is_correct: r.is_correct,
+            is_correct_type: typeof r.is_correct
+        });
+        
+        if (!hasAnswer) {
+            unansweredCount++;
+        } else {
+            // ⭐ ĐƠN GIẢN HÓA: CHỈ KIỂM TRA is_correct === 1
+            if (r.is_correct === 1) {
+                correctCount++;
+                console.log(`   ✅ ĐÚNG`);
+            } else {
+                incorrectCount++;
+                console.log(`   ❌ SAI`);
+            }
+        }
+    });
+
+    console.log('📊 Final stats:', { correctCount, incorrectCount, unansweredCount });
+
+    document.getElementById('correctCount').textContent = correctCount;
+    document.getElementById('incorrectCount').textContent = incorrectCount;
+    document.getElementById('unansweredCount').textContent = unansweredCount;
+    
+    const percentScore = results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0;
+    document.getElementById('percentScore').textContent = `${percentScore}%`;
+
+    // ⭐ HIỂN THỊ CHI TIẾT CÂU HỎI
+    const container = document.getElementById('questionResults');
+    container.innerHTML = results.map((r, index) => {
+        const hasAnswer = (r.option_id !== null && r.option_id !== undefined) || 
+                          (r.student_answer !== null && r.student_answer !== undefined && r.student_answer !== '');
+        
+        let statusClass = 'unanswered';
+        let statusIcon = '⚠️';
+        
+        if (hasAnswer) {
+            // ⭐ ĐƠN GIẢN: CHỈ KIỂM TRA === 1
+            if (r.is_correct === 1) {
+                statusClass = 'correct';
+                statusIcon = '✅';
+            } else {
+                statusClass = 'incorrect';
+                statusIcon = '❌';
+            }
+        }
+
+        let optionsHTML = '';
+        let studentAnswerDisplay = hasAnswer ? (r.student_answer || 'Đã chọn') : 'Chưa trả lời';
+
+        if (r.options && r.options.length > 0) {
+            optionsHTML = '<div style="margin-top: 15px;">';
+            
+            r.options.forEach((opt, i) => {
+                const letter = String.fromCharCode(65 + i);
+                let optionClass = 'option-item';
+                let label = '';
+                
+                // Đánh dấu đáp án đúng
+                if (opt.is_correct === 1 || opt.is_correct === true) {
+                    optionClass += ' correct-answer';
+                    label = ' ✅ (Đáp án đúng)';
+                }
+                
+                // Đánh dấu lựa chọn của học sinh
+                let isStudentChoice = false;
+                if (r.question_type === 'SingleChoice' && r.option_id) {
+                    isStudentChoice = opt.option_id === r.option_id;
+                } else if (r.question_type === 'MultipleChoice' && r.student_answer) {
+                    const studentAnswers = r.student_answer.split(',').map(a => parseInt(a.trim()));
+                    isStudentChoice = studentAnswers.includes(opt.option_id);
+                }
+
+                if (isStudentChoice) {
+                    if (opt.is_correct === 1 || opt.is_correct === true) {
+                        optionClass += ' student-correct';
+                        label = ' ✅ (Bạn chọn - Đúng)';
+                    } else {
+                        optionClass += ' student-wrong';
+                        label = ' ❌ (Bạn chọn - Sai)';
+                    }
+                }
+
+                optionsHTML += `
+                    <div class="${optionClass}">
+                        ${letter}. ${opt.option_content}${label}
+                    </div>
+                `;
+            });
+            
+            optionsHTML += '</div>';
+
+            // Hiển thị câu trả lời của học sinh
+            if (r.question_type === 'SingleChoice' && r.option_id) {
+                const selectedOption = r.options.find(opt => opt.option_id === r.option_id);
+                studentAnswerDisplay = selectedOption ? 
+                    `${String.fromCharCode(65 + r.options.indexOf(selectedOption))}. ${selectedOption.option_content}` : 
+                    'Chưa trả lời';
+            } else if (r.question_type === 'MultipleChoice' && r.student_answer) {
+                const studentAnswers = r.student_answer.split(',').map(a => parseInt(a.trim()));
+                studentAnswerDisplay = studentAnswers
+                    .map(id => {
+                        const opt = r.options.find(o => o.option_id === id);
+                        return opt ? `${String.fromCharCode(65 + r.options.indexOf(opt))}. ${opt.option_content}` : null;
+                    })
+                    .filter(x => x)
+                    .join(', ') || 'Chưa trả lời';
+            }
+        } else {
+            studentAnswerDisplay = r.student_answer || 'Chưa trả lời';
+        }
+
+        let correctAnswerDisplay = r.correct_answer_text || 'Không có';
+        if (r.options && r.options.length > 0) {
+            const correctOptions = r.options
+                .map((opt, i) => (opt.is_correct === 1 || opt.is_correct === true) ? String.fromCharCode(65 + i) : null)
+                .filter(x => x);
+            
+            if (correctOptions.length > 0) {
+                correctAnswerDisplay = correctOptions.join(', ');
+            }
+        }
+
+        return `
+            <div class="question-result ${statusClass}">
+                <div class="question-title">
+                    <span class="status-icon">${statusIcon}</span>
+                    <span>Câu ${index + 1}: ${r.question_content}</span>
+                    <span style="margin-left: auto; color: #667eea; font-weight: 600;">${parseFloat(r.points).toFixed(1)} điểm</span>
+                </div>
+                
+                ${optionsHTML}
+                
+                <div class="answer-section">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <div class="answer-label">Câu trả lời của bạn:</div>
+                            <div class="answer-value" style="color: ${statusClass === 'correct' ? '#26de81' : statusClass === 'incorrect' ? '#ff4757' : '#ffa502'};">
+                                ${studentAnswerDisplay}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="answer-label">Đáp án đúng:</div>
+                            <div class="answer-value" style="color: #26de81;">
+                                ${correctAnswerDisplay}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+</script>
+</body>
+</html>

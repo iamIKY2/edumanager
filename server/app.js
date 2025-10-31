@@ -2,112 +2,194 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const mysql = require('mysql2/promise');
-const http = require('http'); // ✅ THÊM HTTP
+const http = require('http');
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 
-const authRoutes = require('./routes/auth.js'); 
-const userRoutes = require('./routes/user.js'); 
-const classRoutes = require('./routes/classes.js');
-const examRoutes = require('./routes/exams.js');
-const submissionRoutes = require('./routes/submissions.js');
-const complaintRoutes = require('./routes/complaints.js');
-const notificationRoutes = require('./routes/notifications.js');
+// Shared routes
+const authRoutes = require('./routes/shared/auth');
+const userRoutes = require('./routes/shared/user');
+const sharedClassesRoutes = require('./routes/shared/classes');
+const complaintRoutes = require('./routes/shared/complaints');
+const notificationRoutes = require('./routes/shared/notifications');
 
+// Teacher routes
+const teacherClassesRoutes = require('./routes/teacher/classes');
+const teacherExamRoutes = require('./routes/teacher/exams'); 
+const teacherCheatingRoutes = require('./routes/teacher/cheating');
+const gradingRoutes = require('./routes/teacher/grading');
+
+
+// Student routes
+const studentClassesRoutes = require('./routes/student/classes');
+const studentExamRoutes = require('./routes/student/exams'); 
+const submissionRoutes = require('./routes/student/submissions');
+
+// Admin routes
+const adminRoutes = require('./routes/admin/admin');
+
+// Load environment variables
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
+const isProduction = process.env.NODE_ENV === 'production';
 
-// ✅ TẠO HTTP SERVER (quan trọng cho Socket.IO)
+// Tạo HTTP server cho Socket.IO
 const server = http.createServer(app);
 
-// ✅ KHỞI TẠO SOCKET.IO
+// Cấu hình CORS
+const corsOptions = {
+  origin: isProduction
+    ? process.env.FRONTEND_URL || 'http://localhost:3000'
+    : '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+};
+
+// Khởi tạo Socket.IO với xác thực
 const io = new Server(server, {
-  cors: {
-    origin: '*', // Cho phép tất cả origins (trong production nên giới hạn)
-    methods: ['GET', 'POST'],
-    credentials: true
-  },
-  transports: ['websocket', 'polling'], // Hỗ trợ cả 2 phương thức
+  cors: corsOptions,
+  transports: ['websocket', 'polling'],
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 25000,
 });
 
-// ✅ SOCKET.IO EVENT HANDLERS
-io.on('connection', (socket) => {
-  console.log('✅ Client connected:', socket.id);
+// Middleware xác thực Socket.IO
+io.use(async (socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error: No token provided'));
+  }
 
-  // Lắng nghe client join room (class/exam)
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded;
+    next();
+  } catch (err) {
+    next(new Error('Authentication error: Invalid token'));
+  }
+});
+
+// Xử lý Socket.IO events
+io.on('connection', (socket) => {
+  console.log(`✅ Client connected: ${socket.id}, User: ${socket.user.id}`);
+
+  socket.join(`user_${socket.user.id}`);
+
   socket.on('join-room', (roomId) => {
     socket.join(roomId);
     console.log(`Socket ${socket.id} joined room: ${roomId}`);
   });
 
-  // Lắng nghe client leave room
   socket.on('leave-room', (roomId) => {
     socket.leave(roomId);
     console.log(`Socket ${socket.id} left room: ${roomId}`);
   });
 
-  // Xử lý disconnect
-  socket.on('disconnect', (reason) => {
-    console.log('❌ Client disconnected:', socket.id, 'Reason:', reason);
-  });
-
-  // Custom events (ví dụ)
   socket.on('student-submit', (data) => {
     console.log('Student submitted:', data);
-    // Gửi notification tới teacher
-    io.to(data.classId).emit('new-submission', data);
+    io.to(data.classId).emit('new-submission', {
+      ...data,
+      submittedBy: socket.user.id,
+    });
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log(`❌ Client disconnected: ${socket.id}, Reason: ${reason}`);
   });
 });
 
-// ✅ GẮN io VÀO app.locals để dùng trong routes
+// Gắn Socket.IO vào app.locals
 app.locals.io = io;
 
-app.use(cors({ origin: '*' }));
+// Cấu hình middleware
+app.use(cors(corsOptions));
 app.use(express.json());
 
+// Tạo MySQL connection pool
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'edexis',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
 });
+
+//  Test connection
+pool.getConnection()
+  .then(conn => {
+    console.log('✅ Database connected successfully');
+    conn.release();
+  })
+  .catch(err => {
+    console.error('❌ Database connection failed:', err.message);
+  });
 
 app.locals.pool = pool;
 
+// Middleware để truyền db 
 app.use((req, res, next) => {
   req.db = app.locals.pool;
-  req.io = app.locals.io; 
+  req.io = app.locals.io;
   next();
 });
 
+// Route kiểm tra server và database
 app.get('/api/test', async (req, res) => {
   try {
     const [rows] = await req.db.query('SELECT 1');
     res.json({ message: 'Backend working!', dbCheck: rows });
   } catch (err) {
+    console.error('Database connection error:', err);
     res.status(500).json({ error: 'Database connection failed', details: err.message });
   }
 });
 
+// Shared routes 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/classes', classRoutes); 
-app.use('/api/exams', examRoutes);
-app.use('/api/submissions', submissionRoutes);
+app.use('/api/classes', sharedClassesRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// Teacher routes
+app.use('/api/teacher/classes', teacherClassesRoutes);
+app.use('/api/teacher/exams', teacherExamRoutes); 
+app.use('/api/teacher', teacherCheatingRoutes); 
+app.use('/api/teacher/grading', gradingRoutes);
+
+//  Student routes
+app.use('/api/student/classes', studentClassesRoutes);
+app.use('/api/student/exams', studentExamRoutes); 
+app.use('/api/student/submissions', submissionRoutes);
+
+// Admin routes
+app.use('/api/admin', adminRoutes);
+
+//  404 handler 
+app.use((req, res, next) => {
+  console.log(`❌ 404 - Route not found: ${req.method} ${req.path}`);
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.path,
+    method: req.method
+  });
+});
+
+//  Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('❌ Error stack:', err.stack);
+  res.status(500).json({
+    error: 'Something went wrong!',
+    details: isProduction ? undefined : err.message,
+  });
 });
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`🚀 Backend running at http://127.0.0.1:${port}`);
-  console.log(`🔌 Socket.IO ready`);
+  console.log(`✅ Backend running at http://127.0.0.1:${port}`);
+  console.log(`✅ Socket.IO ready`);
+  console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
 });

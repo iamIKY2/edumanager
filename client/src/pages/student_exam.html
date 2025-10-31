@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Làm Bài Thi - EDEXIS</title>
+    <link rel="icon" type="image/png" href="/client/public/images/edu.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .exam-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .exam-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .exam-title {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .timer {
+            font-size: 28px;
+            font-weight: bold;
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .timer.warning {
+            background: #ff4757;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .exam-body {
+            padding: 30px;
+        }
+
+        .question-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e1e8ed;
+        }
+
+        .question-nav-btn {
+            width: 45px;
+            height: 45px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .question-nav-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .question-nav-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .question-nav-btn.answered {
+            background: #26de81;
+            color: white;
+            border-color: #26de81;
+        }
+
+        .question-content {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .question-text {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2d3748;
+        }
+
+        .question-meta {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .meta-badge {
+            background: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option {
+            background: white;
+            padding: 15px 20px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .option:hover {
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+
+        .option input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .option.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .textarea-answer {
+            width: 100%;
+            min-height: 150px;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: #26de81;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            background: #ddd;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .webcam-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+
+        #localVideo {
+            width: 100%;
+            display: block;
+        }
+
+        .webcam-status {
+            background: #26de81;
+            color: white;
+            padding: 5px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .warning-banner {
+            background: #ff4757;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            display: none;
+        }
+
+        .warning-banner.show {
+            display: block;
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            z-index: 9999;
+            transform: translateX(400px);
+            transition: transform 0.3s;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error { border-left: 5px solid #ff4757; }
+        .toast.success { border-left: 5px solid #26de81; }
+        .toast.warning { border-left: 5px solid #ffa502; }
+
+        @media (max-width: 768px) {
+            .exam-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .webcam-container {
+                width: 150px;
+                bottom: 10px;
+                right: 10px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="warning-banner" id="warningBanner"></div>
+
+    <div class="exam-container">
+        <div class="exam-header">
+            <div>
+                <div class="exam-title" id="examTitle">Đang tải...</div>
+                <div style="font-size: 14px; opacity: 0.9; margin-top: 5px;">
+                    <span id="questionProgress">0/0 câu</span> • 
+                    <span id="tabSwitchWarning">Chuyển tab: 0/3</span>
+                </div>
+            </div>
+            <div class="timer" id="timer">00:00:00</div>
+        </div>
+
+        <div class="exam-body">
+            <div class="question-nav" id="questionNav"></div>
+            
+            <div class="question-content">
+                <div id="questionContainer">
+                    <p style="text-align: center; color: #666;">⏳ Đang tải câu hỏi...</p>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" id="prevBtn" onclick="previousQuestion()">← Câu trước</button>
+                <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">Câu sau →</button>
+                <button class="btn btn-success" id="submitBtn" onclick="submitExam()">📤 Nộp bài</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="webcam-container">
+        <video id="localVideo" autoplay muted></video>
+        <div class="webcam-status" id="webcamStatus">🔴 Đang kết nối...</div>
+    </div>
+
+    <div id="submitModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2>🎉 Nộp bài thành công!</h2>
+            <p>Điểm của bạn: <span id="modalScore" style="font-weight: bold; font-size: 24px;">--/--</span></p>
+            <p id="modalMessage"></p>
+            <button class="btn btn-primary" onclick="goToResult()">Xem chi tiết kết quả</button>
+        </div>
+    </div>
+
+<script>
+    const API_URL = 'http://127.0.0.1:3000/api';
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('user_id');
+    
+    let socket;
+    let examData = null;
+    let currentQuestionIndex = 0;
+    let answers = {};
+    let tabSwitchCount = 0;
+    let timerInterval = null;
+    let timeRemaining = 0;
+
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!token) {
+            alert('❌ Vui lòng đăng nhập!');
+            window.location.href = './login.html';
+            return;
+        }
+
+        const examInfo = localStorage.getItem('current_exam');
+        if (!examInfo) {
+            alert('❌ Không tìm thấy thông tin bài thi!');
+            window.location.href = './student_dashboard.html';
+            return;
+        }
+
+        examData = JSON.parse(examInfo);
+        
+        initSocket();
+        initWebcam();
+        initAntiCheating();
+        loadExam();
+        startTimer();
+    });
+
+    function initSocket() {
+        socket = io('http://127.0.0.1:3000', {
+            auth: { token }
+        });
+
+        socket.on('connect', () => {
+            console.log('✅ Socket connected');
+            socket.emit('join', `user_${userId}`);
+            socket.emit('join_exam', {
+                exam_id: examData.exam_id,
+                attempt_id: examData.attempt_id
+            });
+        });
+
+        socket.on('exam_banned', (data) => {
+            alert(`⛔ Bạn đã bị cấm thi!\nLý do: ${data.reason}`);
+            window.location.href = './student_dashboard.html';
+        });
+
+        socket.on('points_deducted', (data) => {
+            showToast(`⚠️ Bạn đã bị trừ ${data.points_deducted} điểm!\nLý do: ${data.reason}`, 'warning');
+        });
+
+        socket.on('answerSaved', (data) => {
+            if (data.attempt_id === examData.attempt_id) {
+                showToast('✅ Đáp án đã được lưu', 'success');
+            }
+        });
+
+        socket.on('disconnect', () => {
+            console.log('❌ Socket disconnected');
+        });
+    }
+
+    async function initWebcam() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: true,
+                audio: false
+            });
+            
+            document.getElementById('localVideo').srcObject = stream;
+            document.getElementById('webcamStatus').textContent = '🟢 Đang giám sát';
+            document.getElementById('webcamStatus').style.background = '#26de81';
+            
+            console.log('✅ Webcam started');
+            
+        } catch (error) {
+            console.error('❌ Webcam error:', error);
+            document.getElementById('webcamStatus').textContent = '❌ Lỗi camera';
+            document.getElementById('webcamStatus').style.background = '#ff4757';
+            
+            logCheating('WebcamSuspicious', 'Không thể truy cập webcam');
+            
+            if (!confirm('❌ Không thể bật camera!\nBạn có muốn tiếp tục?')) {
+                window.location.href = './student_dashboard.html';
+            }
+        }
+    }
+
+    function initAntiCheating() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                tabSwitchCount++;
+                updateTabSwitchWarning();
+                logCheating('TabSwitch', `Chuyển tab lần ${tabSwitchCount}`);
+                
+                showWarning(`⚠️ Cảnh báo: Không được chuyển tab! (${tabSwitchCount}/3)`);
+                
+                if (tabSwitchCount >= 3) {
+                    socket.emit('cheating_alert', {
+                        exam_id: examData.exam_id,
+                        attempt_id: examData.attempt_id,
+                        student_id: userId,
+                        event_type: 'TabSwitch',
+                        event_description: `Vượt ngưỡng: ${tabSwitchCount} lần`
+                    });
+                }
+            }
+        });
+
+        document.addEventListener('copy', (e) => {
+            e.preventDefault();
+            logCheating('CopyPaste', 'Cố gắng copy');
+            showToast('❌ Không được phép copy!', 'error');
+        });
+
+        document.addEventListener('paste', (e) => {
+            e.preventDefault();
+            logCheating('CopyPaste', 'Cố gắng paste');
+            showToast('❌ Không được phép paste!', 'error');
+        });
+
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showToast('❌ Không được phép chuột phải!', 'error');
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey && e.shiftKey && e.key === 'I') ||
+                (e.ctrlKey && e.key === 'u')) {
+                e.preventDefault();
+                logCheating('DevTools', 'Cố gắng mở DevTools');
+                showToast('❌ Không được mở công cụ phát triển!', 'error');
+            }
+        });
+
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {
+                console.log('Fullscreen không được hỗ trợ');
+            });
+        }
+    }
+
+    function updateTabSwitchWarning() {
+        const el = document.getElementById('tabSwitchWarning');
+        el.textContent = `Chuyển tab: ${tabSwitchCount}/3`;
+        if (tabSwitchCount >= 2) {
+            el.style.color = '#ff4757';
+            el.style.fontWeight = 'bold';
+        }
+    }
+
+    async function logCheating(eventType, description) {
+        try {
+            await fetch(`${API_URL}/student/exams/${examData.exam_id}/cheating-log`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    attempt_id: examData.attempt_id,
+                    event_type: eventType,
+                    event_description: description
+                })
+            });
+        } catch (error) {
+            console.error('Error logging cheating:', error);
+        }
+    }
+
+    function loadExam() {
+        document.getElementById('examTitle').textContent = examData.exam_name;
+        
+        const questions = examData.questions;
+        const nav = document.getElementById('questionNav');
+        
+        nav.innerHTML = questions.map((q, i) => 
+            `<button class="question-nav-btn" data-index="${i}" onclick="goToQuestion(${i})">${i + 1}</button>`
+        ).join('');
+        
+        updateProgress();
+        showQuestion(0);
+    }
+
+    function showQuestion(index) {
+        if (index < 0 || index >= examData.questions.length) return;
+        
+        currentQuestionIndex = index;
+        const question = examData.questions[index];
+        
+        const container = document.getElementById('questionContainer');
+        
+        let optionsHTML = '';
+        
+        if (question.question_type === 'SingleChoice') {
+            optionsHTML = question.options.map((opt, i) => `
+                <div class="option ${answers[question.question_id] === opt.option_id ? 'selected' : ''}" onclick="selectOption(${i})">
+                    <input type="radio" name="answer_${question.question_id}" value="${opt.option_id}" 
+                           ${answers[question.question_id] === opt.option_id ? 'checked' : ''}>
+                    <span>${String.fromCharCode(65 + i)}. ${opt.option_content}</span>
+                </div>
+            `).join('');
+        } else if (question.question_type === 'MultipleChoice') {
+            const savedAnswers = answers[question.question_id] || [];
+            optionsHTML = question.options.map((opt, i) => `
+                <div class="option ${savedAnswers.includes(opt.option_id) ? 'selected' : ''}" onclick="toggleOption(${i})">
+                    <input type="checkbox" name="answer_${question.question_id}" value="${opt.option_id}"
+                           ${savedAnswers.includes(opt.option_id) ? 'checked' : ''}>
+                    <span>${String.fromCharCode(65 + i)}. ${opt.option_content}</span>
+                </div>
+            `).join('');
+        } else {
+            optionsHTML = `<textarea class="textarea-answer" id="textAnswer" placeholder="Nhập câu trả lời của bạn...">${answers[question.question_id] || ''}</textarea>`;
+        }
+        
+        container.innerHTML = `
+            <div class="question-meta">
+                <span class="meta-badge">Câu ${index + 1}/${examData.questions.length}</span>
+                <span class="meta-badge">${question.question_type}</span>
+                <span class="meta-badge">${question.difficulty}</span>
+                <span class="meta-badge">${question.points} điểm</span>
+            </div>
+            <div class="question-text">${question.question_content}</div>
+            <div class="options">${optionsHTML}</div>
+        `;
+        
+        document.querySelectorAll('.question-nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`.question-nav-btn[data-index="${index}"]`).classList.add('active');
+        
+        document.getElementById('prevBtn').disabled = (index === 0);
+        document.getElementById('nextBtn').disabled = (index === examData.questions.length - 1);
+        
+        updateProgress();
+    }
+
+    function debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
+    function isExamActive() {
+        const currentTime = Date.now();
+        const startTime = new Date(examData.start_time).getTime();
+        const durationMs = examData.duration * 60 * 1000;
+        return currentTime >= startTime && currentTime <= startTime + durationMs;
+    }
+
+    const autoSaveAnswer = debounce(async (questionId, answerText, optionId = null) => {
+        if (!isExamActive()) {
+            showToast('⏰ Bài thi đã hết giờ! Không thể lưu đáp án.', 'error');
+            return;
+        }
+
+        try {
+            console.log('🔄 Đang lưu câu:', questionId, 'Option ID:', optionId, 'Answer Text:', answerText);
+            
+            const response = await fetch(`${API_URL}/student/exams/${examData.exam_id}/save-answer`, {
+                method: 'POST',
+                headers: {  
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    attempt_id: examData.attempt_id,
+                    question_id: questionId,
+                    answer_text: answerText,
+                    option_id: optionId
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                console.log('✅ Đã lưu thành công câu:', questionId, 'Response:', result);
+                updateAnsweredStatus();
+                showToast('✅ Đã lưu đáp án', 'success');
+            } else {
+                console.error('❌ Lỗi từ server:', result);
+                throw new Error(result.error || 'Lỗi khi lưu đáp án');
+            }
+        } catch (error) {
+            console.error('❌ Error saving answer:', error);
+            showToast(`❌ Lỗi: ${error.message}`, 'error');
+        }
+    }, 500);
+
+    async function selectOption(index) {
+        const question = examData.questions[currentQuestionIndex];
+        const options = document.querySelectorAll('.option');
+        
+        options.forEach(opt => opt.classList.remove('selected'));
+        options[index].classList.add('selected');
+        options[index].querySelector('input').checked = true;
+        
+        const optionId = question.options[index].option_id;
+        answers[question.question_id] = optionId;
+        updateAnsweredStatus();
+        
+        await autoSaveAnswer(question.question_id, null, optionId);
+    }
+
+    async function toggleOption(index) {
+        const question = examData.questions[currentQuestionIndex];
+        const option = document.querySelectorAll('.option')[index];
+        const checkbox = option.querySelector('input');
+        
+        checkbox.checked = !checkbox.checked;
+        option.classList.toggle('selected');
+        
+        if (!answers[question.question_id]) answers[question.question_id] = [];
+        
+        const optionId = question.options[index].option_id;
+        if (checkbox.checked) {
+            answers[question.question_id].push(optionId);
+        } else {
+            answers[question.question_id] = answers[question.question_id].filter(a => a !== optionId);
+        }
+        
+        updateAnsweredStatus();
+        await autoSaveAnswer(question.question_id, answers[question.question_id].join(','), null);
+    }
+
+    function updateAnsweredStatus() {
+        document.querySelectorAll('.question-nav-btn').forEach((btn, i) => {
+            const questionId = examData.questions[i].question_id;
+            if (answers[questionId]) {
+                btn.classList.add('answered');
+            }
+        });
+    }
+
+    function updateProgress() {
+        const answered = Object.keys(answers).filter(id => {
+            const answer = answers[id];
+            return answer !== null && answer !== undefined && (Array.isArray(answer) ? answer.length > 0 : answer !== '');
+        }).length;
+        const total = examData.questions.length;
+        document.getElementById('questionProgress').textContent = `${answered}/${total} câu`;
+    }
+
+    function previousQuestion() {
+        if (currentQuestionIndex > 0) {
+            showQuestion(currentQuestionIndex - 1);
+        }
+    }
+
+    function nextQuestion() {
+        if (currentQuestionIndex < examData.questions.length - 1) {
+            showQuestion(currentQuestionIndex + 1);
+        }
+    }
+
+    function goToQuestion(index) {
+        showQuestion(index);
+    }
+
+    function startTimer() {
+        const duration = examData.duration;
+        timeRemaining = duration * 60;
+        
+        timerInterval = setInterval(() => {
+            timeRemaining--;
+            
+            const hours = Math.floor(timeRemaining / 3600);
+            const minutes = Math.floor((timeRemaining % 3600) / 60);
+            const seconds = timeRemaining % 60;
+            
+            const timerEl = document.getElementById('timer');
+            timerEl.textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeRemaining === 300) {
+                timerEl.classList.add('warning');
+                showToast('⏰ Còn 5 phút!', 'warning');
+            }
+            
+            if (timeRemaining <= 0) {
+                clearInterval(timerInterval);
+                showToast('⏰ Hết giờ! Đang tự động nộp bài...', 'error');
+                setTimeout(submitExam, 2000);
+            }
+        }, 1000);
+    }
+
+    async function saveAnswerDirect(questionId, answerText, optionId = null) {
+        if (!isExamActive()) {
+            showToast('⏰ Bài thi đã hết giờ! Không thể lưu đáp án.', 'error');
+            return Promise.reject(new Error('Hết giờ'));
+        }
+
+        try {
+            console.log('🔄 Lưu trực tiếp câu:', questionId, 'Option ID:', optionId, 'Answer Text:', answerText);
+            
+            const response = await fetch(`${API_URL}/student/exams/${examData.exam_id}/save-answer`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    attempt_id: examData.attempt_id,
+                    question_id: questionId,
+                    answer_text: answerText,
+                    option_id: optionId
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                console.error('❌ Lỗi từ server:', result);
+                throw new Error(result.error || 'Lỗi khi lưu đáp án');
+            }
+            
+            console.log('✅ Đã lưu trực tiếp câu:', questionId, 'Response:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ Error saving answer:', error);
+            throw error;
+        }
+    }
+
+    async function submitExam() {
+    if (!confirm('📤 Bạn có chắc muốn nộp bài?\n(Không thể làm lại sau khi nộp)')) {
+        return;
+    }
+
+    if (!isExamActive()) {
+        showToast('⏰ Bài thi đã hết giờ! Đang nộp bài tự động...', 'warning');
+    }
+
+    clearInterval(timerInterval);
+    showToast('💾 Đang lưu câu trả lời...', 'info');
+
+    try {
+        const savePromises = [];
+        const failedQuestions = [];
+
+        for (const question of examData.questions) {
+            if (answers[question.question_id]) {
+                const answerText = question.question_type === 'MultipleChoice'
+                    ? (Array.isArray(answers[question.question_id])
+                        ? answers[question.question_id].join(',')
+                        : answers[question.question_id])
+                    : question.question_type === 'SingleChoice'
+                    ? null
+                    : answers[question.question_id];
+                const optionId = question.question_type === 'SingleChoice'
+                    ? answers[question.question_id]
+                    : null;
+
+                savePromises.push(
+                    saveAnswerDirect(question.question_id, answerText, optionId)
+                        .catch(error => {
+                            console.error(`❌ Lỗi lưu câu ${question.question_id}:`, error);
+                            failedQuestions.push(question.question_id);
+                            throw error;
+                        })
+                );
+            }
+        }
+
+        await Promise.all(savePromises);
+
+        if (failedQuestions.length > 0) {
+            showToast(`❌ Lỗi khi lưu các câu: ${failedQuestions.join(', ')}`, 'error');
+            return;
+        }
+
+        showToast('✅ Đã lưu xong tất cả câu trả lời', 'success');
+
+        console.log('🔍 Đang nộp bài:', { attempt_id: examData.attempt_id });
+
+        const response = await fetch(`${API_URL}/student/exams/${examData.exam_id}/submit`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                attempt_id: examData.attempt_id
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            console.log('✅ Nộp bài thành công:', result);
+            localStorage.removeItem('current_exam');
+            showSubmitModal(result.score, examData.total_points || 100, result.message);
+        } else {
+            console.error('❌ Lỗi từ server:', result);
+            throw new Error(result.error || 'Lỗi khi nộp bài');
+        }
+    } catch (error) {
+        console.error('❌ Error:', error);
+        showToast(`❌ Lỗi: ${error.message}\nVui lòng thử lại!`, 'error');
+    }
+}
+
+    function showSubmitModal(score, totalPoints, message) {
+        const modal = document.getElementById('submitModal');
+        const modalScore = document.getElementById('modalScore');
+        const modalMessage = document.getElementById('modalMessage');
+
+        modalScore.textContent = `${score}/${totalPoints}`;
+        modalMessage.textContent = message;
+        modal.style.display = 'flex';
+
+        modal.dataset.examId = examData.exam_id;
+        modal.dataset.attemptId = examData.attempt_id;
+    }
+
+    function closeModal() {
+        document.getElementById('submitModal').style.display = 'none';
+        goToResult();
+    }
+
+    function goToResult() {
+        const modal = document.getElementById('submitModal');
+        const examId = modal.dataset.examId;
+        const attemptId = modal.dataset.attemptId;
+        window.location.href = `./student_result.html?exam_id=${examId}&attempt_id=${attemptId}`;
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.classList.add('show'), 100);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    function showWarning(message) {
+        const banner = document.getElementById('warningBanner');
+        banner.textContent = message;
+        banner.classList.add('show');
+        
+        setTimeout(() => {
+            banner.classList.remove('show');
+        }, 3000);
+    }
+
+    window.addEventListener('beforeunload', (e) => {
+        e.preventDefault();
+        e.returnValue = 'Bạn có chắc muốn rời khỏi trang? Bài thi của bạn chưa được nộp!';
+        return e.returnValue;
+    });
+
+    window.addEventListener('unload', () => {
+        if (socket) {
+            socket.emit('leave_exam', {
+                exam_id: examData.exam_id,
+                attempt_id: examData.attempt_id
+            });
+            socket.disconnect();
+        }
+        
+        const video = document.getElementById('localVideo');
+        if (video && video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+        }
+    });
+
+    document.addEventListener('input', (e) => {
+        if (e.target.id === 'textAnswer') {
+            const question = examData.questions[currentQuestionIndex];
+            answers[question.question_id] = e.target.value;
+            updateAnsweredStatus();
+            autoSaveAnswer(question.question_id, e.target.value, null);
+        }
+    });
+</script>
+</body>
+</html>

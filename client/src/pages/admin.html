@@ -7,192 +7,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-    <style>
-        :root {
-            --sidebar-width: 250px;
-            --header-height: 60px;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
-        }
-
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            width: var(--sidebar-width);
-            background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            overflow-y: auto;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .sidebar-header h4 {
-            margin: 0;
-            font-weight: 600;
-        }
-
-        .nav-item {
-            margin: 5px 0;
-        }
-
-        .nav-link {
-            color: rgba(255,255,255,0.8);
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin: 0 10px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .nav-link:hover, .nav-link.active {
-            background-color: rgba(255,255,255,0.1);
-            color: white;
-        }
-
-        .main-content {
-            margin-left: var(--sidebar-width);
-            padding: 20px;
-            min-height: 100vh;
-        }
-
-        .header {
-            background: white;
-            padding: 15px 25px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.3s, box-shadow 0.3s;
-            height: 100%;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            margin-bottom: 15px;
-        }
-
-        .stat-value {
-            font-size: 32px;
-            font-weight: 700;
-            margin: 10px 0;
-        }
-
-        .stat-label {
-            color: #6c757d;
-            font-size: 14px;
-            margin-bottom: 5px;
-        }
-
-        .stat-change {
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .chart-card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 25px;
-        }
-
-        .chart-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #2c3e50;
-        }
-
-        .table-card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        .badge-custom {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-        }
-
-        .content-section {
-            display: none;
-        }
-
-        .content-section.active {
-            display: block;
-        }
-
-        .progress-custom {
-            height: 8px;
-            border-radius: 10px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            
-            .sidebar.show {
-                transform: translateX(0);
-            }
-            
-            .main-content {
-                margin-left: 0;
-            }
-        }
-    </style>
+    <link rel="icon" type="image/png" href="/client/public/images/edu.png">
+    <link href="/client/public/css/admin.css" rel="stylesheet">
 </head>
 <body>
     <div class="sidebar" id="sidebar">
@@ -221,6 +37,12 @@
                     <i class="bi bi-question-circle"></i> Ngân hàng câu hỏi
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="monitor-cheating">
+                    <i class="bi bi-exclamation-triangle"></i> Giám sát gian lận
+                </a>
+            </li>
+
             <li class="nav-item">
                 <a class="nav-link" href="#" data-section="subjects">
                     <i class="bi bi-book"></i> Môn học
@@ -263,7 +85,7 @@
                             <i class="bi bi-people-fill"></i>
                         </div>
                         <div class="stat-label">Tổng Sinh Viên</div>
-                        <div class="stat-value">2,847</div>
+                        <div class="stat-value">0</div>
                         <div class="stat-change text-success">
                             <i class="bi bi-arrow-up"></i> +12% so với tháng trước
                         </div>
@@ -275,7 +97,7 @@
                             <i class="bi bi-person-badge"></i>
                         </div>
                         <div class="stat-label">Tổng Giáo Viên</div>
-                        <div class="stat-value">156</div>
+                        <div class="stat-value">0</div>
                         <div class="stat-change text-success">
                             <i class="bi bi-arrow-up"></i> +5% so với tháng trước
                         </div>
@@ -287,7 +109,7 @@
                             <i class="bi bi-file-earmark-text"></i>
                         </div>
                         <div class="stat-label">Kỳ Thi Đang Diễn Ra</div>
-                        <div class="stat-value">23</div>
+                        <div class="stat-value">0</div>
                         <div class="stat-change text-success">
                             <i class="bi bi-arrow-up"></i> +8% so với tháng trước
                         </div>
@@ -299,7 +121,7 @@
                             <i class="bi bi-patch-question"></i>
                         </div>
                         <div class="stat-label">Câu Hỏi Trong Hệ Thống</div>
-                        <div class="stat-value">12,453</div>
+                        <div class="stat-value">0</div>
                         <div class="stat-change text-success">
                             <i class="bi bi-plus"></i> +156 câu hỏi mới
                         </div>
@@ -313,8 +135,8 @@
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="chart-title mb-0">Thống Kê Người Dùng Mới</h6>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary active">Sinh viên</button>
-                                <button type="button" class="btn btn-outline-primary">Giáo viên</button>
+                                <button type="button" class="btn btn-outline-primary active" id="studentBtn">Sinh viên</button>
+                                <button type="button" class="btn btn-outline-primary" id="teacherBtn">Giáo viên</button>
                             </div>
                         </div>
                         <canvas id="userChart" height="80"></canvas>
@@ -374,9 +196,9 @@
                     <div class="col-md-3">
                         <select class="form-select" id="userRoleFilter">
                             <option value="">Tất cả vai trò</option>
-                            <option value="student">Sinh viên</option>
-                            <option value="teacher">Giáo viên</option>
-                            <option value="admin">Quản trị viên</option>
+                            <option value="Student">Sinh viên</option>
+                            <option value="Teacher">Giáo viên</option>
+                            <option value="Admin">Quản trị viên</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -402,65 +224,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>#2847</td>
-                                <td><strong>Nguyễn Văn An</strong></td>
-                                <td>an.nguyen@student.edu.vn</td>
-                                <td><span class="badge bg-primary">Sinh viên</span></td>
-                                <td>15/09/2025</td>
-                                <td><span class="badge bg-success">Hoạt động</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#156</td>
-                                <td><strong>Trần Thị Bình</strong></td>
-                                <td>binh.tran@teacher.edu.vn</td>
-                                <td><span class="badge bg-success">Giáo viên</span></td>
-                                <td>10/08/2025</td>
-                                <td><span class="badge bg-success">Hoạt động</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#2846</td>
-                                <td><strong>Lê Văn Cường</strong></td>
-                                <td>cuong.le@student.edu.vn</td>
-                                <td><span class="badge bg-primary">Sinh viên</span></td>
-                                <td>14/09/2025</td>
-                                <td><span class="badge bg-success">Hoạt động</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#1</td>
-                                <td><strong>Admin System</strong></td>
-                                <td>admin@system.edu.vn</td>
-                                <td><span class="badge bg-danger">Admin</span></td>
-                                <td>01/01/2025</td>
-                                <td><span class="badge bg-success">Hoạt động</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
+                            <!-- Data will be loaded here -->
                         </tbody>
                     </table>
                 </div>
@@ -486,33 +250,6 @@
                     </button>
                 </div>
 
-                <div class="row mb-3 g-2">
-                    <div class="col-md-4">
-                        <input type="text" class="form-control" id="examSearch" placeholder="Tìm kiếm kỳ thi...">
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select" id="examSubjectFilter">
-                            <option value="">Tất cả môn học</option>
-                            <option value="web">Lập trình Web</option>
-                            <option value="db">Cơ sở dữ liệu</option>
-                            <option value="network">Mạng máy tính</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select" id="examStatusFilter">
-                            <option value="">Tất cả trạng thái</option>
-                            <option value="upcoming">Sắp diễn ra</option>
-                            <option value="ongoing">Đang diễn ra</option>
-                            <option value="completed">Hoàn thành</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <button class="btn btn-outline-secondary w-100" id="examFilterBtn">
-                            <i class="bi bi-funnel"></i> Lọc
-                        </button>
-                    </div>
-                </div>
-
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -528,60 +265,156 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>#001</td>
-                                <td><strong>Kiểm tra giữa kỳ</strong></td>
-                                <td>Lập trình Web</td>
-                                <td>Nguyễn Văn A</td>
-                                <td>60 phút</td>
-                                <td>127</td>
-                                <td><span class="badge-custom bg-success">Hoàn thành</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#002</td>
-                                <td><strong>Bài tập tuần 5</strong></td>
-                                <td>Cơ sở dữ liệu</td>
-                                <td>Trần Thị B</td>
-                                <td>45 phút</td>
-                                <td>89</td>
-                                <td><span class="badge-custom bg-primary">Đang diễn ra</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-secondary" data-action="stop"><i class="bi bi-stop"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#003</td>
-                                <td><strong>Thi cuối kỳ</strong></td>
-                                <td>Thuật toán</td>
-                                <td>Phạm Thị D</td>
-                                <td>90 phút</td>
-                                <td>0</td>
-                                <td><span class="badge-custom bg-info">Sắp diễn ra</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
+                            <!-- Data will be loaded here -->
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
+        <div id="monitor-cheating-section" class="content-section">
+    <div class="row g-4 mb-4">
+        <div class="col-xl-8">
+            <div class="chart-card">
+                <h6 class="chart-title">Thống kê vi phạm gian lận</h6>
+                <canvas id="cheatingChart" height="100"></canvas>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="chart-card">
+                <h6 class="chart-title">Top 5 học sinh vi phạm</h6>
+                <ul id="topViolators" class="list-group"></ul>
+            </div>
+        </div>
+    </div>
+    <div class="table-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h6 class="chart-title mb-0">Log gian lận</h6>
+            <button class="btn btn-primary" id="exportCheatingCsv">
+                <i class="bi bi-download"></i> Xuất CSV
+            </button>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <select class="form-select" id="examFilter">
+                    <option value="">Tất cả kỳ thi</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" id="studentFilter">
+                    <option value="">Tất cả học sinh</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" id="eventTypeFilter">
+                    <option value="">Tất cả loại vi phạm</option>
+                    <option value="TabSwitch">Chuyển tab</option>
+                    <option value="CopyPaste">Copy/Paste</option>
+                    <option value="WebcamSuspicious">Webcam đáng ngờ</option>
+                </select>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Học sinh</th>
+                        <th>Kỳ thi</th>
+                        <th>Lớp</th>
+                        <th>Loại vi phạm</th>
+                        <th>Chi tiết</th>
+                        <th>Thời gian</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="cheatingTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Cập nhật questions-section -->
+<div id="questions-section" class="content-section">
+    <div class="table-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h6 class="chart-title mb-0">Ngân Hàng Câu Hỏi</h6>
+            <div>
+                <a class="btn btn-outline-primary me-2" href="/sample_questions.xlsx" download>
+                    <i class="bi bi-download"></i> Tải file mẫu
+                </a>
+                <button class="btn btn-primary" id="addQuestionBtn">
+                    <i class="bi bi-plus-lg"></i> Thêm câu hỏi
+                </button>
+                <button class="btn btn-primary" id="importQuestionBtn">
+                    <i class="bi bi-upload"></i> Import Excel/CSV
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">ID</th>
+                        <th>Nội dung câu hỏi</th>
+                        <th>Môn học</th>
+                        <th>Mức độ</th>
+                        <th>Loại</th>
+                        <th>Tỷ lệ đúng</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="questionsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal import câu hỏi -->
+<div class="modal fade" id="importQuestionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Import Câu Hỏi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importQuestionForm">
+                    <div class="mb-3">
+                        <label class="form-label">Chọn kỳ thi (tùy chọn)</label>
+                        <select class="form-select" id="importExamId">
+                            <option value="">Không chọn kỳ thi</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tải lên file Excel/CSV</label>
+                        <input type="file" class="form-control" id="importFile" accept=".xlsx,.csv" required>
+                    </div>
+                </form>
+                <div id="previewQuestions" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="saveImportBtn">Lưu</button>
+                <button type="button" class="btn btn-info" id="previewImportBtn">Xem trước</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal webcam -->
+<div class="modal fade" id="webcamModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Webcam của học sinh</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <video id="webcamStream" autoplay style="width: 100%;"></video>
+            </div>
+        </div>
+    </div>
+</div>
         <div id="questions-section" class="content-section">
             <div class="table-card">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -589,34 +422,6 @@
                     <button class="btn btn-primary" id="addQuestionBtn">
                         <i class="bi bi-plus-lg"></i> Thêm câu hỏi
                     </button>
-                </div>
-
-                <div class="row mb-3 g-2">
-                    <div class="col-md-4">
-                        <input type="text" class="form-control" id="questionSearch" placeholder="Tìm kiếm câu hỏi...">
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select" id="questionSubjectFilter">
-                            <option value="">Tất cả môn học</option>
-                            <option value="web">Lập trình Web</option>
-                            <option value="db">Cơ sở dữ liệu</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select" id="questionDifficultyFilter">
-                            <option value="">Tất cả mức độ</option>
-                            <option value="easy">Dễ</option>
-                            <option value="medium">Trung bình</option>
-                            <option value="hard">Khó</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <select class="form-select" id="questionTypeFilter">
-                            <option value="">Loại câu hỏi</option>
-                            <option value="single">Một đáp án</option>
-                            <option value="multiple">Nhiều đáp án</option>
-                        </select>
-                    </div>
                 </div>
 
                 <div class="table-responsive">
@@ -633,200 +438,78 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>#4521</td>
-                                <td><strong>HTML là viết tắt của từ gì?</strong></td>
-                                <td>Lập trình Web</td>
-                                <td><span class="badge bg-success">Dễ</span></td>
-                                <td>Một đáp án</td>
-                                <td><span class="text-success">92%</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#5832</td>
-                                <td><strong>Câu lệnh SQL nào dùng để lấy dữ liệu?</strong></td>
-                                <td>Cơ sở dữ liệu</td>
-                                <td><span class="badge bg-warning">Trung bình</span></td>
-                                <td>Một đáp án</td>
-                                <td><span class="text-warning">68%</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#2100</td>
-                                <td><strong>Phân tích độ phức tạp của thuật toán Quick Sort</strong></td>
-                                <td>Thuật toán</td>
-                                <td><span class="badge bg-danger">Khó</span></td>
-                                <td>Nhiều đáp án</td>
-                                <td><span class="text-danger">35%</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
+                            <!-- Data will be loaded here -->
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <div id="subjects-section" class="content-section">
-            <div class="row g-4">
-                <div class="col-md-8">
-                    <div class="table-card">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h6 class="chart-title mb-0">Danh Sách Môn Học</h6>
-                            <button class="btn btn-primary" id="addSubjectBtn">
-                                <i class="bi bi-plus-lg"></i> Thêm môn học
-                            </button>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Mã môn</th>
-                                        <th>Tên môn học</th>
-                                        <th>Số câu hỏi</th>
-                                        <th>Số kỳ thi</th>
-                                        <th>Trạng thái</th>
-                                        <th>Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><strong>CS101</strong></td>
-                                        <td>Lập trình Web</td>
-                                        <td>2,145</td>
-                                        <td>45</td>
-                                        <td><span class="badge bg-success">Hoạt động</span></td>
-                                        <td>
-                                            <div class="action-buttons">
-                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>CS102</strong></td>
-                                        <td>Cơ sở dữ liệu</td>
-                                        <td>1,832</td>
-                                        <td>38</td>
-                                        <td><span class="badge bg-success">Hoạt động</span></td>
-                                        <td>
-                                            <div class="action-buttons">
-                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>CS103</strong></td>
-                                        <td>Mạng máy tính</td>
-                                        <td>1,567</td>
-                                        <td>32</td>
-                                        <td><span class="badge bg-success">Hoạt động</span></td>
-                                        <td>
-                                            <div class="action-buttons">
-                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>CS104</strong></td>
-                                        <td>Thuật toán</td>
-                                        <td>2,321</td>
-                                        <td>52</td>
-                                        <td><span class="badge bg-success">Hoạt động</span></td>
-                                        <td>
-                                            <div class="action-buttons">
-                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>CS105</strong></td>
-                                        <td>Trí tuệ nhân tạo</td>
-                                        <td>1,245</td>
-                                        <td>28</td>
-                                        <td><span class="badge bg-warning">Tạm dừng</span></td>
-                                        <td>
-                                            <div class="action-buttons">
-                                                <button class="btn btn-sm btn-info" data-action="view"><i class="bi bi-eye"></i></button>
-                                                <button class="btn btn-sm btn-warning" data-action="edit"><i class="bi bi-pencil"></i></button>
-                                                <button class="btn btn-sm btn-danger" data-action="delete"><i class="bi bi-trash"></i></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="stat-card mb-4">
-                        <div class="stat-icon" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
-                            <i class="bi bi-book"></i>
-                        </div>
-                        <div class="stat-label">Tổng Môn Học</div>
-                        <div class="stat-value">24</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <h6 class="mb-3">Môn học phổ biến</h6>
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span>Lập trình Web</span>
-                                <strong>2,145</strong>
-                            </div>
-                            <div class="progress progress-custom">
-                                <div class="progress-bar bg-primary" style="width: 85%"></div>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span>Thuật toán</span>
-                                <strong>2,321</strong>
-                            </div>
-                            <div class="progress progress-custom">
-                                <div class="progress-bar bg-success" style="width: 92%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <span>Cơ sở dữ liệu</span>
-                                <strong>1,832</strong>
-                            </div>
-                            <div class="progress progress-custom">
-                                <div class="progress-bar bg-warning" style="width: 73%"></div>
-                            </div>
-                        </div>
-                    </div>
+      <div id="subjects-section" class="content-section">
+    <!-- Danh sách môn học (mặc định) -->
+    <div id="subjectsList">
+        <div class="card">
+            <div class="card-body">
+                <button class="btn btn-primary mb-3" id="addSubjectBtn">Thêm môn học</button>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tên môn học</th>
+                                <th>Số câu hỏi</th>
+                                <th>Số kỳ thi</th>
+                                <th>Trạng thái</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="subjectsTableBody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
-
+    </div>
+    <!-- Chi tiết môn học (hiển thị khi bấm Xem chi tiết) -->
+    <div id="subjectDetail" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title">Chi tiết môn học: <span id="subjectNameDetail"></span></h5>
+                    <button class="btn btn-secondary" id="backToSubjectsBtn">Quay lại</button>
+                </div>
+                <div class="mb-3">
+                    <p>Số lượng sinh viên: <strong id="studentCount">0</strong></p>
+                    <p>Giáo viên chủ nhiệm: <strong id="teacherName">Chưa có</strong></p>
+                </div>
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="studentSearch" placeholder="Tìm kiếm sinh viên...">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="studentListTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Họ tên</th>
+                                <th>Email</th>
+                                <th class="sortable" data-sort="avg_score" data-order="desc">Điểm trung bình <i class="bi bi-sort-down"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentListTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="mt-3">
+                    <p>Thống kê điểm:</p>
+                    <ul>
+                        <li>Điểm trung bình môn: <strong id="avgScore">0</strong></li>
+                        <li>Điểm cao nhất: <strong id="maxScore">0</strong></li>
+                        <li>Điểm thấp nhất: <strong id="minScore">0</strong></li>
+                    </ul>
+                </div>
+                <button class="btn btn-primary mt-3" id="exportScoresBtn">Xuất điểm (CSV)</button>
+            </div>
+        </div>
+    </div>
+</div>
         <div id="reports-section" class="content-section">
             <div class="row g-4 mb-4">
                 <div class="col-md-3">
@@ -854,10 +537,7 @@
                             <i class="bi bi-graph-up"></i>
                         </div>
                         <div class="stat-label">Tổng số bài thi</div>
-                        <div class="stat-value">8,524</div>
-                        <div class="stat-change text-success">
-                            <i class="bi bi-arrow-up"></i> +15.3%
-                        </div>
+                        <div class="stat-value">0</div>
                     </div>
                 </div>
                 <div class="col-xl-3 col-md-6">
@@ -866,10 +546,7 @@
                             <i class="bi bi-check-circle"></i>
                         </div>
                         <div class="stat-label">Tỷ lệ hoàn thành</div>
-                        <div class="stat-value">87.5%</div>
-                        <div class="stat-change text-success">
-                            <i class="bi bi-arrow-up"></i> +3.2%
-                        </div>
+                        <div class="stat-value">0%</div>
                     </div>
                 </div>
                 <div class="col-xl-3 col-md-6">
@@ -878,10 +555,7 @@
                             <i class="bi bi-star"></i>
                         </div>
                         <div class="stat-label">Điểm trung bình</div>
-                        <div class="stat-value">7.3</div>
-                        <div class="stat-change text-success">
-                            <i class="bi bi-arrow-up"></i> +0.5
-                        </div>
+                        <div class="stat-value">0</div>
                     </div>
                 </div>
                 <div class="col-xl-3 col-md-6">
@@ -890,25 +564,7 @@
                             <i class="bi bi-exclamation-triangle"></i>
                         </div>
                         <div class="stat-label">Cảnh báo gian lận</div>
-                        <div class="stat-value">26</div>
-                        <div class="stat-change text-danger">
-                            <i class="bi bi-arrow-up"></i> +8
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-4 mb-4">
-                <div class="col-xl-8">
-                    <div class="chart-card">
-                        <h6 class="chart-title">Xu Hướng Điểm Số Theo Thời Gian</h6>
-                        <canvas id="trendChart" height="80"></canvas>
-                    </div>
-                </div>
-                <div class="col-xl-4">
-                    <div class="chart-card">
-                        <h6 class="chart-title">Phân Bố Theo Môn Học</h6>
-                        <canvas id="subjectChart"></canvas>
+                        <div class="stat-value">0</div>
                     </div>
                 </div>
             </div>
@@ -931,33 +587,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td><strong>Kiểm tra giữa kỳ - Web</strong></td>
-                                        <td>127</td>
-                                        <td>124 (97.6%)</td>
-                                        <td><span class="badge bg-success">7.8</span></td>
-                                        <td>9.5</td>
-                                        <td>4.0</td>
-                                        <td><span class="badge bg-warning">5</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Bài tập tuần 5 - Database</strong></td>
-                                        <td>89</td>
-                                        <td>86 (96.6%)</td>
-                                        <td><span class="badge bg-warning">6.5</span></td>
-                                        <td>9.0</td>
-                                        <td>3.5</td>
-                                        <td><span class="badge bg-danger">8</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Kiểm tra 15p - Network</strong></td>
-                                        <td>145</td>
-                                        <td>142 (97.9%)</td>
-                                        <td><span class="badge bg-success">8.2</span></td>
-                                        <td>10.0</td>
-                                        <td>5.0</td>
-                                        <td><span class="badge bg-success">2</span></td>
-                                    </tr>
+                                    <!-- Data will be loaded here -->
                                 </tbody>
                             </table>
                         </div>
@@ -967,139 +597,26 @@
         </div>
 
         <div id="settings-section" class="content-section">
-            <div class="row g-4">
-                <div class="col-md-3">
-                    <div class="list-group">
-                        <a href="#" class="list-group-item list-group-item-action active">
-                            <i class="bi bi-gear me-2"></i> Cài đặt chung
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <i class="bi bi-shield-check me-2"></i> Bảo mật
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <i class="bi bi-bell me-2"></i> Thông báo
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <i class="bi bi-palette me-2"></i> Giao diện
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <i class="bi bi-envelope me-2"></i> Email
-                        </a>
-                    </div>
-                </div>
-
-                <div class="col-md-9">
-                    <div class="table-card">
-                        <h6 class="chart-title">Cài Đặt Hệ Thống</h6>
-                        
-                        <div class="mb-4">
-                            <h6 class="mb-3">Thông tin hệ thống</h6>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Tên hệ thống</label>
-                                    <input type="text" class="form-control" id="systemName" value="Exam System">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Email liên hệ</label>
-                                    <input type="email" class="form-control" id="contactEmail" value="admin@examsystem.edu.vn">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Số điện thoại</label>
-                                    <input type="tel" class="form-control" id="contactPhone" value="0123-456-789">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Múi giờ</label>
-                                    <select class="form-select" id="timezone">
-                                        <option>GMT+7 (Vietnam)</option>
-                                        <option>GMT+8 (Singapore)</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <hr>
-
-                        <div class="mb-4">
-                            <h6 class="mb-3">Cài đặt bài thi</h6>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="autoSubmit" checked>
-                                <label class="form-check-label" for="autoSubmit">
-                                    Tự động nộp bài khi hết giờ
-                                </label>
-                            </div>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="shuffleQuestions" checked>
-                                <label class="form-check-label" for="shuffleQuestions">
-                                    Xáo trộn câu hỏi mặc định
-                                </label>
-                            </div>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="shuffleAnswers" checked>
-                                <label class="form-check-label" for="shuffleAnswers">
-                                    Xáo trộn đáp án mặc định
-                                </label>
-                            </div>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="showResults" checked>
-                                <label class="form-check-label" for="showResults">
-                                    Hiển thị kết quả ngay sau khi nộp bài
-                                </label>
-                            </div>
-                        </div>
-
-                        <hr>
-
-                        <div class="mb-4">
-                            <h6 class="mb-3">Chống gian lận</h6>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="detectTabSwitch" checked>
-                                <label class="form-check-label" for="detectTabSwitch">
-                                    Phát hiện chuyển tab
-                                </label>
-                            </div>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="disableCopy">
-                                <label class="form-check-label" for="disableCopy">
-                                    Vô hiệu hóa copy/paste
-                                </label>
-                            </div>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="enableWebcam">
-                                <label class="form-check-label" for="enableWebcam">
-                                    Yêu cầu bật webcam khi thi
-                                </label>
-                            </div>
-                            <div class="row g-3 mt-2">
-                                <div class="col-md-6">
-                                    <label class="form-label">Số lần chuyển tab tối đa</label>
-                                    <input type="number" class="form-control" id="maxTabSwitches" value="3">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Thời gian cảnh báo (giây)</label>
-                                    <input type="number" class="form-control" id="warningTime" value="5">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="text-end">
-                            <button class="btn btn-secondary me-2" id="cancelSettings">Hủy</button>
-                            <button class="btn btn-primary" id="saveSettings">Lưu thay đổi</button>
-                        </div>
-                    </div>
-                </div>
+            <div class="table-card">
+                <h6 class="chart-title">Cài Đặt Hệ Thống</h6>
+                <p class="text-muted">Các tính năng cài đặt sẽ được phát triển trong phiên bản tiếp theo.</p>
             </div>
         </div>
 
         <!-- Modal Thêm Người Dùng -->
-        <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+        <div class="modal fade" id="addUserModal" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="addUserModalLabel">Thêm Người Dùng</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title">Thêm Người Dùng</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <form id="addUserForm">
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" id="userUsername" required>
+                            </div>
                             <div class="mb-3">
                                 <label class="form-label">Họ và Tên</label>
                                 <input type="text" class="form-control" id="userFullName" required>
@@ -1109,11 +626,15 @@
                                 <input type="email" class="form-control" id="userEmail" required>
                             </div>
                             <div class="mb-3">
+                                <label class="form-label">Mật khẩu</label>
+                                <input type="password" class="form-control" id="userPassword" required>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">Vai trò</label>
                                 <select class="form-select" id="userRole">
-                                    <option value="student">Sinh viên</option>
-                                    <option value="teacher">Giáo viên</option>
-                                    <option value="admin">Quản trị viên</option>
+                                    <option value="Student">Sinh viên</option>
+                                    <option value="Teacher">Giáo viên</option>
+                                    <option value="Admin">Quản trị viên</option>
                                 </select>
                             </div>
                         </form>
@@ -1126,95 +647,16 @@
             </div>
         </div>
 
-        <!-- Modal Thêm Kỳ Thi -->
-        <div class="modal fade" id="addExamModal" tabindex="-1" aria-labelledby="addExamModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="addExamModalLabel">Tạo Kỳ Thi Mới</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="addExamForm">
-                            <div class="mb-3">
-                                <label class="form-label">Tên Kỳ Thi</label>
-                                <input type="text" class="form-control" id="examName" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Môn Học</label>
-                                <select class="form-select" id="examSubject">
-                                    <option value="web">Lập trình Web</option>
-                                    <option value="db">Cơ sở dữ liệu</option>
-                                    <option value="network">Mạng máy tính</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Thời gian (phút)</label>
-                                <input type="number" class="form-control" id="examDuration" required>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                        <button type="button" class="btn btn-primary" id="saveExamBtn">Lưu</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal Thêm Câu Hỏi -->
-        <div class="modal fade" id="addQuestionModal" tabindex="-1" aria-labelledby="addQuestionModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="addQuestionModalLabel">Thêm Câu Hỏi</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="addQuestionForm">
-                            <div class="mb-3">
-                                <label class="form-label">Nội dung câu hỏi</label>
-                                <textarea class="form-control" id="questionContent" required></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Môn Học</label>
-                                <select class="form-select" id="questionSubject">
-                                    <option value="web">Lập trình Web</option>
-                                    <option value="db">Cơ sở dữ liệu</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Mức độ</label>
-                                <select class="form-select" id="questionDifficulty">
-                                    <option value="easy">Dễ</option>
-                                    <option value="medium">Trung bình</option>
-                                    <option value="hard">Khó</option>
-                                </select>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                        <button type="button" class="btn btn-primary" id="saveQuestionBtn">Lưu</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Modal Thêm Môn Học -->
-        <div class="modal fade" id="addSubjectModal" tabindex="-1" aria-labelledby="addSubjectModalLabel" aria-hidden="true">
+        <div class="modal fade" id="addSubjectModal" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="addSubjectModalLabel">Thêm Môn Học</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title">Thêm Môn Học</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <form id="addSubjectForm">
-                            <div class="mb-3">
-                                <label class="form-label">Mã môn</label>
-                                <input type="text" class="form-control" id="subjectCode" required>
-                            </div>
                             <div class="mb-3">
                                 <label class="form-label">Tên môn học</label>
                                 <input type="text" class="form-control" id="subjectName" required>
@@ -1228,315 +670,1174 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Toggle Sidebar
-        document.getElementById('toggleSidebar')?.addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('show');
+// Hàm hiển thị thông báo (sử dụng Bootstrap Toast thay vì alert)
+function showNotification(message, type = 'info') {
+    const toastContainer = document.createElement('div');
+    toastContainer.className = `toast align-items-center text-white bg-${type} border-0`;
+    toastContainer.style.position = 'fixed';
+    toastContainer.style.top = '20px';
+    toastContainer.style.right = '20px';
+    toastContainer.style.zIndex = '1050';
+    toastContainer.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    document.body.appendChild(toastContainer);
+    const toast = new bootstrap.Toast(toastContainer);
+    toast.show();
+    setTimeout(() => toastContainer.remove(), 3000);
+}
+
+// Lấy token từ localStorage
+const token = localStorage.getItem('token');
+if (!token) {
+    showNotification('Vui lòng đăng nhập để truy cập dashboard!', 'error');
+    setTimeout(() => window.location.href = './login.html', 1500);
+    throw new Error('No token');
+}
+
+// Biến toàn cục để lưu dữ liệu gốc cho lọc users và chi tiết môn học
+let allUsers = [];
+let allStudents = [];
+
+// Toggle Sidebar
+document.getElementById('toggleSidebar')?.addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('show');
+});
+
+// Navigation and Section Switching
+const pageTitles = {
+    'dashboard': 'Dashboard Tổng Quan',
+    'users': 'Quản Lý Người Dùng',
+    'exams': 'Quản Lý Kỳ Thi',
+    'questions': 'Ngân Hàng Câu Hỏi',
+    'subjects': 'Quản Lý Môn Học',
+    'reports': 'Báo Cáo & Thống Kê',
+    'settings': 'Cài Đặt Hệ Thống'
+};
+
+document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const sectionName = this.getAttribute('data-section');
+        
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+        
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
         });
+        
+        const targetSection = document.getElementById(sectionName + '-section');
+        if (targetSection) {
+            targetSection.classList.add('active');
+        }
+        
+        document.getElementById('pageTitle').textContent = pageTitles[sectionName] || 'Dashboard';
+        
+        if (sectionName === 'dashboard') {
+            setTimeout(loadDashboardData, 100);
+        } else if (sectionName === 'users') {
+            setTimeout(loadUsersData, 100);
+        } else if (sectionName === 'exams') {
+            setTimeout(loadExamsData, 100);
+        } else if (sectionName === 'questions') {
+            setTimeout(loadQuestionsData, 100);
+        } else if (sectionName === 'subjects') {
+            setTimeout(loadSubjectsData, 100);
+        } else if (sectionName === 'reports') {
+            setTimeout(loadReportsData, 100);
+        }
+    });
+});
 
-        // Navigation and Section Switching
-        const pageTitles = {
-            'dashboard': 'Dashboard Tổng Quan',
-            'users': 'Quản Lý Người Dùng',
-            'exams': 'Quản Lý Kỳ Thi',
-            'questions': 'Ngân Hàng Câu Hỏi',
-            'subjects': 'Quản Lý Môn Học',
-            'reports': 'Báo Cáo & Thống Kê',
-            'settings': 'Cài Đặt Hệ Thống'
-        };
+// Hàm cập nhật biểu đồ userChart
+function updateUserChart(role, data) {
+    const userCtx = document.getElementById('userChart');
+    if (userCtx.chartInstance) {
+        userCtx.chartInstance.destroy();
+    }
 
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const sectionName = this.getAttribute('data-section');
-                
-                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-                this.classList.add('active');
-                
-                document.querySelectorAll('.content-section').forEach(section => {
-                    section.classList.remove('active');
-                });
-                
-                const targetSection = document.getElementById(sectionName + '-section');
-                if (targetSection) {
-                    targetSection.classList.add('active');
-                }
-                
-                document.getElementById('pageTitle').textContent = pageTitles[sectionName] || 'Dashboard';
-                
-                if (sectionName === 'dashboard') {
-                    setTimeout(initDashboardCharts, 100);
-                } else if (sectionName === 'reports') {
-                    setTimeout(initReportCharts, 100);
-                }
+    const chartData = role === 'Student' ? data.studentData : data.teacherData;
+    const label = role === 'Student' ? 'Sinh viên mới' : 'Giáo viên mới';
+    const labels = data.months || ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'];
+
+    userCtx.chartInstance = new Chart(userCtx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: chartData || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                borderColor: role === 'Student' ? '#0d6efd' : '#198754',
+                backgroundColor: role === 'Student' ? 'rgba(13, 110, 253, 0.1)' : 'rgba(25, 135, 84, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+
+// Hàm lấy dữ liệu thống kê
+async function loadDashboardData() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/stats', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        
+        console.log('Dữ liệu nhận được:', data);
+        
+        // Cập nhật thống kê
+        const statValues = document.querySelectorAll('#dashboard-section .stat-value');
+        if (statValues[0]) statValues[0].textContent = data.students || 0;
+        if (statValues[1]) statValues[1].textContent = data.teachers || 0;
+        if (statValues[2]) statValues[2].textContent = data.activeExams || 0;
+        if (statValues[3]) statValues[3].textContent = data.questions || 0;
+
+        // Cập nhật biểu đồ userChart với vai trò mặc định (Sinh viên)
+        updateUserChart('Student', data);
+
+        // Thêm sự kiện cho nút Sinh viên và Giáo viên
+        const studentBtn = document.getElementById('studentBtn');
+        const teacherBtn = document.getElementById('teacherBtn');
+
+        if (studentBtn && teacherBtn) {
+            studentBtn.addEventListener('click', () => {
+                studentBtn.classList.add('active');
+                teacherBtn.classList.remove('active');
+                updateUserChart('Student', data);
             });
-        });
 
-        // Handle Add Buttons
-        document.getElementById('addUserBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            const modal = new bootstrap.Modal(document.getElementById('addUserModal'));
-            modal.show();
-        });
-
-        document.getElementById('addExamBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            const modal = new bootstrap.Modal(document.getElementById('addExamModal'));
-            modal.show();
-        });
-
-        document.getElementById('addQuestionBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            const modal = new bootstrap.Modal(document.getElementById('addQuestionModal'));
-            modal.show();
-        });
-
-        document.getElementById('addSubjectBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            const modal = new bootstrap.Modal(document.getElementById('addSubjectModal'));
-            modal.show();
-        });
-
-        // Handle Save Buttons in Modals (Temporary Alert)
-        document.getElementById('saveUserBtn').addEventListener('click', function() {
-            const fullName = document.getElementById('userFullName').value;
-            const email = document.getElementById('userEmail').value;
-            const role = document.getElementById('userRole').value;
-            alert(`Lưu người dùng: ${fullName}, ${email}, ${role} (Chưa triển khai)`);
-            bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
-        });
-
-        document.getElementById('saveExamBtn').addEventListener('click', function() {
-            const name = document.getElementById('examName').value;
-            const subject = document.getElementById('examSubject').value;
-            const duration = document.getElementById('examDuration').value;
-            alert(`Lưu kỳ thi: ${name}, ${subject}, ${duration} phút (Chưa triển khai)`);
-            bootstrap.Modal.getInstance(document.getElementById('addExamModal')).hide();
-        });
-
-        document.getElementById('saveQuestionBtn').addEventListener('click', function() {
-            const content = document.getElementById('questionContent').value;
-            const subject = document.getElementById('questionSubject').value;
-            const difficulty = document.getElementById('questionDifficulty').value;
-            alert(`Lưu câu hỏi: ${content}, ${subject}, ${difficulty} (Chưa triển khai)`);
-            bootstrap.Modal.getInstance(document.getElementById('addQuestionModal')).hide();
-        });
-
-        document.getElementById('saveSubjectBtn').addEventListener('click', function() {
-            const code = document.getElementById('subjectCode').value;
-            const name = document.getElementById('subjectName').value;
-            alert(`Lưu môn học: ${code}, ${name} (Chưa triển khai)`);
-            bootstrap.Modal.getInstance(document.getElementById('addSubjectModal')).hide();
-        });
-
-        // Handle Action Buttons in Tables
-        document.querySelectorAll('.action-buttons .btn').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                const action = this.getAttribute('data-action');
-                switch (action) {
-                    case 'view':
-                        alert('Xem chi tiết sẽ được mở! (Chưa triển khai)');
-                        break;
-                    case 'edit':
-                        alert('Chỉnh sửa sẽ được mở! (Chưa triển khai)');
-                        break;
-                    case 'delete':
-                        if (confirm('Bạn có chắc muốn xóa?')) {
-                            alert('Xóa thành công! (Chưa triển khai)');
-                        }
-                        break;
-                    case 'stop':
-                        alert('Dừng kỳ thi sẽ được mở! (Chưa triển khai)');
-                        break;
-                }
+            teacherBtn.addEventListener('click', () => {
+                teacherBtn.classList.add('active');
+                studentBtn.classList.remove('active');
+                updateUserChart('Teacher', data);
             });
-        });
-
-        // Handle Export Buttons
-        document.getElementById('exportReport').addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Xuất báo cáo sẽ được mở! (Chưa triển khai)');
-        });
-
-        document.getElementById('exportExcel').addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Xuất Excel sẽ được mở! (Chưa triển khai)');
-        });
-
-        document.getElementById('exportPDF').addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Xuất PDF sẽ được mở! (Chưa triển khai)');
-        });
-
-        // Handle Filter Buttons
-        document.getElementById('examFilterBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            const subject = document.getElementById('examSubjectFilter').value;
-            const status = document.getElementById('examStatusFilter').value;
-            alert(`Lọc kỳ thi: Môn ${subject}, Trạng thái ${status} (Chưa triển khai)`);
-        });
-
-        // Handle Settings Save and Cancel
-        document.getElementById('saveSettings').addEventListener('click', function(e) {
-            e.preventDefault();
-            const systemName = document.getElementById('systemName').value;
-            const contactEmail = document.getElementById('contactEmail').value;
-            const contactPhone = document.getElementById('contactPhone').value;
-            const timezone = document.getElementById('timezone').value;
-            alert(`Lưu cài đặt: ${systemName}, ${contactEmail}, ${contactPhone}, ${timezone} (Chưa triển khai)`);
-        });
-
-        document.getElementById('cancelSettings').addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Hủy cài đặt! (Chưa triển khai)');
-        });
-
-        // Initialize Charts
-        function initDashboardCharts() {
-            const userCtx = document.getElementById('userChart');
-            if (userCtx && !userCtx.chartInstance) {
-                userCtx.chartInstance = new Chart(userCtx.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'],
-                        datasets: [{
-                            label: 'Sinh viên mới',
-                            data: [45, 52, 48, 65, 72, 68, 85, 92, 88, 105],
-                            borderColor: '#0d6efd',
-                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, ticks: { stepSize: 20 } } }
-                    }
-                });
-            }
-
-            const completionCtx = document.getElementById('completionChart');
-            if (completionCtx && !completionCtx.chartInstance) {
-                completionCtx.chartInstance = new Chart(completionCtx.getContext('2d'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Hoàn thành', 'Đang làm', 'Bỏ dở'],
-                        datasets: [{
-                            data: [87.5, 8.2, 4.3],
-                            backgroundColor: ['#198754', '#ffc107', '#dc3545'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } },
-                        cutout: '70%'
-                    }
-                });
-            }
-
-            const scoreCtx = document.getElementById('scoreChart');
-            if (scoreCtx && !scoreCtx.chartInstance) {
-                scoreCtx.chartInstance = new Chart(scoreCtx.getContext('2d'), {
-                    type: 'bar',
-                    data: {
-                        labels: ['0-2', '2-4', '4-6', '6-8', '8-10'],
-                        datasets: [{
-                            label: 'Số sinh viên',
-                            data: [5, 12, 35, 67, 45],
-                            backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#20c997', '#198754']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-            }
-
-            const examCtx = document.getElementById('examChart');
-            if (examCtx && !examCtx.chartInstance) {
-                examCtx.chartInstance = new Chart(examCtx.getContext('2d'), {
-                    type: 'bar',
-                    data: {
-                        labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'],
-                        datasets: [{
-                            label: 'Số kỳ thi',
-                            data: [12, 15, 18, 14, 22, 19, 25, 28, 24, 23],
-                            backgroundColor: '#6f42c1',
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-            }
+        } else {
+            console.error('Không tìm thấy nút Sinh viên hoặc Giáo viên');
+            showNotification('Lỗi: Không tìm thấy nút chuyển đổi Sinh viên/Giáo viên', 'error');
         }
 
-        function initReportCharts() {
-            const trendCtx = document.getElementById('trendChart');
-            if (trendCtx && !trendCtx.chartInstance) {
-                trendCtx.chartInstance = new Chart(trendCtx.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'],
-                        datasets: [{
-                            label: 'Điểm trung bình',
-                            data: [6.8, 7.1, 6.9, 7.3, 7.5, 7.2, 7.6, 7.4, 7.3, 7.3],
-                            borderColor: '#0d6efd',
-                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: false, min: 6, max: 8 } }
-                    }
-                });
-            }
-
-            const subjectCtx = document.getElementById('subjectChart');
-            if (subjectCtx && !subjectCtx.chartInstance) {
-                subjectCtx.chartInstance = new Chart(subjectCtx.getContext('2d'), {
-                    type: 'pie',
-                    data: {
-                        labels: ['Web', 'Database', 'Network', 'Algorithm', 'AI'],
-                        datasets: [{
-                            data: [2145, 1832, 1567, 2321, 1245],
-                            backgroundColor: ['#0d6efd', '#198754', '#fd7e14', '#6f42c1', '#dc3545']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: { padding: 15, font: { size: 12 } }
-                            }
-                        }
-                    }
-                });
-            }
+        // Cập nhật các biểu đồ khác
+        const completionCtx = document.getElementById('completionChart');
+        if (completionCtx && !completionCtx.chartInstance) {
+            completionCtx.chartInstance = new Chart(completionCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Hoàn thành', 'Đang làm', 'Bỏ dở'],
+                    datasets: [{
+                        data: [87.5, 8.2, 4.3],
+                        backgroundColor: ['#198754', '#ffc107', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
         }
-        setTimeout(initDashboardCharts, 100);
+
+        const scoreCtx = document.getElementById('scoreChart');
+        if (scoreCtx && !scoreCtx.chartInstance) {
+            scoreCtx.chartInstance = new Chart(scoreCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['0-2', '2-4', '4-6', '6-8', '8-10'],
+                    datasets: [{
+                        label: 'Số sinh viên',
+                        data: [5, 15, 45, 80, 55],
+                        backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#198754', '#0d6efd']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        const examCtx = document.getElementById('examChart');
+        if (examCtx && !examCtx.chartInstance) {
+            examCtx.chartInstance = new Chart(examCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'],
+                    datasets: [{
+                        label: 'Kỳ thi',
+                        data: [2, 3, 5, 4, 6, 8, 7, 9, 8, data.activeExams || 0],
+                        backgroundColor: '#198754'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+    } catch (err) {
+        console.error('Lỗi chi tiết:', err);
+        showNotification('Lỗi tải dữ liệu thống kê: ' + err.message, 'error');
+    }
+}
+
+// Hàm lọc và render bảng users
+function filterUsersData() {
+    const searchTerm = document.getElementById('userSearch')?.value.toLowerCase().trim() || '';
+    const roleFilter = document.getElementById('userRoleFilter')?.value || '';
+    const statusFilter = document.getElementById('userStatusFilter')?.value || '';
+
+    let filteredUsers = allUsers;
+
+    if (searchTerm) {
+        filteredUsers = filteredUsers.filter(user => 
+            user.full_name.toLowerCase().includes(searchTerm) || 
+            user.email.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    if (roleFilter) {
+        filteredUsers = filteredUsers.filter(user => user.role === roleFilter);
+    }
+
+    if (statusFilter) {
+        filteredUsers = filteredUsers.filter(user => user.status === statusFilter);
+    }
+
+    const tbody = document.querySelector('#users-section tbody');
+    if (!tbody) {
+        console.error('Không tìm thấy tbody trong users-section');
+        showNotification('Lỗi giao diện: Không tìm thấy bảng người dùng', 'error');
+        return;
+    }
+
+    tbody.innerHTML = '';
+
+    if (filteredUsers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Không tìm thấy dữ liệu phù hợp</td></tr>';
+        return;
+    }
+
+    filteredUsers.forEach(user => {
+        const roleClass = {
+            'Student': 'bg-primary',
+            'Teacher': 'bg-success',
+            'Admin': 'bg-danger'
+        }[user.role] || 'bg-secondary';
+
+        const statusClass = user.status === 'active' ? 'bg-success' : 'bg-danger';
+        const statusText = user.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động';
+
+        tbody.innerHTML += `
+            <tr>
+                <td>#${user.user_id}</td>
+                <td><strong>${user.full_name}</strong></td>
+                <td>${user.email}</td>
+                <td><span class="badge ${roleClass}">${user.role}</span></td>
+                <td>${new Date(user.created_at).toLocaleDateString('vi-VN')}</td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-sm btn-info" onclick="viewUser(${user.user_id})"><i class="bi bi-eye"></i></button>
+                        ${user.role !== 'Admin' ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${user.user_id})"><i class="bi bi-trash"></i></button>` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+// Hàm lấy danh sách người dùng
+async function loadUsersData() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/users', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const users = await response.json();
+        
+        allUsers = users.map(user => ({
+            ...user,
+            status: user.status || 'active'
+        }));
+        
+        filterUsersData();
+        
+        const userSearch = document.getElementById('userSearch');
+        const userRoleFilter = document.getElementById('userRoleFilter');
+        const userStatusFilter = document.getElementById('userStatusFilter');
+
+        if (userSearch) {
+            userSearch.addEventListener('input', filterUsersData);
+        } else {
+            console.warn('Không tìm thấy input#userSearch');
+        }
+
+        if (userRoleFilter) {
+            userRoleFilter.addEventListener('change', filterUsersData);
+        } else {
+            console.warn('Không tìm thấy select#userRoleFilter');
+        }
+
+        if (userStatusFilter) {
+            userStatusFilter.addEventListener('change', filterUsersData);
+        } else {
+            console.warn('Không tìm thấy select#userStatusFilter');
+        }
+        
+    } catch (err) {
+        console.error('Lỗi tải dữ liệu người dùng:', err);
+        showNotification('Lỗi tải dữ liệu người dùng: ' + err.message, 'error');
+    }
+}
+
+// Trong admin.html, hàm filterStudentsData
+function filterStudentsData() {
+  const searchTerm = document.getElementById('studentSearch')?.value.toLowerCase().trim() || '';
+  const tbody = document.querySelector('#studentListTableBody');
+  if (!tbody) return;
+
+  let filteredStudents = allStudents;
+
+  if (searchTerm) {
+    filteredStudents = filteredStudents.filter(student => 
+      student.full_name.toLowerCase().includes(searchTerm)
+    );
+  }
+
+  // Sắp xếp theo điểm
+  const sortHeader = document.querySelector('#studentListTable .sortable[data-sort="avg_score"]');
+  const sortOrder = sortHeader?.dataset.order || 'desc';
+  filteredStudents.sort((a, b) => {
+    const scoreA = Number(a.avg_score) || 0;
+    const scoreB = Number(b.avg_score) || 0;
+    return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB;
+  });
+
+  tbody.innerHTML = '';
+
+  if (filteredStudents.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center">Không tìm thấy sinh viên</td></tr>';
+    return;
+  }
+
+  filteredStudents.forEach(student => {
+    const score = Number(student.avg_score) || 0;
+    const scoreClass = score >= 8 ? 'bg-success' : score >= 5 ? 'bg-warning' : 'bg-danger';
+    tbody.innerHTML += `
+      <tr>
+        <td>${student.user_id}</td>
+        <td><strong>${student.full_name}</strong></td>
+        <td>${student.email}</td>
+        <td><span class="badge ${scoreClass}">${score.toFixed(1)}</span></td>
+      </tr>
+    `;
+  });
+}
+
+// Cập nhật hàm viewSubject
+async function viewSubject(subjectId) {
+  try {
+    const response = await fetch(`http://localhost:3000/api/admin/subjects/${subjectId}/details`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const data = await response.json();
+
+    // Ẩn danh sách môn học, hiện chi tiết
+    const subjectsList = document.getElementById('subjectsList');
+    const subjectDetail = document.getElementById('subjectDetail');
+    if (subjectsList) subjectsList.style.display = 'none';
+    if (subjectDetail) subjectDetail.style.display = 'block';
+
+    // Cập nhật thông tin
+    document.getElementById('subjectNameDetail').textContent = data.subject_name || 'Không xác định';
+    document.getElementById('studentCount').textContent = data.student_count || 0;
+    document.getElementById('teacherName').textContent = data.teacher.full_name || 'Chưa có';
+    document.getElementById('avgScore').textContent = Number(data.stats.avg_score || 0).toFixed(1);
+    document.getElementById('maxScore').textContent = Number(data.stats.max_score || 0).toFixed(1);
+    document.getElementById('minScore').textContent = Number(data.stats.min_score || 0).toFixed(1);
+
+    // Lưu danh sách sinh viên
+    allStudents = (data.students || []).map(student => ({
+      ...student,
+      avg_score: Number(student.avg_score) || 0
+    }));
+
+    // Render bảng sinh viên
+    filterStudentsData();
+
+    // Gắn sự kiện tìm kiếm sinh viên
+    const studentSearch = document.getElementById('studentSearch');
+    if (studentSearch) {
+      studentSearch.value = '';
+      studentSearch.addEventListener('input', filterStudentsData);
+    }
+
+    // Gắn sự kiện sắp xếp theo điểm
+    const sortHeader = document.querySelector('#studentListTable .sortable[data-sort="avg_score"]');
+    if (sortHeader) {
+      sortHeader.addEventListener('click', () => {
+        sortHeader.dataset.order = sortHeader.dataset.order === 'desc' ? 'asc' : 'desc';
+        const icon = sortHeader.querySelector('i');
+        if (icon) {
+          icon.className = sortHeader.dataset.order === 'desc' ? 'bi bi-sort-down' : 'bi bi-sort-up';
+        }
+        filterStudentsData();
+      });
+    }
+
+    // Gắn sự kiện xuất CSV
+    const exportBtn = document.getElementById('exportScoresBtn');
+    if (exportBtn) {
+      exportBtn.onclick = () => {
+        const csvContent = [
+          ['ID', 'Họ tên', 'Email', 'Điểm trung bình'].join(','),
+          ...allStudents.map(student => [
+            student.user_id,
+            `"${student.full_name}"`,
+            student.email,
+            Number(student.avg_score || 0).toFixed(1)
+          ].join(','))
+        ].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${data.subject_name}_diem_sinh_vien.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        showNotification('Xuất file CSV thành công!', 'success');
+      };
+    }
+
+    // Gắn sự kiện nút Quay lại
+    const backBtn = document.getElementById('backToSubjectsBtn');
+    if (backBtn) {
+      backBtn.onclick = () => {
+        if (subjectDetail) subjectDetail.style.display = 'none';
+        if (subjectsList) subjectsList.style.display = 'block';
+        loadSubjectsData();
+      };
+    }
+
+    showNotification('Đã tải chi tiết môn học thành công!', 'success');
+  } catch (err) {
+    console.error('Lỗi tải chi tiết môn học:', err);
+    showNotification('Lỗi tải chi tiết môn học: ' + err.message, 'error');
+  }
+}
+// Hàm lấy danh sách môn học
+async function loadSubjectsData() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/subjects', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const subjects = await response.json();
+        
+        const tbody = document.querySelector('#subjectsTableBody');
+        tbody.innerHTML = '';
+        
+        if (subjects.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Chưa có dữ liệu</td></tr>';
+        } else {
+            subjects.forEach(subject => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${subject.subject_id}</strong></td>
+                        <td>${subject.subject_name}</td>
+                        <td>${subject.question_count}</td>
+                        <td>${subject.exam_count}</td>
+                        <td><span class="badge bg-success">${subject.status}</span></td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-info" onclick="viewSubject(${subject.subject_id})"><i class="bi bi-eye"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteSubject(${subject.subject_id})"><i class="bi bi-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Cập nhật thống kê môn học
+        const statValue = document.querySelector('#subjects-section .stat-value');
+        if (statValue) statValue.textContent = subjects.length;
+
+        // Đảm bảo hiển thị danh sách môn học
+        document.getElementById('subjectsList').style.display = 'block';
+        document.getElementById('subjectDetail').style.display = 'none';
+    } catch (err) {
+        showNotification('Lỗi tải dữ liệu môn học: ' + err.message, 'error');
+    }
+}
+
+// Hàm lấy danh sách kỳ thi
+async function loadExamsData() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/exams', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const exams = await response.json();
+        
+        const tbody = document.querySelector('#exams-section tbody');
+        tbody.innerHTML = '';
+        
+        if (exams.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center">Chưa có dữ liệu</td></tr>';
+            return;
+        }
+        
+        exams.forEach(exam => {
+            const statusClass = {
+                'completed': 'bg-success',
+                'active': 'bg-primary',
+                'upcoming': 'bg-info'
+            }[exam.status] || 'bg-secondary';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>#${exam.exam_id}</td>
+                    <td><strong>${exam.exam_name}</strong></td>
+                    <td>${exam.subject_name || 'Chưa có môn'}</td>
+                    <td>${exam.teacher_name || 'Chưa có giáo viên'}</td>
+                    <td>${exam.duration} phút</td>
+                    <td>${exam.student_count}</td>
+                    <td><span class="badge ${statusClass}">${exam.status}</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-info" onclick="viewExam(${exam.exam_id})"><i class="bi bi-eye"></i></button>
+                            ${exam.status !== 'active' ? `<button class="btn btn-sm btn-danger" onclick="deleteExam(${exam.exam_id})"><i class="bi bi-trash"></i></button>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (err) {
+        showNotification('Lỗi tải dữ liệu kỳ thi: ' + err.message, 'error');
+    }
+}
+
+// Hàm lấy danh sách câu hỏi
+async function loadQuestionsData() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/questions', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const questions = await response.json();
+        
+        const tbody = document.querySelector('#questions-section tbody');
+        tbody.innerHTML = '';
+        
+        if (questions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có dữ liệu</td></tr>';
+            return;
+        }
+        
+        questions.forEach(question => {
+            const difficultyClass = {
+                'Easy': 'bg-success',
+                'Medium': 'bg-warning',
+                'Hard': 'bg-danger'
+            }[question.difficulty] || 'bg-secondary';
+            const rateClass = question.correct_rate >= 80 ? 'text-success' : question.correct_rate >= 50 ? 'text-warning' : 'text-danger';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>#${question.question_id}</td>
+                    <td><strong>${question.question_content}</strong></td>
+                    <td>${question.subject_name || 'Chưa có môn'}</td>
+                    <td><span class="badge ${difficultyClass}">${question.difficulty}</span></td>
+                    <td>${question.type}</td>
+                    <td><span class="${rateClass}">${question.correct_rate}%</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-info" onclick="viewQuestion(${question.question_id})"><i class="bi bi-eye"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteQuestion(${question.question_id})"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (err) {
+        showNotification('Lỗi tải dữ liệu câu hỏi: ' + err.message, 'error');
+    }
+}
+
+// Hàm lấy dữ liệu báo cáo
+async function loadReportsData() {
+    try {
+        const period = document.getElementById('reportPeriod')?.value || 'month';
+        const response = await fetch(`http://localhost:3000/api/admin/reports?period=${period}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        
+        const statValues = document.querySelectorAll('#reports-section .stat-value');
+        if (statValues[0]) statValues[0].textContent = data.stats.total_exams || 0;
+        if (statValues[1]) statValues[1].textContent = (data.stats.completion_rate || 0).toFixed(1) + '%';
+        if (statValues[2]) statValues[2].textContent = (data.stats.average_score || 0).toFixed(1);
+        if (statValues[3]) statValues[3].textContent = data.stats.cheating_warnings || 0;
+
+        const tbody = document.querySelector('#reports-section .table-card tbody');
+        tbody.innerHTML = '';
+        
+        if (data.details.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có dữ liệu trong khoảng thời gian này</td></tr>';
+        } else {
+            data.details.forEach(detail => {
+                const scoreClass = detail.average_score >= 8 ? 'bg-success' : detail.average_score >= 6 ? 'bg-warning' : 'bg-danger';
+                const warningClass = detail.cheating_warnings > 5 ? 'bg-danger' : detail.cheating_warnings > 0 ? 'bg-warning' : 'bg-success';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${detail.exam_name}</strong></td>
+                        <td>${detail.student_count}</td>
+                        <td>${detail.completion_rate.toFixed(1)}%</td>
+                        <td><span class="badge ${scoreClass}">${detail.average_score.toFixed(1)}</span></td>
+                        <td>${detail.highest_score || 0}</td>
+                        <td>${detail.lowest_score || 0}</td>
+                        <td><span class="badge ${warningClass}">${detail.cheating_warnings}</span></td>
+                    </tr>
+                `;
+            });
+        }
+    } catch (err) {
+        showNotification('Lỗi tải dữ liệu báo cáo: ' + err.message, 'error');
+    }
+}
+
+// Thêm sự kiện cho reportPeriod
+const reportPeriodSelect = document.getElementById('reportPeriod');
+if (reportPeriodSelect) {
+    reportPeriodSelect.addEventListener('change', loadReportsData);
+}
+
+// Xử lý thêm người dùng
+document.getElementById('addUserBtn')?.addEventListener('click', () => {
+    const modal = new bootstrap.Modal(document.getElementById('addUserModal'));
+    modal.show();
+});
+
+document.getElementById('saveUserBtn')?.addEventListener('click', async () => {
+    const username = document.getElementById('userUsername').value;
+    const full_name = document.getElementById('userFullName').value;
+    const email = document.getElementById('userEmail').value;
+    const password = document.getElementById('userPassword').value;
+    const role = document.getElementById('userRole').value;
+
+    if (!username || !full_name || !email || !password || !role) {
+        showNotification('Vui lòng điền đầy đủ thông tin!', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/users', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, full_name, email, password, role })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showNotification('Thêm người dùng thành công!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
+        document.getElementById('addUserForm').reset();
+        loadUsersData();
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+});
+
+// Xử lý thêm môn học
+document.getElementById('addSubjectBtn')?.addEventListener('click', () => {
+    const modal = new bootstrap.Modal(document.getElementById('addSubjectModal'));
+    modal.show();
+});
+
+document.getElementById('saveSubjectBtn')?.addEventListener('click', async () => {
+    const subject_name = document.getElementById('subjectName').value;
+
+    if (!subject_name) {
+        showNotification('Vui lòng nhập tên môn học!', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/subjects', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ subject_name })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showNotification('Thêm môn học thành công!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('addSubjectModal')).hide();
+        document.getElementById('addSubjectForm').reset();
+        loadSubjectsData();
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+});
+
+// Các hàm xóa
+async function deleteUser(userId) {
+    if (!confirm('Bạn có chắc muốn xóa người dùng này?')) return;
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showNotification('Xóa người dùng thành công!', 'success');
+        loadUsersData();
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+}
+
+async function deleteExam(examId) {
+    if (!confirm('Bạn có chắc muốn xóa kỳ thi này?')) return;
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/admin/exams/${examId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showNotification('Xóa kỳ thi thành công!', 'success');
+        loadExamsData();
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+}
+
+async function deleteQuestion(questionId) {
+    if (!confirm('Bạn có chắc muốn xóa câu hỏi này?')) return;
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/admin/questions/${questionId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showNotification('Xóa câu hỏi thành công!', 'success');
+        loadQuestionsData();
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+}
+
+async function deleteSubject(subjectId) {
+    if (!confirm('Bạn có chắc muốn xóa môn học này?')) return;
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/admin/subjects/${subjectId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showNotification('Xóa môn học thành công!', 'success');
+        loadSubjectsData();
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+}
+
+// Hàm lọc và render bảng log gian lận
+let allCheatingLogs = [];
+
+function filterCheatingLogs() {
+    const examFilter = document.getElementById('examFilter')?.value || '';
+    const studentFilter = document.getElementById('studentFilter')?.value || '';
+    const eventTypeFilter = document.getElementById('eventTypeFilter')?.value || '';
+
+    let filteredLogs = allCheatingLogs;
+
+    if (examFilter) {
+        filteredLogs = filteredLogs.filter(log => log.exam_name === examFilter);
+    }
+    if (studentFilter) {
+        filteredLogs = filteredLogs.filter(log => log.student_id === studentFilter);
+    }
+    if (eventTypeFilter) {
+        filteredLogs = filteredLogs.filter(log => log.event_type === eventTypeFilter);
+    }
+
+    const tbody = document.getElementById('cheatingTableBody');
+    tbody.innerHTML = '';
+
+    if (filteredLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Không tìm thấy dữ liệu</td></tr>';
+        return;
+    }
+
+    filteredLogs.forEach(log => {
+        const eventClass = {
+            'TabSwitch': 'bg-warning',
+            'CopyPaste': 'bg-danger',
+            'WebcamSuspicious': 'bg-info'
+        }[log.event_type] || 'bg-secondary';
+
+        tbody.innerHTML += `
+            <tr>
+                <td>${log.student_name}</td>
+                <td>${log.exam_name}</td>
+                <td>${log.class_name}</td>
+                <td><span class="badge ${eventClass}">${log.event_type}</span></td>
+                <td>${log.event_description}</td>
+                <td>${new Date(log.event_time).toLocaleString('vi-VN')}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-sm btn-danger" onclick="penalize(${log.attempt_id}, 'ban')">Cấm</button>
+                        <button class="btn btn-sm btn-warning" onclick="penalize(${log.attempt_id}, 'deduct_points')">Trừ điểm</button>
+                        <button class="btn btn-sm btn-info" onclick="viewWebcam(${log.student_id})">Webcam</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+// Hàm lấy dữ liệu giám sát gian lận
+async function loadCheatingData() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/monitor/cheating', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        
+        allCheatingLogs = data.logs;
+        filterCheatingLogs();
+
+        // Cập nhật bộ lọc kỳ thi
+        const examFilter = document.getElementById('examFilter');
+        const uniqueExams = [...new Set(data.logs.map(log => log.exam_name))];
+        examFilter.innerHTML = '<option value="">Tất cả kỳ thi</option>';
+        uniqueExams.forEach(exam => {
+            examFilter.innerHTML += `<option value="${exam}">${exam}</option>`;
+        });
+
+        // Cập nhật bộ lọc học sinh
+        const studentFilter = document.getElementById('studentFilter');
+        const uniqueStudents = [...new Set(data.logs.map(log => log.student_id))];
+        studentFilter.innerHTML = '<option value="">Tất cả học sinh</option>';
+        const studentResponse = await fetch('http://localhost:3000/api/admin/users', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const students = await studentResponse.json();
+        uniqueStudents.forEach(id => {
+            const student = students.find(s => s.user_id === id);
+            if (student) {
+                studentFilter.innerHTML += `<option value="${id}">${student.full_name}</option>`;
+            }
+        });
+
+        // Cập nhật biểu đồ gian lận
+        const statsResponse = await fetch('http://localhost:3000/api/admin/monitor/cheating/stats', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const statsData = await statsResponse.json();
+        const cheatingCtx = document.getElementById('cheatingChart');
+        if (cheatingCtx && !cheatingCtx.chartInstance) {
+            cheatingCtx.chartInstance = new Chart(cheatingCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: statsData.stats.map(s => s.event_type),
+                    datasets: [{
+                        label: 'Số lần vi phạm',
+                        data: statsData.stats.map(s => s.count),
+                        backgroundColor: ['#ffc107', '#dc3545', '#17a2b8'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        // Cập nhật top vi phạm
+        const topViolators = document.getElementById('topViolators');
+        topViolators.innerHTML = '';
+        statsData.topViolators.forEach(v => {
+            topViolators.innerHTML += `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${v.full_name}
+                    <span class="badge bg-danger">${v.violation_count} vi phạm</span>
+                </li>
+            `;
+        });
+
+        // Gắn sự kiện cho bộ lọc
+        document.getElementById('examFilter').addEventListener('change', filterCheatingLogs);
+        document.getElementById('studentFilter').addEventListener('change', filterCheatingLogs);
+        document.getElementById('eventTypeFilter').addEventListener('change', filterCheatingLogs);
+
+        // Gắn sự kiện xuất CSV
+        document.getElementById('exportCheatingCsv').addEventListener('click', () => {
+            window.location.href = 'http://localhost:3000/api/admin/monitor/cheating/export';
+        });
+    } catch (err) {
+        showNotification('Lỗi tải dữ liệu gian lận: ' + err.message, 'error');
+    }
+}
+
+// Hàm xử lý hành động cấm/trừ điểm
+async function penalize(attemptId, action) {
+    try {
+        let body = { attempt_id: attemptId, action };
+        if (action === 'deduct_points') {
+            const points = prompt('Nhập số điểm trừ:');
+            if (!points || isNaN(points) || points < 0) {
+                showNotification('Số điểm trừ không hợp lệ!', 'error');
+                return;
+            }
+            body.points_deducted = parseFloat(points);
+            body.reason = 'Vi phạm quy định thi';
+        } else {
+            body.reason = 'Vi phạm quy định thi';
+        }
+
+        const response = await fetch('http://localhost:3000/api/admin/penalize', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showNotification(data.message, 'success');
+        loadCheatingData();
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+}
+
+// Hàm xem webcam
+function viewWebcam(studentId) {
+    const socket = io('http://localhost:3000');
+    socket.emit('request_webcam', { student_id: studentId });
+    const modal = new bootstrap.Modal(document.getElementById('webcamModal'));
+    modal.show();
+}
+
+// Hàm import câu hỏi
+document.getElementById('importQuestionBtn')?.addEventListener('click', () => {
+    const modal = new bootstrap.Modal(document.getElementById('importQuestionModal'));
+    fetch('http://localhost:3000/api/admin/exams', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    }).then(res => res.json()).then(data => {
+        const examSelect = document.getElementById('importExamId');
+        examSelect.innerHTML = '<option value="">Không chọn kỳ thi</option>';
+        data.forEach(exam => {
+            examSelect.innerHTML += `<option value="${exam.exam_id}">${exam.exam_name}</option>`;
+        });
+    });
+    modal.show();
+});
+
+document.getElementById('saveImportBtn')?.addEventListener('click', async () => {
+    const examId = document.getElementById('importExamId').value;
+    const file = document.getElementById('importFile').files[0];
+    if (!file) {
+        showNotification('Vui lòng chọn file!', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('exam_id', examId);
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/questions/import', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showNotification(data.message, 'success');
+        if (data.errors) {
+            showNotification('Lỗi: ' + data.errors.join('\n'), 'error');
+        }
+        bootstrap.Modal.getInstance(document.getElementById('importQuestionModal')).hide();
+        loadQuestionsData();
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+});
+
+document.getElementById('previewImportBtn')?.addEventListener('click', async () => {
+    const file = document.getElementById('importFile').files[0];
+    if (!file) {
+        showNotification('Vui lòng chọn file!', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        let questions = [];
+        if (file.name.endsWith('.csv')) {
+            questions = await new Promise((resolve, reject) => {
+                parse(e.target.result, { columns: true, trim: true }, (err, output) => {
+                    if (err) reject(err);
+                    resolve(output);
+                });
+            });
+        } else {
+            const workbook = xlsx.read(e.target.result, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            questions = xlsx.utils.sheet_to_json(sheet);
+        }
+
+        const preview = document.getElementById('previewQuestions');
+        preview.innerHTML = '';
+        questions.forEach((q, i) => {
+            preview.innerHTML += `
+                <div class="mb-3">
+                    <p><strong>Câu ${i + 1}: ${q['question_content'] || q['Câu hỏi']}</strong> (${q['question_type'] || q['Loại câu hỏi']}, ${q['difficulty'] || q['Độ khó']})</p>
+                    ${q['option_1'] ? `
+                        <p>Đáp án 1: ${q['option_1']}</p>
+                        <p>Đáp án 2: ${q['option_2']}</p>
+                        ${q['option_3'] ? `<p>Đáp án 3: ${q['option_3']}</p>` : ''}
+                        ${q['option_4'] ? `<p>Đáp án 4: ${q['option_4']}</p>` : ''}
+                    ` : ''}
+                    <p>Đáp án đúng: ${q['correct_answer_text'] || q['Đáp án đúng']}</p>
+                </div>
+            `;
+        });
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+// Socket.IO cho thông báo gian lận
+const socket = io('http://localhost:3000');
+socket.on('connect', () => {
+    socket.emit('join', 'admin');
+});
+socket.on('cheating_alert', (data) => {
+    showNotification(`Vi phạm: ${data.event_type} từ học sinh ${data.student_id}`, 'warning');
+    loadCheatingData();
+});
+
+// Cập nhật loadQuestionsData để render bảng câu hỏi
+async function loadQuestionsData() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/questions', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const questions = await response.json();
+        
+        const tbody = document.querySelector('#questionsTableBody');
+        tbody.innerHTML = '';
+        
+        if (questions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có dữ liệu</td></tr>';
+            return;
+        }
+        
+        questions.forEach(question => {
+            const difficultyClass = {
+                'Easy': 'bg-success',
+                'Medium': 'bg-warning',
+                'Hard': 'bg-danger'
+            }[question.difficulty] || 'bg-secondary';
+            const rateClass = question.correct_rate >= 80 ? 'text-success' : question.correct_rate >= 50 ? 'text-warning' : 'text-danger';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>#${question.question_id}</td>
+                    <td><strong>${question.question_content}</strong></td>
+                    <td>${question.subject_name || 'Chưa có môn'}</td>
+                    <td><span class="badge ${difficultyClass}">${question.difficulty}</span></td>
+                    <td>${question.type}</td>
+                    <td><span class="${rateClass}">${question.correct_rate}%</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-info" onclick="viewQuestion(${question.question_id})"><i class="bi bi-eye"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteQuestion(${question.question_id})"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (err) {
+        showNotification('Lỗi tải dữ liệu câu hỏi: ' + err.message, 'error');
+    }
+}
+
+// Khởi tạo dữ liệu giám sát gian lận
+document.querySelector('.nav-link[data-section="monitor-cheating"]').addEventListener('click', () => {
+    setTimeout(loadCheatingData, 100);
+});
+
+// Các hàm view (placeholder cho users, exams, questions)
+function viewUser(userId) {
+    showNotification('Tính năng xem chi tiết sẽ được phát triển sau', 'info');
+}
+
+function viewExam(examId) {
+    showNotification('Tính năng xem chi tiết sẽ được phát triển sau', 'info');
+}
+
+function viewQuestion(questionId) {
+    showNotification('Tính năng xem chi tiết sẽ được phát triển sau', 'info');
+}
+
+// Khởi tạo dữ liệu ban đầu
+setTimeout(loadDashboardData, 100);
     </script>
 </body>
 </html>
