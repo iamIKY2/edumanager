@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/client/public/css/student.css">
     <link rel="icon" type="image/png" href="/client/public/images/edu.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
 </head>
 <body>
     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
@@ -249,8 +250,18 @@
 
         <div class="content-section" id="ranking">
             <div class="card">
-                <h3 style="margin-bottom: 20px;">Bảng xếp hạng lớp 10A1</h3>
+                <h3 style="margin-bottom: 20px;" id="rankingTitle">Bảng xếp hạng <span id="rankingClassName">Đang tải...</span></h3>
                 <p style="color: #666; margin-bottom: 20px;" id="rankingTotal">Tổng số học sinh: Đang tải...</p>
+                
+                <!-- Thông tin vị trí của học sinh đang đăng nhập -->
+                <div id="currentUserRank" style="margin-bottom: 30px; padding: 20px; background: linear-gradient(45deg, #667eea, #764ba2); border-radius: 15px; color: white;">
+                    <h4 style="margin-bottom: 15px; color: white;">📍 Vị trí của bạn</h4>
+                    <div id="currentUserRankInfo" style="font-size: 18px;">
+                        Đang tải...
+                    </div>
+                </div>
+                
+                <!-- Bảng xếp hạng -->
                 <table class="ranking-table" id="rankingTable">
                     <thead>
                         <tr>
@@ -331,6 +342,10 @@
     </div>
 
     <script>
+        // Socket.IO connection
+        let socket;
+        let unreadNotificationCount = 0;
+
         document.addEventListener('DOMContentLoaded', function () {
             const token = localStorage.getItem('token');
             const role = localStorage.getItem('role')?.toLowerCase();
@@ -341,15 +356,58 @@
                 return;
             }
 
-                fetchUserData();
-                loadAvailableTests(); 
-                loadTestHistory();  
-                loadStatistics();  
+            // Kết nối Socket.IO với token
+            socket = io('http://localhost:3000', {
+                auth: { token }
+            });
+
+            socket.on('connect', () => {
+                console.log('✅ Connected to Socket.io');
+                const userId = localStorage.getItem('user_id');
+                console.log('🔵 [Socket] User ID from localStorage:', userId);
+                console.log('🔵 [Socket] Socket user from server:', socket.user);
+                // Socket đã tự động join room khi connect (theo app.js)
+                // Nhưng vẫn emit để đảm bảo
+                socket.emit('join-room', `user_${userId}`);
+                console.log('🔵 [Socket] Joined room:', `user_${userId}`);
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('❌ Socket.io connection error:', error);
+            });
+
+            // Lắng nghe thông báo realtime
+            socket.on('notification', (notification) => {
+                console.log('🔔 [Student] New notification received:', notification);
+                console.log('🔔 [Student] Notification content:', notification.content);
+                unreadNotificationCount++;
+                updateNotificationBadge();
+                showToast(notification.content, 'success');
+                // Reload notifications nếu modal đang mở
+                const modal = document.getElementById('notificationModal');
+                if (modal && modal.style.display === 'flex') {
+                    loadNotifications();
+                }
+            });
+            
+            // Debug: Log tất cả socket events
+            socket.onAny((eventName, ...args) => {
+                console.log('📡 [Socket] Event received:', eventName, args);
+            });
+
+            fetchUserData();
+            loadAvailableTests(); 
+            loadTestHistory();  
+            loadStatistics();
+            loadNotifications(); // Load thông báo khi trang load
         });
+        
+        // Đảm bảo user_id được lưu khi fetchUserData
+        let userIdFromServer = null;
 
         function fetchUserData() {
             const token = localStorage.getItem('token');
-            console.log('Token used:', token); 
+            console.log('Token used:', token);
             if (!token) {
                 console.error('No token found in localStorage');
                 alert('Không có token. Vui lòng đăng nhập lại!');
@@ -365,7 +423,7 @@
                 }
             })
             .then(response => {
-                console.log('Response status:', response.status); 
+                console.log('Response status:', response.status);
                 if (!response.ok) {
                     return response.json().then(errorData => {
                         throw new Error(`Lỗi: ${response.status} - ${errorData.error || response.statusText}`);
@@ -374,13 +432,26 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Data received:', data); 
+                console.log('Data received:', data);
                 if (data.error) throw new Error(data.error);
 
                 document.getElementById('userName').textContent = data.user.username || 'Đang tải...';
                 document.getElementById('userId').textContent = `MSSV: ${data.user.id || 'Đang tải...'}`;
                 document.getElementById('avgScore').textContent = data.user.avgScore || 'Đang tải...';
                 document.getElementById('rankPosition').textContent = `#${data.user.rank || 'Đang tải...'}`;
+                
+                // Lưu user_id vào localStorage để socket sử dụng
+                userIdFromServer = data.user.user_id || data.user.id;
+                if (userIdFromServer) {
+                    localStorage.setItem('user_id', userIdFromServer);
+                    console.log('✅ [Student] User ID saved to localStorage:', userIdFromServer);
+                    
+                    // Rejoin room với user_id chính xác nếu socket đã connect
+                    if (socket && socket.connected) {
+                        socket.emit('join-room', `user_${userIdFromServer}`);
+                        console.log('🔵 [Student] Rejoined room with correct user_id:', `user_${userIdFromServer}`);
+                    }
+                }
 
                 const infoGrid = document.getElementById('userInfo');
                 infoGrid.innerHTML = `
@@ -398,7 +469,7 @@
                     </div>
                     <div class="info-item">
                         <span><strong>Ngày sinh:</strong></span>
-                        <span>${data.user.dob || 'Chưa cập nhật'}</span>
+                        <span>${data.user.dob ? new Date(data.user.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</span>
                     </div>
                 `;
 
@@ -451,7 +522,6 @@
                     }
                 })
                 .catch(err => {
-                    console.error('Lỗi khi tải lớp học:', err);
                     myClassesList.innerHTML = '<p style="text-align: center; color: #ff4757;">Lỗi tải dữ liệu lớp học.</p>';
                 });
 
@@ -470,28 +540,192 @@
                 `).join('') || '<p>Không có bài kiểm tra khả dụng.</p>';
 
                 const myResultsList = document.getElementById('myResultsList');
-                myResultsList.innerHTML = data.myResults?.map(result => `
-                    <div class="test-item">
-                        <div class="test-info">
-                            <div class="test-title">${result.title}</div>
-                            <div class="test-meta">Ngày: ${result.date} • ${result.type}</div>
-                        </div>
-                        <div style="font-size: 18px; font-weight: bold; color: #667eea;">${result.score}/${result.total}</div>
-                        <button class="btn btn-primary" onclick="viewResult(${result.id})">Xem chi tiết</button>
-                    </div>
-                `).join('') || '<p>Chưa có kết quả.</p>';
+                // myResults có thể có cấu trúc khác, cần kiểm tra
+                if (data.myResults && data.myResults.length > 0) {
+                    myResultsList.innerHTML = data.myResults.map(result => {
+                        // Kiểm tra xem result có exam_id và attempt_id không
+                        const examId = result.exam_id || result.id;
+                        const attemptId = result.attempt_id || result.id;
+                        
+                        // Nếu chỉ có id, có thể là attempt_id, cần lấy exam_id từ đâu đó
+                        // Tạm thời thử dùng id cho cả 2, hoặc tải lại từ API
+                        return `
+                            <div class="test-item">
+                                <div class="test-info">
+                                    <div class="test-title">${result.title || result.exam_name || 'Bài thi'}</div>
+                                    <div class="test-meta">Ngày: ${result.date || (result.start_time ? new Date(result.start_time).toLocaleDateString('vi-VN') : 'N/A')} • ${result.type || ''}</div>
+                                </div>
+                                <div style="font-size: 18px; font-weight: bold; color: #667eea;">
+                                    ${(() => {
+                                        const s = parseFloat(result.score || 0);
+                                        const t = parseFloat(result.total || result.total_points || 0);
+                                        const scoreStr = s % 1 === 0 ? s.toString() : s.toFixed(1);
+                                        const totalStr = t % 1 === 0 ? t.toString() : t.toFixed(1);
+                                        return `${scoreStr}/${totalStr}`;
+                                    })()}
+                                </div>
+                                <button class="btn btn-primary" onclick="viewResult(${examId}, ${attemptId})">Xem chi tiết</button>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    myResultsList.innerHTML = '<p>Chưa có kết quả.</p>';
+                }
 
                 const rankingTable = document.getElementById('rankingTable').querySelector('tbody');
                 const rankingTotal = document.getElementById('rankingTotal');
-                rankingTotal.textContent = `Tổng số học sinh: ${data.ranking?.total || 0}`;
-                rankingTable.innerHTML = data.ranking?.students?.map((student, index) => `
-                    <tr ${student.id === data.user.id ? 'class="current-user"' : ''}>
-                        <td><span class="rank-badge ${index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : ''}">${index + 1}${index < 3 ? ['🥇', '🥈', '🥉'][index] : ''}</span></td>
-                        <td>${student.fullName || 'Chưa cập nhật'}</td>
-                        <td>${student.id}</td>
-                        <td><strong>${student.avgScore || '0.0'}</strong></td>
-                    </tr>
-                `).join('') || '<tr><td colspan="4">Không có dữ liệu xếp hạng.</td></tr>';
+                const rankingTitle = document.getElementById('rankingTitle');
+                const rankingClassName = document.getElementById('rankingClassName');
+                const currentUserRankInfo = document.getElementById('currentUserRankInfo');
+                const currentUserRank = document.getElementById('currentUserRank');
+                
+                // Debug ranking data
+                console.log('📊 Ranking data:', data.ranking);
+                
+                // Hiển thị top 10
+                const top10 = data.ranking?.top10 || [];
+                const currentUser = data.ranking?.currentUser;
+                const totalStudents = data.ranking?.total || 0;
+                const className = data.ranking?.className;
+                
+                console.log('📊 Top 10:', top10);
+                console.log('📊 Total students:', totalStudents);
+                console.log('📊 Class name:', className);
+                
+                // Cập nhật tiêu đề với tên lớp
+                if (className) {
+                    rankingClassName.textContent = `(${className})`;
+                } else {
+                    rankingClassName.textContent = '(Tổng thể)';
+                }
+                
+                // Hiển thị tổng số học sinh
+                const totalClassStudents = data.ranking?.totalClassStudents || 0;
+                if (totalStudents > 0) {
+                    if (totalClassStudents > 0 && totalClassStudents > totalStudents) {
+                        rankingTotal.textContent = `Tổng số học sinh có điểm: ${totalStudents} / ${totalClassStudents} học sinh trong lớp`;
+                    } else {
+                        rankingTotal.textContent = `Tổng số học sinh có điểm: ${totalStudents}`;
+                    }
+                } else {
+                    if (totalClassStudents > 0) {
+                        rankingTotal.textContent = `Chưa có học sinh nào có điểm trung bình (Tổng số học sinh trong lớp: ${totalClassStudents})`;
+                    } else {
+                        rankingTotal.textContent = `Chưa có học sinh nào có điểm trung bình`;
+                    }
+                }
+                
+                // Hiển thị thông tin vị trí của học sinh đang đăng nhập
+                const currentUserInTop10 = top10.find(s => s.id === data.user.id || s.id === data.user.user_id);
+                
+                if (currentUserInTop10) {
+                    // Học sinh trong top 10
+                    const userRank = top10.findIndex(s => s.id === data.user.id || s.id === data.user.user_id) + 1;
+                    currentUserRankInfo.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                            <div style="font-size: 36px; font-weight: bold;">
+                                #${userRank}
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 20px; font-weight: 600; margin-bottom: 5px;">
+                                    ${currentUserInTop10.fullName || currentUserInTop10.username || 'Chưa cập nhật'}
+                                </div>
+                                <div style="font-size: 16px; opacity: 0.9;">
+                                    MSSV: ${currentUserInTop10.id} • Điểm trung bình: <strong>${currentUserInTop10.avgScore || '0.0'}</strong>
+                                </div>
+                                <div style="font-size: 14px; opacity: 0.8; margin-top: 5px;">
+                                    Bạn đang xếp hạng #${userRank} trong tổng số ${totalStudents} học sinh
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (currentUser && currentUser.rank_position) {
+                    // Học sinh không trong top 10
+                    currentUserRankInfo.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                            <div style="font-size: 36px; font-weight: bold;">
+                                #${currentUser.rank_position}
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 20px; font-weight: 600; margin-bottom: 5px;">
+                                    ${currentUser.fullName || currentUser.username || 'Chưa cập nhật'}
+                                </div>
+                                <div style="font-size: 16px; opacity: 0.9;">
+                                    MSSV: ${currentUser.id} • Điểm trung bình: <strong>${currentUser.avgScore || '0.0'}</strong>
+                                </div>
+                                <div style="font-size: 14px; opacity: 0.8; margin-top: 5px;">
+                                    Bạn đang xếp hạng #${currentUser.rank_position} trong tổng số ${totalStudents} học sinh
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Học sinh chưa có điểm
+                    currentUserRankInfo.innerHTML = `
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
+                            <div style="font-size: 20px; font-weight: 600; margin-bottom: 10px; opacity: 0.95;">
+                                Chưa có điểm trung bình
+                            </div>
+                            <div style="font-size: 16px; opacity: 0.85;">
+                                Hãy làm bài thi để có xếp hạng!
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Hiển thị bảng xếp hạng
+                let tableHTML = '';
+                
+                // Hiển thị top 10
+                if (top10.length > 0) {
+                    tableHTML += top10.map((student, index) => {
+                        const rank = index + 1;
+                        const isCurrentUser = student.id === data.user.id || student.id === data.user.user_id;
+                        const hasScore = student.avgScore !== null && student.avgScore !== undefined;
+                        const displayScore = hasScore ? student.avgScore : 'Chưa có';
+                        
+                        return `
+                            <tr ${isCurrentUser ? 'class="current-user"' : ''}>
+                                <td><span class="rank-badge ${rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : ''}">${rank}${rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : ''}</span></td>
+                                <td>${student.fullName || student.username || 'Chưa cập nhật'} ${isCurrentUser ? '<span style="color: #667eea; font-weight: 600;">(Bạn)</span>' : ''}</td>
+                                <td>${student.id}</td>
+                                <td><strong style="${!hasScore ? 'color: #999;' : ''}">${displayScore}</strong></td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tableHTML = `
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 40px; color: #666;">
+                                <div style="font-size: 18px; margin-bottom: 10px;">📊</div>
+                                <div style="font-weight: 600; margin-bottom: 5px;">Chưa có dữ liệu xếp hạng</div>
+                                <div style="font-size: 14px; color: #999;">
+                                    ${totalStudents === 0 ? 'Chưa có học sinh nào đã làm bài thi. Hãy làm bài thi để có xếp hạng!' : 'Đang tải dữ liệu...'}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                // Hiển thị học sinh hiện tại nếu không trong top 10
+                if (currentUser && currentUser.rank_position && !currentUserInTop10) {
+                    tableHTML += `
+                        <tr style="border-top: 2px solid #667eea;">
+                            <td colspan="4" style="text-align: center; padding: 10px; background: #f0f4ff; color: #667eea; font-weight: 600;">
+                                ... 
+                            </td>
+                        </tr>
+                        <tr class="current-user" style="background: #e8f2ff;">
+                            <td><span class="rank-badge">${currentUser.rank_position}</span></td>
+                            <td><strong>${currentUser.fullName || 'Chưa cập nhật'} <span style="color: #667eea; font-weight: 600;">(Bạn)</span></strong></td>
+                            <td>${currentUser.id}</td>
+                            <td><strong style="color: #667eea;">${currentUser.avgScore || '0.0'}</strong></td>
+                        </tr>
+                    `;
+                }
+                
+                rankingTable.innerHTML = tableHTML || '<tr><td colspan="4">Không có dữ liệu xếp hạng.</td></tr>';
 
                 const recentComplaints = document.getElementById('recentComplaints');
                 recentComplaints.innerHTML = data.recentComplaints?.map(complaint => `
@@ -505,9 +739,15 @@
                 `).join('') || '<p>Chưa có khiếu nại nào.</p>';
 
                 const complaintSubject = document.getElementById('complaintSubject');
-                complaintSubject.innerHTML = '<option>Chọn bài kiểm tra...</option>' + data.myResults?.map(result => `
-                    <option value="${result.id}">${result.title} (${result.score}/${result.total})</option>
-                `).join('');
+                complaintSubject.innerHTML = '<option>Chọn bài kiểm tra...</option>' + (data.myResults?.map(result => {
+                    const examId = result.exam_id || result.id;
+                    const attemptId = result.attempt_id || result.id;
+                    const s = parseFloat(result.score || 0);
+                    const t = parseFloat(result.total || result.total_points || 0);
+                    const scoreStr = s % 1 === 0 ? s.toString() : s.toFixed(1);
+                    const totalStr = t % 1 === 0 ? t.toString() : t.toFixed(1);
+                    return `<option value="${examId}:${attemptId}">${result.title || result.exam_name || 'Bài thi'} (${scoreStr}/${totalStr})</option>`;
+                }).join('') || '');
 
                 const notificationList = document.getElementById('notificationList');
                 notificationList.innerHTML = data.notifications?.map(notif => `
@@ -521,8 +761,8 @@
                 `).join('') || '<p>Không có thông báo mới.</p>';
             })
             .catch(error => {
-                console.error('Lỗi:', error.message);
-                alert('Không thể tải dữ liệu. Vui lòng thử lại sau!');
+                console.error('Lỗi tải dữ liệu:', error);
+                alert('Không thể tải dữ liệu. Vui lòng thử lại sau!\nChi tiết: ' + error.message);
             });
         }
 
@@ -561,7 +801,6 @@
                 fetchUserData(); 
             })
             .catch(error => {
-                console.error('Lỗi:', error);
                 showToast('❌ Lỗi khi cập nhật thông tin. Vui lòng thử lại!', 'error');
             });
         }
@@ -680,7 +919,6 @@
                 document.getElementById('classCode').value = '';
                 fetchUserData();
             } catch (err) {
-                console.error('Lỗi tham gia lớp:', err);
                 showToast(`❌ ${err.message}`, 'error');
             }
         }
@@ -847,7 +1085,6 @@ async function viewClassDetail(classId, className, subject, year) {
         }
 
     } catch (error) {
-        console.error('Lỗi khi tải chi tiết lớp:', error);
         showToast('❌ Không thể tải thông tin lớp học!', 'error');
         document.getElementById('studentsList').innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu</p></div>';
         document.getElementById('testsList').innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu</p></div>';
@@ -891,7 +1128,6 @@ async function loadAvailableTests() {
         }
 
         const exams = await response.json();
-        console.log('📝 Available exams:', exams);
 
         // Lọc chỉ bài thi đang diễn ra hoặc sắp diễn ra
         const availableExams = exams.filter(exam => {
@@ -958,7 +1194,6 @@ async function loadAvailableTests() {
         }
 
     } catch (error) {
-        console.error('❌ Error loading available tests:', error);
         availableTestsList.innerHTML = '<p style="text-align: center; color: #ff4757;">Lỗi tải danh sách bài thi.</p>';
     }
 }
@@ -969,7 +1204,6 @@ async function loadTestHistory() {
     
     // ⭐ KIỂM TRA ELEMENT TỒN TẠI
     if (!testHistoryList) {
-        console.log('⚠️ testHistoryList element not found');
         return;
     }
     
@@ -1004,7 +1238,6 @@ async function loadTestHistory() {
                         attempts: detail.attempts || []
                     };
                 } catch (err) {
-                    console.error(`Error loading exam ${exam.exam_id}:`, err);
                     return null;
                 }
             });
@@ -1035,12 +1268,34 @@ async function loadTestHistory() {
                                     </div>
                                 </div>
                                 <div style="text-align: right;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #667eea; margin-bottom: 5px;">
-                                        ${attempt.score || 0}/${exam.total_points}
-                                    </div>
-                                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
-                                        ${attempt.status === 'Submitted' ? '✅ Đã nộp' : attempt.status === 'InProgress' ? '⏳ Đang làm' : '🤖 Tự động nộp'}
-                                    </div>
+                                    ${attempt.status === 'Submitted' && (!attempt.is_fully_graded || attempt.has_pending_grading) ? `
+                                        <div style="font-size: 20px; font-weight: 600; color: #667eea; margin-bottom: 5px;">
+                                            ✅ Đã hoàn thành
+                                        </div>
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                            Đang chờ chấm điểm
+                                        </div>
+                                    ` : attempt.score !== null && attempt.score !== undefined ? `
+                                        <div style="font-size: 24px; font-weight: bold; color: #667eea; margin-bottom: 5px;">
+                                            ${(() => {
+                                            const s = parseFloat(attempt.score || 0);
+                                            const t = parseFloat(exam.total_points || 0);
+                                            const scoreStr = s % 1 === 0 ? s.toString() : s.toFixed(1);
+                                            const totalStr = t % 1 === 0 ? t.toString() : t.toFixed(1);
+                                            return `${scoreStr}/${totalStr}`;
+                                        })()}
+                                        </div>
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                            ${attempt.status === 'Submitted' ? '✅ Đã nộp' : attempt.status === 'InProgress' ? '⏳ Đang làm' : '🤖 Tự động nộp'}
+                                        </div>
+                                    ` : `
+                                        <div style="font-size: 24px; font-weight: bold; color: #667eea; margin-bottom: 5px;">
+                                            --/--
+                                        </div>
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                            ${attempt.status === 'Submitted' ? '✅ Đã nộp' : attempt.status === 'InProgress' ? '⏳ Đang làm' : '🤖 Tự động nộp'}
+                                        </div>
+                                    `}
                                     ${attempt.status === 'Submitted' ? `
                                         <button class="btn btn-primary" onclick="viewResult(${exam.exam_id}, ${attempt.attempt_id})">Xem chi tiết</button>
                                     ` : ''}
@@ -1053,7 +1308,6 @@ async function loadTestHistory() {
         `).join('');
 
     } catch (error) {
-        console.error('❌ Error loading test history:', error);
         testHistoryList.innerHTML = '<p style="text-align: center; color: #ff4757;">Lỗi tải lịch sử làm bài.</p>';
     }
 }
@@ -1135,7 +1389,6 @@ async function startTest(examId) {
         
         window.location.href = `./student_exam.html?exam_id=${examId}&attempt_id=${data.attempt_id}`;
     } catch (error) {
-        console.error('❌ Error:', error);
         showToast(`❌ ${error.message}`, 'error');
     }
 }
@@ -1145,6 +1398,49 @@ async function startTest(examId) {
 async function viewResult(examId, attemptId) {
     const token = localStorage.getItem('token');
     
+    // Xử lý trường hợp chỉ truyền 1 tham số (attemptId)
+    if (attemptId === undefined && examId) {
+        // Nếu examId là string có format "examId:attemptId"
+        if (typeof examId === 'string' && examId.includes(':')) {
+            const parts = examId.split(':');
+            examId = parseInt(parts[0]);
+            attemptId = parseInt(parts[1]);
+        } else {
+            // Chỉ có attemptId, cần tìm exam_id từ API
+            showToast('📊 Đang tìm thông tin bài thi...', 'info');
+            try {
+                const examsResponse = await fetch('http://127.0.0.1:3000/api/student/exams', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (examsResponse.ok) {
+                    const examsData = await examsResponse.json();
+                    // Tìm exam có attempt với attempt_id này
+                    for (const exam of examsData.exams || []) {
+                        const detailResponse = await fetch(`http://127.0.0.1:3000/api/student/exams/${exam.exam_id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (detailResponse.ok) {
+                            const detail = await detailResponse.json();
+                            const attempt = (detail.attempts || []).find(a => a.attempt_id == examId);
+                            if (attempt) {
+                                examId = exam.exam_id;
+                                attemptId = attempt.attempt_id;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                // Error finding exam_id
+            }
+        }
+    }
+    
+    if (!examId || !attemptId) {
+        showToast('❌ Không tìm thấy thông tin bài thi. Vui lòng thử lại.', 'error');
+        return;
+    }
+    
     showToast('📊 Đang tải kết quả...', 'info');
     
     try {
@@ -1153,18 +1449,23 @@ async function viewResult(examId, attemptId) {
         });
         
         if (!response.ok) {
-            throw new Error('Không thể tải kết quả');
+            const errorText = await response.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { error: errorText || 'Không thể tải kết quả' };
+            }
+            throw new Error(errorData.error || 'Không thể tải kết quả');
         }
         
         const data = await response.json();
-        console.log('📊 Result data:', data);
         
         // ⭐ CHUYỂN HƯỚNG ĐẾN TRANG KẾT QUẢ
         window.location.href = `./student_result.html?exam_id=${examId}&attempt_id=${attemptId}`;
         
     } catch (error) {
-        console.error('❌ Error viewing result:', error);
-        showToast('❌ Lỗi tải kết quả', 'error');
+        showToast(`❌ Lỗi tải kết quả: ${error.message}`, 'error');
     }
 }
 
@@ -1188,14 +1489,122 @@ async function viewResult(examId, attemptId) {
         }
 
         // Notifications
+        async function loadNotifications() {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch('http://localhost:3000/api/notifications', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error('Lỗi tải thông báo');
+                }
+
+                const notifications = await response.json();
+                
+                if (Array.isArray(notifications)) {
+                    unreadNotificationCount = notifications.filter(n => n.is_read === 0 || n.is_read === false || !n.is_read).length;
+                    updateNotificationBadge();
+                    
+                    // Render notifications vào modal
+                    const notificationList = document.getElementById('notificationList');
+                    if (notificationList) {
+                        if (notifications.length === 0) {
+                            notificationList.innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">Không có thông báo nào.</p>';
+                        } else {
+                            notificationList.innerHTML = notifications.map(notif => {
+                                const isRead = notif.is_read === 1 || notif.is_read === true;
+                                const createdAt = notif.created_at ? new Date(notif.created_at).toLocaleString('vi-VN') : 'Không rõ thời gian';
+                                return `
+                                    <div class="info-item" style="padding: 15px; border-bottom: 1px solid #eee; ${!isRead ? 'background: #f0f9ff;' : ''}">
+                                        <div style="flex: 1;">
+                                            <div style="font-weight: ${isRead ? '400' : '600'}; margin-bottom: 5px;">
+                                                ${notif.content || notif.title || 'Không có nội dung'}
+                                            </div>
+                                            <div style="color: #999; font-size: 12px;">
+                                                ${createdAt}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                        }
+                    }
+                } else {
+                    const notificationList = document.getElementById('notificationList');
+                    if (notificationList) {
+                        notificationList.innerHTML = '<p style="text-align: center; padding: 20px; color: #f56565;">Lỗi: Dữ liệu thông báo không hợp lệ.</p>';
+                    }
+                }
+            } catch (error) {
+                const notificationList = document.getElementById('notificationList');
+                if (notificationList) {
+                    notificationList.innerHTML = `<p style="text-align: center; padding: 20px; color: #f56565;">Lỗi tải thông báo: ${error.message}</p>`;
+                }
+            }
+        }
+
+        function updateNotificationBadge() {
+            const badge = document.querySelector('.notification-badge');
+            if (badge) {
+                if (unreadNotificationCount > 0) {
+                    badge.style.position = 'relative';
+                    if (!badge.querySelector('.badge-count')) {
+                        const countEl = document.createElement('span');
+                        countEl.className = 'badge-count';
+                        countEl.style.cssText = `
+                            position: absolute;
+                            top: -5px;
+                            right: -5px;
+                            background: #ff4757;
+                            color: white;
+                            border-radius: 50%;
+                            width: 20px;
+                            height: 20px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 11px;
+                            font-weight: bold;
+                        `;
+                        badge.appendChild(countEl);
+                    }
+                    badge.querySelector('.badge-count').textContent = unreadNotificationCount > 99 ? '99+' : unreadNotificationCount;
+                } else {
+                    const countEl = badge.querySelector('.badge-count');
+                    if (countEl) {
+                        countEl.remove();
+                    }
+                }
+            }
+        }
+
         function showNotifications() {
+            loadNotifications(); // Load lại thông báo khi mở modal
             openModal('notificationModal');
         }
 
-        function markAllAsRead() {
-            showToast('✅ Đã đánh dấu tất cả thông báo là đã đọc', 'success');
-            document.querySelector('.notification-badge::after').style.display = 'none';
-            closeModal('notificationModal');
+        async function markAllAsRead() {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch('http://localhost:3000/api/notifications/mark-all-read', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    unreadNotificationCount = 0;
+                    updateNotificationBadge();
+                    showToast('✅ Đã đánh dấu tất cả thông báo là đã đọc', 'success');
+                    loadNotifications(); // Reload để cập nhật UI
+                }
+            } catch (error) {
+                // Error marking notifications as read
+            }
         }
 
         // ============================================
@@ -1321,7 +1730,7 @@ async function loadStatistics() {
         });
 
     } catch (error) {
-        console.error('Error loading statistics:', error);
+        // Error loading statistics
     }
 }
         // Logout

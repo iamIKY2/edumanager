@@ -12,7 +12,7 @@ router.get('/cheating-logs', authMiddleware, async (req, res) => {
         console.log('User:', req.user);
         console.log('Query:', req.query);
         
-        const teacher_id = req.user.user_id;
+        const teacher_id = req.user.id;
         const { exam_id, event_type } = req.query;
 
         let query = `
@@ -64,7 +64,7 @@ router.get('/cheating-logs/:attempt_id', authMiddleware, async (req, res) => {
         console.log('🔵 GET /cheating-logs/:attempt_id called');
         
         const { attempt_id } = req.params;
-        const teacher_id = req.user.user_id;
+        const teacher_id = req.user.id;
 
         const [attempt] = await db.query(`
             SELECT ea.*, e.exam_name, e.teacher_id, u.full_name as student_name
@@ -100,7 +100,7 @@ router.post('/ban-student', authMiddleware, async (req, res) => {
         console.log('🔵 POST /ban-student called');
         
         const { attempt_id, reason } = req.body;
-        const teacher_id = req.user.user_id;
+        const teacher_id = req.user.id;
 
         const [attempt] = await db.query(`
             SELECT ea.*, e.teacher_id

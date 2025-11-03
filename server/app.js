@@ -18,6 +18,8 @@ const teacherClassesRoutes = require('./routes/teacher/classes');
 const teacherExamRoutes = require('./routes/teacher/exams'); 
 const teacherCheatingRoutes = require('./routes/teacher/cheating');
 const gradingRoutes = require('./routes/teacher/grading');
+const teacherStatisticsRoutes = require('./routes/teacher/statistics');
+
 
 
 // Student routes
@@ -73,9 +75,12 @@ io.use(async (socket, next) => {
 
 // Xử lý Socket.IO events
 io.on('connection', (socket) => {
-  console.log(`✅ Client connected: ${socket.id}, User: ${socket.user.id}`);
+  // JWT token có field là 'id' chứa user_id
+  const userId = socket.user.id || socket.user.user_id;
+  console.log(`✅ Client connected: ${socket.id}, User ID: ${userId}`);
+  console.log(`🔵 [Socket] User object:`, socket.user);
 
-  socket.join(`user_${socket.user.id}`);
+  socket.join(`user_${userId}`);
 
   socket.on('join-room', (roomId) => {
     socket.join(roomId);
@@ -89,9 +94,10 @@ io.on('connection', (socket) => {
 
   socket.on('student-submit', (data) => {
     console.log('Student submitted:', data);
+    const userId = socket.user.id || socket.user.user_id;
     io.to(data.classId).emit('new-submission', {
       ...data,
-      submittedBy: socket.user.id,
+      submittedBy: userId,
     });
   });
 
@@ -158,13 +164,17 @@ app.use('/api/notifications', notificationRoutes);
 // Teacher routes
 app.use('/api/teacher/classes', teacherClassesRoutes);
 app.use('/api/teacher/exams', teacherExamRoutes); 
-app.use('/api/teacher', teacherCheatingRoutes); 
+app.use('/api/teacher/cheating', teacherCheatingRoutes);
 app.use('/api/teacher/grading', gradingRoutes);
+app.use('/api/teacher/statistics', teacherStatisticsRoutes);
+
 
 //  Student routes
 app.use('/api/student/classes', studentClassesRoutes);
 app.use('/api/student/exams', studentExamRoutes); 
 app.use('/api/student/submissions', submissionRoutes);
+const studentStatisticsRoutes = require('./routes/student/statistics');
+app.use('/api/student/statistics', studentStatisticsRoutes);
 
 // Admin routes
 app.use('/api/admin', adminRoutes);
@@ -189,7 +199,7 @@ app.use((err, req, res, next) => {
 });
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`✅ Backend running at http://127.0.0.1:${port}`);
+  console.log(`✅ Backend running at http://0.0.0.0:${port}`);
   console.log(`✅ Socket.IO ready`);
   console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
 });

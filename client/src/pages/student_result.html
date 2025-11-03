@@ -35,6 +35,10 @@
             text-align: center;
         }
 
+        .result-header.pending {
+            background: linear-gradient(135deg, #ffa502 0%, #ff8c00 100%);
+        }
+
         .result-header h1 {
             font-size: 32px;
             margin-bottom: 15px;
@@ -44,6 +48,14 @@
             font-size: 64px;
             font-weight: bold;
             margin: 20px 0;
+        }
+
+        .pending-message {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 18px;
         }
 
         .result-meta {
@@ -112,6 +124,11 @@
             background: #fffbf0;
         }
 
+        .question-result.pending {
+            border-left-color: #4299e1;
+            background: #f0f9ff;
+        }
+
         .question-title {
             font-weight: 600;
             margin-bottom: 10px;
@@ -142,6 +159,16 @@
             background: white;
             border-radius: 5px;
             display: inline-block;
+        }
+
+        .essay-answer {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
         .actions {
@@ -202,6 +229,18 @@
             font-weight: 600;
         }
 
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-box strong {
+            color: #1976d2;
+        }
+
         @media (max-width: 768px) {
             .result-header {
                 padding: 30px 20px;
@@ -224,10 +263,12 @@
 </head>
 <body>
     <div class="result-container">
-        <div class="result-header">
-            <h1>🎉 Hoàn Thành Bài Thi!</h1>
+        <div class="result-header" id="resultHeader">
+            <h1 id="headerTitle">🎉 Hoàn Thành Bài Thi!</h1>
             <div class="score-display" id="scoreDisplay">--/--</div>
-            <p style="font-size: 18px; opacity: 0.9;">Bạn đã hoàn thành bài thi</p>
+            <p style="font-size: 18px; opacity: 0.9;" id="headerSubtitle">Bạn đã hoàn thành bài thi</p>
+            
+            <div id="pendingMessageContainer"></div>
             
             <div class="result-meta">
                 <div class="meta-item">
@@ -246,7 +287,9 @@
         </div>
 
         <div class="result-body">
-            <div class="summary-grid">
+            <div id="infoBoxContainer"></div>
+            
+            <div class="summary-grid" id="summaryGrid">
                 <div class="summary-card">
                     <div class="summary-number" style="color: #26de81;" id="correctCount">0</div>
                     <div class="summary-label">Câu đúng</div>
@@ -260,8 +303,8 @@
                     <div class="summary-label">Chưa trả lời</div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-number" style="color: #667eea;" id="percentScore">0%</div>
-                    <div class="summary-label">Tỷ lệ đạt</div>
+                    <div class="summary-number" style="color: #4299e1;" id="pendingCount">0</div>
+                    <div class="summary-label">Đang chấm</div>
                 </div>
             </div>
 
@@ -302,228 +345,263 @@
     });
 
     async function loadResult(examId, attemptId) {
-    try {
-        console.log('🔍 Fetching result:', { examId, attemptId });
+        try {
+            console.log('🔍 Fetching result:', { examId, attemptId });
 
-        const response = await fetch(`${API_URL}/student/exams/${examId}/result/${attemptId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+            const response = await fetch(`${API_URL}/student/exams/${examId}/result/${attemptId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                console.error('❌ Response not OK:', response.status, response.statusText);
+                throw new Error('Không thể tải kết quả');
             }
-        });
 
-        if (!response.ok) {
-            console.error('❌ Response not OK:', response.status, response.statusText);
-            throw new Error('Không thể tải kết quả');
+            const data = await response.json();
+            console.log('✅ Result data:', data);
+
+            if (!data.attempt || !data.results) {
+                console.error('❌ Dữ liệu không hợp lệ:', data);
+                throw new Error('Dữ liệu kết quả không hợp lệ');
+            }
+
+            displayResult(data);
+        } catch (error) {
+            console.error('❌ Error:', error);
+            document.getElementById('questionResults').innerHTML = `
+                <div style="text-align: center; color: #ff4757; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
+                    <p>${error.message}</p>
+                    <button class="btn btn-primary" style="margin-top: 20px;" onclick="window.location.href='./student_dashboard.html'">
+                        Về trang chủ
+                    </button>
+                </div>
+            `;
         }
-
-        const data = await response.json();
-        console.log('✅ Result data:', data);
-
-        if (!data.attempt || !data.results) {
-            console.error('❌ Dữ liệu không hợp lệ:', data);
-            throw new Error('Dữ liệu kết quả không hợp lệ');
-        }
-
-        displayResult(data);
-    } catch (error) {
-        console.error('❌ Error:', error);
-        document.getElementById('questionResults').innerHTML = `
-            <div style="text-align: center; color: #ff4757; padding: 40px;">
-                <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
-                <p>${error.message}</p>
-                <button class="btn btn-primary" style="margin-top: 20px;" onclick="window.location.href='./student_dashboard.html'">
-                    Về trang chủ
-                </button>
-            </div>
-        `;
     }
-}
 
-  function displayResult(data) {
-    const attempt = data.attempt;
-    const results = data.results; // ⭐ LƯU BIẾN GỐC
+    function displayResult(data) {
+        const attempt = data.attempt;
+        const results = data.results;
 
-    console.log('📊 Raw data:', data);
-    console.log('📊 Results length:', results.length);
+        console.log('📊 Raw data:', data);
+        console.log('📊 Results length:', results.length);
 
-    // Hiển thị điểm
-    const displayScore = parseFloat(attempt.score || 0).toFixed(1);
-    const displayTotal = parseFloat(attempt.total_points || 0).toFixed(1);
-    document.getElementById('scoreDisplay').textContent = `${displayScore}/${displayTotal}`;
-    
-    document.getElementById('examDate').textContent = new Date(attempt.start_time).toLocaleDateString('vi-VN');
-    
-    const startTime = new Date(attempt.start_time);
-    const endTime = new Date(attempt.end_time || new Date());
-    const timeTaken = Math.floor((endTime - startTime) / 1000 / 60);
-    document.getElementById('timeTaken').textContent = `${timeTaken} phút`;
+        // Phân loại câu hỏi
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let unansweredCount = 0;
+        let pendingCount = 0;
+        let hasPendingQuestions = false;
 
-    // ⭐ TÍNH THỐNG KÊ - LOGIC ĐƠN GIẢN HƠN
-    let correctCount = 0;
-    let incorrectCount = 0;
-    let unansweredCount = 0;
-
-    results.forEach((r, idx) => {
-        // ⭐ KIỂM TRA ĐÃ TRẢ LỜI CHƯA
-        const hasAnswer = (r.option_id !== null && r.option_id !== undefined) || 
-                          (r.student_answer !== null && r.student_answer !== undefined && r.student_answer !== '');
-        
-        console.log(`Câu ${idx + 1}:`, {
-            question_id: r.question_id,
-            hasAnswer,
-            is_correct: r.is_correct,
-            is_correct_type: typeof r.is_correct
-        });
-        
-        if (!hasAnswer) {
-            unansweredCount++;
-        } else {
-            // ⭐ ĐƠN GIẢN HÓA: CHỈ KIỂM TRA is_correct === 1
-            if (r.is_correct === 1) {
+        results.forEach((r, idx) => {
+            const hasAnswer = (r.option_id !== null && r.option_id !== undefined) || 
+                              (r.student_answer !== null && r.student_answer !== undefined && r.student_answer !== '');
+            
+            // Kiểm tra câu hỏi cần chấm thủ công
+            const isPendingGrade = (r.question_type === 'Essay' || r.question_type === 'FillInBlank') && hasAnswer;
+            
+            if (isPendingGrade) {
+                pendingCount++;
+                hasPendingQuestions = true;
+            } else if (!hasAnswer) {
+                unansweredCount++;
+            } else if (r.is_correct === 1) {
                 correctCount++;
-                console.log(`   ✅ ĐÚNG`);
             } else {
                 incorrectCount++;
-                console.log(`   ❌ SAI`);
             }
-        }
-    });
+        });
 
-    console.log('📊 Final stats:', { correctCount, incorrectCount, unansweredCount });
+        console.log('📊 Stats:', { correctCount, incorrectCount, unansweredCount, pendingCount });
 
-    document.getElementById('correctCount').textContent = correctCount;
-    document.getElementById('incorrectCount').textContent = incorrectCount;
-    document.getElementById('unansweredCount').textContent = unansweredCount;
-    
-    const percentScore = results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0;
-    document.getElementById('percentScore').textContent = `${percentScore}%`;
-
-    // ⭐ HIỂN THỊ CHI TIẾT CÂU HỎI
-    const container = document.getElementById('questionResults');
-    container.innerHTML = results.map((r, index) => {
-        const hasAnswer = (r.option_id !== null && r.option_id !== undefined) || 
-                          (r.student_answer !== null && r.student_answer !== undefined && r.student_answer !== '');
-        
-        let statusClass = 'unanswered';
-        let statusIcon = '⚠️';
-        
-        if (hasAnswer) {
-            // ⭐ ĐƠN GIẢN: CHỈ KIỂM TRA === 1
-            if (r.is_correct === 1) {
-                statusClass = 'correct';
-                statusIcon = '✅';
-            } else {
-                statusClass = 'incorrect';
-                statusIcon = '❌';
-            }
-        }
-
-        let optionsHTML = '';
-        let studentAnswerDisplay = hasAnswer ? (r.student_answer || 'Đã chọn') : 'Chưa trả lời';
-
-        if (r.options && r.options.length > 0) {
-            optionsHTML = '<div style="margin-top: 15px;">';
+        // Cập nhật header dựa trên trạng thái
+        if (hasPendingQuestions) {
+            document.getElementById('resultHeader').classList.add('pending');
+            document.getElementById('headerTitle').innerHTML = '✅ Đã Nộp Bài!';
+            document.getElementById('headerSubtitle').textContent = 'Bài thi của bạn đang chờ giáo viên chấm điểm';
             
-            r.options.forEach((opt, i) => {
-                const letter = String.fromCharCode(65 + i);
-                let optionClass = 'option-item';
-                let label = '';
-                
-                // Đánh dấu đáp án đúng
-                if (opt.is_correct === 1 || opt.is_correct === true) {
-                    optionClass += ' correct-answer';
-                    label = ' ✅ (Đáp án đúng)';
-                }
-                
-                // Đánh dấu lựa chọn của học sinh
-                let isStudentChoice = false;
-                if (r.question_type === 'SingleChoice' && r.option_id) {
-                    isStudentChoice = opt.option_id === r.option_id;
-                } else if (r.question_type === 'MultipleChoice' && r.student_answer) {
-                    const studentAnswers = r.student_answer.split(',').map(a => parseInt(a.trim()));
-                    isStudentChoice = studentAnswers.includes(opt.option_id);
-                }
+            document.getElementById('pendingMessageContainer').innerHTML = `
+                <div class="pending-message">
+                    <strong>⏳ Thông báo:</strong> Bài thi có câu tự luận/điền khẩu cần giáo viên chấm thủ công.<br>
+                    Điểm số sẽ được cập nhật sau khi giáo viên hoàn tất chấm bài.
+                </div>
+            `;
+            
+            document.getElementById('infoBoxContainer').innerHTML = `
+                <div class="info-box">
+                    <strong>ℹ️ Lưu ý:</strong> Điểm hiển thị dưới đây chỉ là điểm tạm tính cho phần trắc nghiệm. 
+                    Điểm cuối cùng sẽ được cập nhật sau khi giáo viên chấm xong phần tự luận.
+                </div>
+            `;
+        }
 
-                if (isStudentChoice) {
+        // Hiển thị điểm
+        // Nếu có câu tự luận chưa chấm, không hiển thị điểm số
+        const hasPendingGrading = attempt.has_pending_grading || hasPendingQuestions || !attempt.is_fully_graded;
+        
+        if (hasPendingGrading) {
+            document.getElementById('scoreDisplay').innerHTML = `
+                <div style="font-size: 36px; font-weight: 600; color: #667eea; margin-bottom: 10px;">
+                    ✅ Đã hoàn thành bài thi
+                </div>
+                <div style="font-size: 18px; opacity: 0.8;">
+                    Điểm số sẽ được cập nhật sau khi giáo viên chấm điểm
+                </div>
+            `;
+        } else {
+            // Format điểm: loại bỏ .0 khi không cần
+            const score = parseFloat(attempt.score || 0);
+            const total = parseFloat(attempt.total_points || 0);
+            const displayScore = score % 1 === 0 ? score.toString() : score.toFixed(1);
+            const displayTotal = total % 1 === 0 ? total.toString() : total.toFixed(1);
+            
+            document.getElementById('scoreDisplay').textContent = `${displayScore}/${displayTotal}`;
+        }
+        
+        document.getElementById('examDate').textContent = new Date(attempt.start_time).toLocaleDateString('vi-VN');
+        
+        const startTime = new Date(attempt.start_time);
+        const endTime = new Date(attempt.end_time || new Date());
+        const timeTaken = Math.floor((endTime - startTime) / 1000 / 60);
+        document.getElementById('timeTaken').textContent = `${timeTaken} phút`;
+
+        // Cập nhật stats
+        document.getElementById('correctCount').textContent = correctCount;
+        document.getElementById('incorrectCount').textContent = incorrectCount;
+        document.getElementById('unansweredCount').textContent = unansweredCount;
+        document.getElementById('pendingCount').textContent = pendingCount;
+
+        // Hiển thị phần trăm (chỉ tính câu đã có kết quả)
+        const gradedQuestions = results.length - pendingCount;
+        const percentScore = gradedQuestions > 0 ? Math.round((correctCount / gradedQuestions) * 100) : 0;
+        
+        // Thêm card phần trăm
+        const summaryGrid = document.getElementById('summaryGrid');
+        const percentCard = document.createElement('div');
+        percentCard.className = 'summary-card';
+        percentCard.innerHTML = `
+            <div class="summary-number" style="color: #667eea;">${percentScore}%</div>
+            <div class="summary-label">Tỷ lệ đạt${hasPendingQuestions ? ' (tạm tính)' : ''}</div>
+        `;
+        summaryGrid.appendChild(percentCard);
+
+        // Render chi tiết câu hỏi
+        const container = document.getElementById('questionResults');
+        container.innerHTML = results.map((r, index) => {
+            const hasAnswer = (r.option_id !== null && r.option_id !== undefined) || 
+                              (r.student_answer !== null && r.student_answer !== undefined && r.student_answer !== '');
+            
+            const isPendingGrade = (r.question_type === 'Essay' || r.question_type === 'FillInBlank') && hasAnswer;
+            
+            let statusClass = 'unanswered';
+            let statusIcon = '⚠️';
+            let statusText = 'Chưa trả lời';
+            
+            if (isPendingGrade) {
+                statusClass = 'pending';
+                statusIcon = '⏳';
+                statusText = 'Đang chờ chấm';
+            } else if (hasAnswer) {
+                if (r.is_correct === 1) {
+                    statusClass = 'correct';
+                    statusIcon = '✅';
+                    statusText = 'Đúng';
+                } else {
+                    statusClass = 'incorrect';
+                    statusIcon = '❌';
+                    statusText = 'Sai';
+                }
+            }
+
+            let answerHTML = '';
+            
+            // Câu trắc nghiệm
+            if (r.options && r.options.length > 0) {
+                answerHTML = '<div style="margin-top: 15px;">';
+                
+                r.options.forEach((opt, i) => {
+                    const letter = String.fromCharCode(65 + i);
+                    let optionClass = 'option-item';
+                    let label = '';
+                    
                     if (opt.is_correct === 1 || opt.is_correct === true) {
-                        optionClass += ' student-correct';
-                        label = ' ✅ (Bạn chọn - Đúng)';
-                    } else {
-                        optionClass += ' student-wrong';
-                        label = ' ❌ (Bạn chọn - Sai)';
+                        optionClass += ' correct-answer';
+                        label = ' ✅ (Đáp án đúng)';
                     }
-                }
+                    
+                    let isStudentChoice = false;
+                    if (r.question_type === 'SingleChoice' && r.option_id) {
+                        isStudentChoice = opt.option_id === r.option_id;
+                    } else if (r.question_type === 'MultipleChoice' && r.student_answer) {
+                        const studentAnswers = r.student_answer.split(',').map(a => parseInt(a.trim()));
+                        isStudentChoice = studentAnswers.includes(opt.option_id);
+                    }
 
-                optionsHTML += `
-                    <div class="${optionClass}">
-                        ${letter}. ${opt.option_content}${label}
+                    if (isStudentChoice) {
+                        if (opt.is_correct === 1 || opt.is_correct === true) {
+                            optionClass += ' student-correct';
+                            label = ' ✅ (Bạn chọn - Đúng)';
+                        } else {
+                            optionClass += ' student-wrong';
+                            label = ' ❌ (Bạn chọn - Sai)';
+                        }
+                    }
+
+                    answerHTML += `
+                        <div class="${optionClass}">
+                            ${letter}. ${opt.option_content}${label}
+                        </div>
+                    `;
+                });
+                
+                answerHTML += '</div>';
+            }
+            // Câu tự luận / điền khẩu
+            else {
+                answerHTML = `
+                    <div class="answer-section">
+                        <div class="answer-label">Câu trả lời của bạn:</div>
+                        <div class="essay-answer">
+                            ${r.student_answer || '<em style="color: #cbd5e0;">Chưa trả lời</em>'}
+                        </div>
+                        ${isPendingGrade ? `
+                            <div style="margin-top: 15px; padding: 12px; background: #e3f2fd; border-radius: 8px; color: #1976d2;">
+                                <strong>⏳ Đang chờ giáo viên chấm điểm</strong>
+                            </div>
+                        ` : ''}
+                        ${r.correct_answer_text && !isPendingGrade ? `
+                            <div style="margin-top: 15px;">
+                                <div class="answer-label">Đáp án tham khảo:</div>
+                                <div class="essay-answer" style="border-color: #26de81;">
+                                    ${r.correct_answer_text}
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
-            });
-            
-            optionsHTML += '</div>';
-
-            // Hiển thị câu trả lời của học sinh
-            if (r.question_type === 'SingleChoice' && r.option_id) {
-                const selectedOption = r.options.find(opt => opt.option_id === r.option_id);
-                studentAnswerDisplay = selectedOption ? 
-                    `${String.fromCharCode(65 + r.options.indexOf(selectedOption))}. ${selectedOption.option_content}` : 
-                    'Chưa trả lời';
-            } else if (r.question_type === 'MultipleChoice' && r.student_answer) {
-                const studentAnswers = r.student_answer.split(',').map(a => parseInt(a.trim()));
-                studentAnswerDisplay = studentAnswers
-                    .map(id => {
-                        const opt = r.options.find(o => o.option_id === id);
-                        return opt ? `${String.fromCharCode(65 + r.options.indexOf(opt))}. ${opt.option_content}` : null;
-                    })
-                    .filter(x => x)
-                    .join(', ') || 'Chưa trả lời';
             }
-        } else {
-            studentAnswerDisplay = r.student_answer || 'Chưa trả lời';
-        }
 
-        let correctAnswerDisplay = r.correct_answer_text || 'Không có';
-        if (r.options && r.options.length > 0) {
-            const correctOptions = r.options
-                .map((opt, i) => (opt.is_correct === 1 || opt.is_correct === true) ? String.fromCharCode(65 + i) : null)
-                .filter(x => x);
-            
-            if (correctOptions.length > 0) {
-                correctAnswerDisplay = correctOptions.join(', ');
-            }
-        }
-
-        return `
-            <div class="question-result ${statusClass}">
-                <div class="question-title">
-                    <span class="status-icon">${statusIcon}</span>
-                    <span>Câu ${index + 1}: ${r.question_content}</span>
-                    <span style="margin-left: auto; color: #667eea; font-weight: 600;">${parseFloat(r.points).toFixed(1)} điểm</span>
-                </div>
-                
-                ${optionsHTML}
-                
-                <div class="answer-section">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div>
-                            <div class="answer-label">Câu trả lời của bạn:</div>
-                            <div class="answer-value" style="color: ${statusClass === 'correct' ? '#26de81' : statusClass === 'incorrect' ? '#ff4757' : '#ffa502'};">
-                                ${studentAnswerDisplay}
-                            </div>
-                        </div>
-                        <div>
-                            <div class="answer-label">Đáp án đúng:</div>
-                            <div class="answer-value" style="color: #26de81;">
-                                ${correctAnswerDisplay}
-                            </div>
-                        </div>
+            return `
+                <div class="question-result ${statusClass}">
+                    <div class="question-title">
+                        <span class="status-icon">${statusIcon}</span>
+                        <span>Câu ${index + 1}: ${r.question_content}</span>
+                        <span style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+                            <span style="color: #667eea; font-weight: 600;">${parseFloat(r.points).toFixed(1)} điểm</span>
+                            <span style="color: ${statusClass === 'correct' ? '#26de81' : statusClass === 'incorrect' ? '#ff4757' : statusClass === 'pending' ? '#4299e1' : '#ffa502'}; font-size: 14px;">
+                                ${statusText}
+                            </span>
+                        </span>
                     </div>
+                    
+                    ${answerHTML}
                 </div>
-            </div>
-        `;
-    }).join('');
-}
-</script>
+            `;
+        }).join('');
+    }
+    </script>
 </body>
 </html>

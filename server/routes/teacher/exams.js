@@ -30,6 +30,93 @@ const createNotification = async (db, io, userId, content, type, relatedId, rela
   }
 };
 
+// ✅ LẤY DANH SÁCH CÂU HỎI TRONG NGÂN HÀNG (PHẢI ĐẶT TRƯỚC CÁC ROUTE /:examId)
+router.get('/question-bank', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
+  const teacherId = req.user.id || req.user.user_id;
+  const { subject_id, difficulty, question_type, limit = 50, offset = 0, search } = req.query;
+
+  try {
+    // Tối ưu: Sử dụng LEFT JOIN thay vì subquery cho option_count
+    let query = `
+      SELECT 
+        qb.question_id,
+        qb.question_content,
+        qb.question_type,
+        qb.difficulty,
+        qb.correct_answer_text,
+        qb.created_at,
+        s.subject_name,
+        (SELECT COUNT(*) FROM question_options WHERE question_id = qb.question_id) as option_count
+      FROM question_bank qb
+      LEFT JOIN subjects s ON qb.subject_id = s.subject_id
+      LEFT JOIN question_options qo ON qb.question_id = qo.question_id
+      WHERE qb.teacher_id = ?
+    `;
+    
+    const params = [teacherId];
+
+    // Thêm filters
+    if (subject_id && subject_id !== 'all') {
+      query += ' AND qb.subject_id = ?';
+      params.push(subject_id);
+    }
+    if (difficulty && difficulty !== 'all') {
+      query += ' AND qb.difficulty = ?';
+      params.push(difficulty);
+    }
+    if (question_type && question_type !== 'all') {
+      query += ' AND qb.question_type = ?';
+      params.push(question_type);
+    }
+    if (search && search.trim()) {
+      query += ' AND qb.question_content LIKE ?';
+      params.push(`%${search.trim()}%`);
+    }
+
+    query += ' GROUP BY qb.question_id, qb.question_content, qb.question_type, qb.difficulty, qb.correct_answer_text, qb.created_at, s.subject_name';
+    query += ' ORDER BY qb.created_at DESC';
+    query += ' LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), parseInt(offset));
+
+    const [questions] = await req.db.query(query, params);
+
+    // Lấy tổng số câu hỏi (tối ưu: chỉ query 1 lần với điều kiện tương tự)
+    let countQuery = 'SELECT COUNT(*) as count FROM question_bank qb WHERE qb.teacher_id = ?';
+    const countParams = [teacherId];
+    
+    if (subject_id && subject_id !== 'all') {
+      countQuery += ' AND qb.subject_id = ?';
+      countParams.push(subject_id);
+    }
+    if (difficulty && difficulty !== 'all') {
+      countQuery += ' AND qb.difficulty = ?';
+      countParams.push(difficulty);
+    }
+    if (question_type && question_type !== 'all') {
+      countQuery += ' AND qb.question_type = ?';
+      countParams.push(question_type);
+    }
+    if (search && search.trim()) {
+      countQuery += ' AND qb.question_content LIKE ?';
+      countParams.push(`%${search.trim()}%`);
+    }
+
+    const [totalResult] = await req.db.query(countQuery, countParams);
+    const total = totalResult.length > 0 ? parseInt(totalResult[0].count) : 0;
+
+    res.json({
+      questions,
+      total,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching question bank:', error);
+    res.status(500).json({ error: 'Lỗi khi lấy danh sách câu hỏi', details: error.message });
+  }
+});
+
 // ✅ Lấy tất cả bài thi của giáo viên
 router.get('/all', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
   const teacherId = req.user.id || req.user.user_id;
@@ -71,6 +158,121 @@ router.get('/all', authMiddleware, roleMiddleware(['teacher']), async (req, res)
   } catch (err) {
     console.error('❌ Error:', err);
     res.status(500).json({ error: 'Lỗi khi lấy danh sách bài thi', details: err.message });
+  }
+});
+
+// ✅ API LẤY CHI TIẾT BÀI THI - SỬA ĐÚNG
+router.get('/:examId/detail', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
+  const { examId } = req.params;
+  const teacherId = req.user.id || req.user.user_id;
+
+  console.log('=== GET EXAM DETAIL ===');
+  console.log('examId:', examId);
+  console.log('teacherId:', teacherId);
+
+  try {
+    // ✅ QUERY ĐÚNG - KHÔNG DÙNG e.total_points
+    const [exam] = await req.db.query(
+      `SELECT 
+        e.exam_id,
+        e.exam_name,
+        e.description,
+        e.start_time,
+        e.duration,
+        e.status,
+        e.password,
+        e.is_dynamic,
+        e.shuffle_questions,
+        e.shuffle_options,
+        e.created_at,
+        c.class_id,
+        c.class_name,
+        s.subject_name,
+        COUNT(DISTINCT eq.question_id) as total_questions,
+        COALESCE(SUM(eq.points), 0) as total_points,
+        COUNT(DISTINCT ea.attempt_id) as total_attempts,
+        COUNT(DISTINCT CASE WHEN ea.status = 'Submitted' THEN ea.attempt_id END) as submitted_count,
+        AVG(CASE WHEN ea.status = 'Submitted' THEN ea.score END) as average_score,
+        CASE
+          WHEN e.status IN ('deleted', 'draft') THEN e.status
+          WHEN NOW() < e.start_time THEN 'upcoming'
+          WHEN NOW() >= e.start_time 
+               AND NOW() < DATE_ADD(e.start_time, INTERVAL e.duration MINUTE) THEN 'active'
+          ELSE 'completed'
+        END AS current_status
+      FROM exams e
+      LEFT JOIN classes c ON e.class_id = c.class_id
+      LEFT JOIN subjects s ON e.subject_id = s.subject_id
+      LEFT JOIN exam_questions eq ON e.exam_id = eq.exam_id
+      LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id
+      WHERE e.exam_id = ? AND e.teacher_id = ?
+      GROUP BY e.exam_id, e.exam_name, e.description, e.start_time, e.duration, 
+               e.status, e.password, e.is_dynamic, e.shuffle_questions, 
+               e.shuffle_options, e.created_at, c.class_id, c.class_name, s.subject_name`,
+      [examId, teacherId]
+    );
+
+    if (!exam.length) {
+      console.log('❌ Exam not found or no permission');
+      return res.status(403).json({ error: 'Bạn không có quyền truy cập bài thi này' });
+    }
+
+    console.log('✅ Exam found:', exam[0].exam_name);
+
+    // Lấy danh sách câu hỏi với options
+    const [questions] = await req.db.query(
+      `SELECT 
+        eq.question_id,
+        eq.question_order,
+        eq.points,
+        qb.question_content,
+        qb.question_type,
+        qb.difficulty,
+        qb.correct_answer_text
+       FROM exam_questions eq
+       JOIN question_bank qb ON eq.question_id = qb.question_id
+       WHERE eq.exam_id = ?
+       ORDER BY eq.question_order ASC`,
+      [examId]
+    );
+
+    console.log(`✅ Found ${questions.length} questions`);
+
+    // Lấy options cho từng câu hỏi (chỉ với trắc nghiệm)
+    const questionsWithOptions = await Promise.all(
+      questions.map(async (q) => {
+        if (q.question_type === 'SingleChoice' || q.question_type === 'MultipleChoice') {
+          const [options] = await req.db.query(
+            `SELECT 
+              option_id,
+              option_content,
+              is_correct
+             FROM question_options
+             WHERE question_id = ?
+             ORDER BY option_id ASC`,
+            [q.question_id]
+          );
+          return { ...q, options };
+        }
+        return { ...q, options: [] };
+      })
+    );
+
+    // Trả về dữ liệu đầy đủ
+    const result = {
+      ...exam[0],
+      questions: questionsWithOptions
+    };
+
+    console.log('✅ Response ready with', result.questions.length, 'questions');
+    res.json(result);
+
+  } catch (err) {
+    console.error('❌ Error getting exam detail:', err);
+    res.status(500).json({ 
+      error: 'Lỗi khi lấy chi tiết bài thi', 
+      details: err.message 
+    });
   }
 });
 
@@ -952,66 +1154,6 @@ router.post('/question-bank', authMiddleware, roleMiddleware(['teacher']), async
   }
 });
 
-// ✅ LẤY DANH SÁCH CÂU HỎI TRONG NGÂN HÀNG (GET /api/teacher/exams/question-bank)
-router.get('/question-bank', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
-  const teacherId = req.user.id || req.user.user_id;
-  const { subject_id, difficulty, question_type, limit = 50, offset = 0 } = req.query;
-
-  try {
-    let query = `
-      SELECT 
-        qb.question_id,
-        qb.question_content,
-        qb.question_type,
-        qb.difficulty,
-        qb.correct_answer_text,
-        qb.created_at,
-        s.subject_name,
-        (SELECT COUNT(*) FROM question_options WHERE question_id = qb.question_id) as option_count
-      FROM question_bank qb
-      LEFT JOIN subjects s ON qb.subject_id = s.subject_id
-      WHERE qb.teacher_id = ?
-    `;
-    
-    const params = [teacherId];
-
-    // Thêm filters
-    if (subject_id) {
-      query += ' AND qb.subject_id = ?';
-      params.push(subject_id);
-    }
-    if (difficulty) {
-      query += ' AND qb.difficulty = ?';
-      params.push(difficulty);
-    }
-    if (question_type) {
-      query += ' AND qb.question_type = ?';
-      params.push(question_type);
-    }
-
-    query += ' ORDER BY qb.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
-
-    const [questions] = await req.db.query(query, params);
-
-    // Lấy tổng số câu hỏi
-    const [total] = await req.db.query(
-      'SELECT COUNT(*) as count FROM question_bank WHERE teacher_id = ?',
-      [teacherId]
-    );
-
-    res.json({
-      questions,
-      total: total[0].count,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
-    });
-
-  } catch (error) {
-    console.error('❌ Error:', error);
-    res.status(500).json({ error: 'Lỗi khi lấy danh sách câu hỏi', details: error.message });
-  }
-});
 
 // ✅ XÓA CÂU HỎI KHỎI NGÂN HÀNG (DELETE /api/teacher/exams/question-bank/:questionId)
 router.delete('/question-bank/:questionId', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {

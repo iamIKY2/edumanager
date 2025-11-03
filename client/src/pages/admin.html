@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
     <link rel="icon" type="image/png" href="/client/public/images/edu.png">
     <link href="/client/public/css/admin.css" rel="stylesheet">
 </head>
@@ -70,6 +71,9 @@
                 <h5 class="mb-0 d-inline-block ms-2" id="pageTitle">Dashboard Tổng Quan</h5>
             </div>
             <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-sm btn-outline-secondary" id="toggleDarkMode" title="Chuyển đổi giao diện sáng/tối">
+                    <i class="bi bi-moon-fill" id="darkModeIcon"></i>
+                </button>
                 <button class="btn btn-sm btn-primary" id="exportReport">
                     <i class="bi bi-download"></i> Xuất báo cáo
                 </button>
@@ -273,61 +277,149 @@
         </div>
 
         <div id="monitor-cheating-section" class="content-section">
+    <!-- Thống kê tổng quan -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div class="stat-label">Tổng vi phạm</div>
+                <div class="stat-value" id="totalViolations">0</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: rgba(253, 126, 20, 0.1); color: #fd7e14;">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div class="stat-label">Học sinh vi phạm</div>
+                <div class="stat-value" id="violatingStudents">0</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: rgba(111, 66, 193, 0.1); color: #6f42c1;">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <div class="stat-label">Bài thi bị ảnh hưởng</div>
+                <div class="stat-value" id="affectedExams">0</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                    <i class="bi bi-ban"></i>
+                </div>
+                <div class="stat-label">Học sinh bị cấm</div>
+                <div class="stat-value" id="bannedStudents">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Biểu đồ và Top vi phạm -->
     <div class="row g-4 mb-4">
         <div class="col-xl-8">
             <div class="chart-card">
-                <h6 class="chart-title">Thống kê vi phạm gian lận</h6>
+                <h6 class="chart-title">Thống kê vi phạm theo loại</h6>
                 <canvas id="cheatingChart" height="100"></canvas>
             </div>
         </div>
         <div class="col-xl-4">
             <div class="chart-card">
-                <h6 class="chart-title">Top 5 học sinh vi phạm</h6>
-                <ul id="topViolators" class="list-group"></ul>
+                <h6 class="chart-title mb-3">Top 5 học sinh vi phạm</h6>
+                <ul id="topViolators" class="list-group list-group-flush"></ul>
             </div>
         </div>
     </div>
+
+    <!-- Top bài thi vi phạm -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="chart-card">
+                <h6 class="chart-title mb-3">Top 5 bài thi có nhiều vi phạm</h6>
+                <div id="topExamsList" class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Bài thi</th>
+                                <th>Lớp</th>
+                                <th>Số vi phạm</th>
+                                <th>Số học sinh vi phạm</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topExamsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bảng log gian lận -->
     <div class="table-card">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h6 class="chart-title mb-0">Log gian lận</h6>
-            <button class="btn btn-primary" id="exportCheatingCsv">
-                <i class="bi bi-download"></i> Xuất CSV
-            </button>
+            <h6 class="chart-title mb-0">📋 Log gian lận chi tiết</h6>
+            <div>
+                <button class="btn btn-secondary me-2" id="refreshCheatingBtn">
+                    <i class="bi bi-arrow-clockwise"></i> Làm mới
+                </button>
+                <button class="btn btn-primary" id="exportCheatingCsv">
+                    <i class="bi bi-download"></i> Xuất CSV
+                </button>
+            </div>
         </div>
+        
+        <!-- Filters -->
         <div class="row mb-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <label class="form-label small">Lọc theo bài thi</label>
                 <select class="form-select" id="examFilter">
                     <option value="">Tất cả kỳ thi</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <label class="form-label small">Lọc theo học sinh</label>
                 <select class="form-select" id="studentFilter">
                     <option value="">Tất cả học sinh</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-2">
+                <label class="form-label small">Loại vi phạm</label>
                 <select class="form-select" id="eventTypeFilter">
-                    <option value="">Tất cả loại vi phạm</option>
-                    <option value="TabSwitch">Chuyển tab</option>
-                    <option value="CopyPaste">Copy/Paste</option>
-                    <option value="WebcamSuspicious">Webcam đáng ngờ</option>
+                    <option value="">Tất cả loại</option>
+                    <option value="TabSwitch">🚫 Chuyển tab</option>
+                    <option value="CopyPaste">📋 Copy/Paste</option>
+                    <option value="WebcamSuspicious">📷 Webcam đáng ngờ</option>
                 </select>
             </div>
+            <div class="col-md-2">
+                <label class="form-label small">Từ ngày</label>
+                <input type="date" class="form-select" id="startDateFilter">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Đến ngày</label>
+                <input type="date" class="form-select" id="endDateFilter">
+            </div>
         </div>
+
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
                         <th>Học sinh</th>
-                        <th>Kỳ thi</th>
+                        <th>Bài thi</th>
+                        <th>Giáo viên</th>
                         <th>Lớp</th>
                         <th>Loại vi phạm</th>
                         <th>Chi tiết</th>
                         <th>Thời gian</th>
+                        <th>Trạng thái</th>
                         <th>Thao tác</th>
                     </tr>
                 </thead>
-                <tbody id="cheatingTableBody"></tbody>
+                <tbody id="cheatingTableBody">
+                    <tr><td colspan="9" class="text-center">⏳ Đang tải dữ liệu...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
@@ -492,6 +584,7 @@
                                 <th>Họ tên</th>
                                 <th>Email</th>
                                 <th class="sortable" data-sort="avg_score" data-order="desc">Điểm trung bình <i class="bi bi-sort-down"></i></th>
+                                <th>Hành động</th>
                             </tr>
                         </thead>
                         <tbody id="studentListTableBody"></tbody>
@@ -511,95 +604,643 @@
     </div>
 </div>
         <div id="reports-section" class="content-section">
-            <div class="row g-4 mb-4">
-                <div class="col-md-3">
-                    <select class="form-select" id="reportPeriod">
-                        <option value="week">7 ngày qua</option>
-                        <option value="month" selected>30 ngày qua</option>
-                        <option value="quarter">3 tháng qua</option>
-                        <option value="year">1 năm qua</option>
-                    </select>
+    <!-- Bộ lọc và nút xuất báo cáo -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label class="form-label small">Khoảng thời gian</label>
+            <select class="form-select" id="reportPeriod">
+                <option value="week">7 ngày qua</option>
+                <option value="month" selected>30 ngày qua</option>
+                <option value="quarter">3 tháng qua</option>
+                <option value="year">1 năm qua</option>
+                <option value="custom">Tùy chỉnh</option>
+            </select>
+        </div>
+        <div class="col-md-3" id="customDateRange" style="display: none;">
+            <label class="form-label small">Từ ngày</label>
+            <input type="date" class="form-control" id="startDate">
+        </div>
+        <div class="col-md-3" id="customDateRangeTo" style="display: none;">
+            <label class="form-label small">Đến ngày</label>
+            <input type="date" class="form-control" id="endDate">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Môn học</label>
+            <select class="form-select" id="reportSubjectFilter">
+                <option value="">Tất cả môn học</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end gap-2">
+            <button class="btn btn-primary" id="applyReportFilter">
+                <i class="bi bi-funnel"></i> Áp dụng
+            </button>
+            <button class="btn btn-outline-secondary" id="resetReportFilter">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+        <div class="col-md-9 d-flex align-items-end justify-content-end gap-2">
+            <button class="btn btn-outline-success" id="exportExcel">
+                <i class="bi bi-file-earmark-excel"></i> Xuất Excel
+            </button>
+            <button class="btn btn-outline-danger" id="exportPDF">
+                <i class="bi bi-file-earmark-pdf"></i> Xuất PDF
+            </button>
+            <button class="btn btn-outline-primary" id="printReport">
+                <i class="bi bi-printer"></i> In báo cáo
+            </button>
+        </div>
+    </div>
+
+    <!-- Thống kê tổng quan -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
+                    <i class="bi bi-graph-up"></i>
                 </div>
-                <div class="col-md-9 text-end">
-                    <button class="btn btn-outline-primary me-2" id="exportExcel">
-                        <i class="bi bi-file-earmark-excel"></i> Xuất Excel
-                    </button>
-                    <button class="btn btn-outline-danger" id="exportPDF">
-                        <i class="bi bi-file-earmark-pdf"></i> Xuất PDF
-                    </button>
+                <div class="stat-label">Tổng số bài thi</div>
+                <div class="stat-value" id="reportTotalExams">0</div>
+                <div class="stat-change text-muted">
+                    <small>Trong khoảng thời gian đã chọn</small>
                 </div>
             </div>
-
-            <div class="row g-4 mb-4">
-                <div class="col-xl-3 col-md-6">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
-                            <i class="bi bi-graph-up"></i>
-                        </div>
-                        <div class="stat-label">Tổng số bài thi</div>
-                        <div class="stat-value">0</div>
-                    </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: rgba(25, 135, 84, 0.1); color: #198754;">
+                    <i class="bi bi-check-circle"></i>
                 </div>
-                <div class="col-xl-3 col-md-6">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background-color: rgba(25, 135, 84, 0.1); color: #198754;">
-                            <i class="bi bi-check-circle"></i>
-                        </div>
-                        <div class="stat-label">Tỷ lệ hoàn thành</div>
-                        <div class="stat-value">0%</div>
-                    </div>
-                </div>
-                <div class="col-xl-3 col-md-6">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background-color: rgba(253, 126, 20, 0.1); color: #fd7e14;">
-                            <i class="bi bi-star"></i>
-                        </div>
-                        <div class="stat-label">Điểm trung bình</div>
-                        <div class="stat-value">0</div>
-                    </div>
-                </div>
-                <div class="col-xl-3 col-md-6">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
-                            <i class="bi bi-exclamation-triangle"></i>
-                        </div>
-                        <div class="stat-label">Cảnh báo gian lận</div>
-                        <div class="stat-value">0</div>
-                    </div>
+                <div class="stat-label">Tỷ lệ hoàn thành</div>
+                <div class="stat-value" id="reportCompletionRate">0%</div>
+                <div class="stat-change" id="reportCompletionTrend">
+                    <i class="bi bi-arrow-up"></i> +0%
                 </div>
             </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: rgba(253, 126, 20, 0.1); color: #fd7e14;">
+                    <i class="bi bi-star"></i>
+                </div>
+                <div class="stat-label">Điểm trung bình</div>
+                <div class="stat-value" id="reportAvgScore">0</div>
+                <div class="stat-change" id="reportScoreTrend">
+                    <i class="bi bi-arrow-up"></i> +0
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="stat-label">Cảnh báo gian lận</div>
+                <div class="stat-value" id="reportCheatingWarnings">0</div>
+                <div class="stat-change text-danger">
+                    <small id="reportCheatingDetail">0 học sinh vi phạm</small>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            <div class="row g-4">
-                <div class="col-12">
-                    <div class="table-card">
-                        <h6 class="chart-title">Báo Cáo Chi Tiết Theo Kỳ Thi</h6>
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Kỳ thi</th>
-                                        <th>Số SV tham gia</th>
-                                        <th>Hoàn thành</th>
-                                        <th>Điểm TB</th>
-                                        <th>Điểm cao nhất</th>
-                                        <th>Điểm thấp nhất</th>
-                                        <th>Cảnh báo</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Data will be loaded here -->
-                                </tbody>
-                            </table>
-                        </div>
+    <!-- Biểu đồ phân tích -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-8">
+            <div class="chart-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="chart-title mb-0">Xu hướng điểm số theo thời gian</h6>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary active" data-chart-type="line">
+                            <i class="bi bi-graph-up"></i> Đường
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" data-chart-type="bar">
+                            <i class="bi bi-bar-chart"></i> Cột
+                        </button>
+                    </div>
+                </div>
+                <canvas id="scoreTrendChart" height="80"></canvas>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="chart-card">
+                <h6 class="chart-title mb-3">Phân bố xếp loại</h6>
+                <canvas id="gradeDistributionChart"></canvas>
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="bi bi-circle-fill" style="color: #198754;"></i> Xuất sắc (8-10)</span>
+                        <strong id="excellentPercent">0%</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="bi bi-circle-fill" style="color: #0d6efd;"></i> Khá (6.5-8)</span>
+                        <strong id="goodPercent">0%</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="bi bi-circle-fill" style="color: #ffc107;"></i> Trung bình (5-6.5)</span>
+                        <strong id="averagePercent">0%</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span><i class="bi bi-circle-fill" style="color: #dc3545;"></i> Yếu (<5)</span>
+                        <strong id="weakPercent">0%</strong>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Biểu đồ so sánh môn học -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="chart-card">
+                <h6 class="chart-title">So sánh điểm trung bình theo môn học</h6>
+                <canvas id="subjectComparisonChart" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top performers và cảnh báo -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-6">
+            <div class="chart-card">
+                <h6 class="chart-title mb-3">Top 10 học sinh xuất sắc</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Họ tên</th>
+                                <th>Điểm TB</th>
+                                <th>Số bài thi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topStudentsTable">
+                            <tr><td colspan="4" class="text-center">Đang tải...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="chart-card">
+                <h6 class="chart-title mb-3">Học sinh cần hỗ trợ</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Họ tên</th>
+                                <th>Điểm TB</th>
+                                <th>Cảnh báo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="warningStudentsTable">
+                            <tr><td colspan="4" class="text-center">Đang tải...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Báo cáo chi tiết theo kỳ thi -->
+    <div class="table-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h6 class="chart-title mb-0">Báo cáo chi tiết theo kỳ thi</h6>
+            <div class="input-group" style="width: 300px;">
+                <input type="text" class="form-control" id="searchExamReport" placeholder="Tìm kiếm kỳ thi...">
+                <button class="btn btn-outline-secondary" type="button">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="exam_name">
+                            Kỳ thi <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-sort="subject">
+                            Môn học <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-sort="student_count">
+                            Số SV <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-sort="completion_rate">
+                            Hoàn thành <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-sort="avg_score">
+                            Điểm TB <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th>Cao nhất</th>
+                        <th>Thấp nhất</th>
+                        <th class="sortable" data-sort="cheating">
+                            Cảnh báo <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="examReportTableBody">
+                    <tr><td colspan="9" class="text-center">Đang tải dữ liệu...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center" id="reportPagination">
+                <li class="page-item disabled"><a class="page-link" href="#">Trước</a></li>
+                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                <li class="page-item"><a class="page-link" href="#">Sau</a></li>
+            </ul>
+        </nav>
+    </div>
+</div>
 
         <div id="settings-section" class="content-section">
-            <div class="table-card">
-                <h6 class="chart-title">Cài Đặt Hệ Thống</h6>
-                <p class="text-muted">Các tính năng cài đặt sẽ được phát triển trong phiên bản tiếp theo.</p>
+            <div class="row g-4">
+                <div class="col-12">
+                    <div class="table-card">
+                        <h6 class="chart-title mb-4">Cài Đặt Hệ Thống</h6>
+                        
+                        <!-- Tabs Navigation -->
+                        <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="exam-tab" data-bs-toggle="tab" data-bs-target="#exam-settings" type="button">
+                                    <i class="bi bi-file-earmark-text"></i> Thi cử
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="antiCheat-tab" data-bs-toggle="tab" data-bs-target="#antiCheat-settings" type="button">
+                                    <i class="bi bi-shield-check"></i> Chống gian lận
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="notification-tab" data-bs-toggle="tab" data-bs-target="#notification-settings" type="button">
+                                    <i class="bi bi-bell"></i> Thông báo
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security-settings" type="button">
+                                    <i class="bi bi-lock"></i> Bảo mật
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="display-tab" data-bs-toggle="tab" data-bs-target="#display-settings" type="button">
+                                    <i class="bi bi-palette"></i> Giao diện
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="email-tab" data-bs-toggle="tab" data-bs-target="#email-settings" type="button">
+                                    <i class="bi bi-envelope"></i> Email & SMTP
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="user-tab" data-bs-toggle="tab" data-bs-target="#user-settings" type="button">
+                                    <i class="bi bi-people"></i> Người dùng
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system-settings" type="button">
+                                    <i class="bi bi-gear"></i> Hệ thống
+                                </button>
+                            </li>
+                        </ul>
+
+                        <!-- Tabs Content -->
+                        <div class="tab-content" id="settingsTabContent">
+                            <!-- Exam Settings Tab -->
+                            <div class="tab-pane fade show active" id="exam-settings" role="tabpanel">
+                                <form id="examSettingsForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Thời gian làm bài mặc định (phút)</label>
+                                        <input type="number" class="form-control" id="defaultDuration" min="1" required>
+                                        <small class="text-muted">Thời gian mặc định cho các kỳ thi mới</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Điểm đạt mặc định</label>
+                                        <input type="number" class="form-control" id="defaultPassingScore" step="0.1" min="0" max="10" required>
+                                        <small class="text-muted">Điểm tối thiểu để đạt (thang điểm 10)</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableAutoSubmit">
+                                        <label class="form-check-label" for="enableAutoSubmit">
+                                            Tự động nộp bài khi hết thời gian
+                                        </label>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableReviewBeforeSubmit">
+                                        <label class="form-check-label" for="enableReviewBeforeSubmit">
+                                            Cho phép xem lại trước khi nộp bài
+                                        </label>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Anti-Cheat Settings Tab -->
+                            <div class="tab-pane fade" id="antiCheat-settings" role="tabpanel">
+                                <form id="antiCheatSettingsForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Số cảnh báo tối đa</label>
+                                        <input type="number" class="form-control" id="maxWarnings" min="1" max="10" required>
+                                        <small class="text-muted">Số lần cảnh báo trước khi tự động nộp bài</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableWebcamMonitoring">
+                                        <label class="form-check-label" for="enableWebcamMonitoring">
+                                            Bật giám sát webcam
+                                        </label>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableTabSwitchDetection">
+                                        <label class="form-check-label" for="enableTabSwitchDetection">
+                                            Phát hiện chuyển tab
+                                        </label>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableCopyPasteDetection">
+                                        <label class="form-check-label" for="enableCopyPasteDetection">
+                                            Phát hiện copy/paste
+                                        </label>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Notification Settings Tab -->
+                            <div class="tab-pane fade" id="notification-settings" role="tabpanel">
+                                <form id="notificationSettingsForm">
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableEmail">
+                                        <label class="form-check-label" for="enableEmail">
+                                            Gửi thông báo qua email
+                                        </label>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="notifyExamStart">
+                                        <label class="form-check-label" for="notifyExamStart">
+                                            Thông báo khi kỳ thi bắt đầu
+                                        </label>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="notifyExamEnd">
+                                        <label class="form-check-label" for="notifyExamEnd">
+                                            Thông báo khi kỳ thi kết thúc
+                                        </label>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="notifyScoreAvailable">
+                                        <label class="form-check-label" for="notifyScoreAvailable">
+                                            Thông báo khi điểm số có sẵn
+                                        </label>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Security Settings Tab -->
+                            <div class="tab-pane fade" id="security-settings" role="tabpanel">
+                                <form id="securitySettingsForm">
+                                    <h6 class="mb-3">Đăng nhập & Phiên làm việc</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">Thời gian hết hạn phiên (phút)</label>
+                                        <input type="number" class="form-control" id="sessionTimeout" min="5" max="480" value="30">
+                                        <small class="text-muted">Thời gian không hoạt động trước khi tự động đăng xuất</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Số lần đăng nhập sai tối đa</label>
+                                        <input type="number" class="form-control" id="maxLoginAttempts" min="3" max="10" value="5">
+                                        <small class="text-muted">Số lần đăng nhập sai trước khi khóa tài khoản</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Thời gian khóa tài khoản (phút)</label>
+                                        <input type="number" class="form-control" id="accountLockoutDuration" min="5" max="1440" value="15">
+                                        <small class="text-muted">Thời gian khóa tài khoản sau khi đăng nhập sai nhiều lần</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="requireStrongPassword">
+                                        <label class="form-check-label" for="requireStrongPassword">
+                                            Yêu cầu mật khẩu mạnh
+                                        </label>
+                                        <small class="text-muted d-block">Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableTwoFactor">
+                                        <label class="form-check-label" for="enableTwoFactor">
+                                            Bật xác thực hai yếu tố (2FA)
+                                        </label>
+                                        <small class="text-muted d-block">Yêu cầu mã OTP khi đăng nhập</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableIPWhitelist">
+                                        <label class="form-check-label" for="enableIPWhitelist">
+                                            Bật danh sách IP trắng
+                                        </label>
+                                        <small class="text-muted d-block">Chỉ cho phép đăng nhập từ các IP đã được phê duyệt</small>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Display Settings Tab -->
+                            <div class="tab-pane fade" id="display-settings" role="tabpanel">
+                                <form id="displaySettingsForm">
+                                    <h6 class="mb-3">Giao diện & Hiển thị</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">Ngôn ngữ</label>
+                                        <select class="form-select" id="language">
+                                            <option value="vi">Tiếng Việt</option>
+                                            <option value="en">English</option>
+                                        </select>
+                                        <small class="text-muted">Ngôn ngữ hiển thị của hệ thống</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Màu chủ đạo</label>
+                                        <input type="color" class="form-control form-control-color" id="primaryColor" value="#0d6efd" title="Chọn màu chủ đạo">
+                                        <small class="text-muted">Màu chủ đạo của giao diện</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Kích thước font chữ</label>
+                                        <select class="form-select" id="fontSize">
+                                            <option value="small">Nhỏ</option>
+                                            <option value="medium" selected>Trung bình</option>
+                                            <option value="large">Lớn</option>
+                                        </select>
+                                        <small class="text-muted">Kích thước font chữ mặc định</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="compactMode">
+                                        <label class="form-check-label" for="compactMode">
+                                            Chế độ compact
+                                        </label>
+                                        <small class="text-muted d-block">Giảm khoảng cách giữa các phần tử để hiển thị nhiều nội dung hơn</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="showAnimations">
+                                        <label class="form-check-label" for="showAnimations">
+                                            Hiển thị hiệu ứng chuyển động
+                                        </label>
+                                        <small class="text-muted d-block">Bật/tắt các animation và transition effects</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="showTooltips">
+                                        <label class="form-check-label" for="showTooltips">
+                                            Hiển thị tooltip gợi ý
+                                        </label>
+                                        <small class="text-muted d-block">Hiển thị gợi ý khi di chuột qua các nút và biểu tượng</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Số mục hiển thị mỗi trang (bảng)</label>
+                                        <input type="number" class="form-control" id="itemsPerPage" min="10" max="100" value="25">
+                                        <small class="text-muted">Số dòng hiển thị trong các bảng danh sách</small>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Email Settings Tab -->
+                            <div class="tab-pane fade" id="email-settings" role="tabpanel">
+                                <form id="emailSettingsForm">
+                                    <h6 class="mb-3">Cấu hình SMTP</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">SMTP Server</label>
+                                        <input type="text" class="form-control" id="smtpHost" placeholder="smtp.gmail.com">
+                                        <small class="text-muted">Địa chỉ máy chủ SMTP</small>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">SMTP Port</label>
+                                            <input type="number" class="form-control" id="smtpPort" placeholder="587" min="1" max="65535">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Bảo mật</label>
+                                            <select class="form-select" id="smtpSecure">
+                                                <option value="none">Không</option>
+                                                <option value="tls">TLS</option>
+                                                <option value="ssl">SSL</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Email gửi</label>
+                                        <input type="email" class="form-control" id="smtpEmail" placeholder="noreply@example.com">
+                                        <small class="text-muted">Địa chỉ email dùng để gửi thông báo</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Mật khẩu email</label>
+                                        <input type="password" class="form-control" id="smtpPassword" autocomplete="new-password" placeholder="Mật khẩu hoặc App Password">
+                                        <small class="text-muted">Mật khẩu email hoặc App Password (nếu dùng Gmail)</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="testEmailConnection">
+                                        <label class="form-check-label" for="testEmailConnection">
+                                            Kiểm tra kết nối email
+                                        </label>
+                                        <small class="text-muted d-block">Gửi email test để kiểm tra cấu hình</small>
+                                    </div>
+                                    <hr class="my-4">
+                                    <h6 class="mb-3">Mẫu email</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">Email người gửi hiển thị</label>
+                                        <input type="text" class="form-control" id="emailFromName" placeholder="Hệ thống thi trực tuyến">
+                                        <small class="text-muted">Tên hiển thị trong email gửi đi</small>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- User Settings Tab -->
+                            <div class="tab-pane fade" id="user-settings" role="tabpanel">
+                                <form id="userSettingsForm">
+                                    <h6 class="mb-3">Chính sách mật khẩu</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">Độ dài mật khẩu tối thiểu</label>
+                                        <input type="number" class="form-control" id="minPasswordLength" min="6" max="20" value="8">
+                                        <small class="text-muted">Số ký tự tối thiểu cho mật khẩu</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Thời gian hết hạn mật khẩu (ngày)</label>
+                                        <input type="number" class="form-control" id="passwordExpiryDays" min="0" max="365" value="90">
+                                        <small class="text-muted">Số ngày trước khi yêu cầu đổi mật khẩu (0 = không hết hạn)</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="preventPasswordReuse">
+                                        <label class="form-check-label" for="preventPasswordReuse">
+                                            Ngăn tái sử dụng mật khẩu cũ
+                                        </label>
+                                        <small class="text-muted d-block">Không cho phép sử dụng lại các mật khẩu đã dùng trước đó</small>
+                                    </div>
+                                    <hr class="my-4">
+                                    <h6 class="mb-3">Quản lý tài khoản</h6>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="allowStudentRegistration">
+                                        <label class="form-check-label" for="allowStudentRegistration">
+                                            Cho phép đăng ký học sinh tự động
+                                        </label>
+                                        <small class="text-muted d-block">Học sinh có thể tự tạo tài khoản</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="requireEmailVerification">
+                                        <label class="form-check-label" for="requireEmailVerification">
+                                            Yêu cầu xác thực email
+                                        </label>
+                                        <small class="text-muted d-block">Người dùng phải xác thực email trước khi đăng nhập</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Số tài khoản tối đa mỗi lớp</label>
+                                        <input type="number" class="form-control" id="maxStudentsPerClass" min="1" max="500" value="50">
+                                        <small class="text-muted">Giới hạn số lượng học sinh trong một lớp</small>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- System Settings Tab -->
+                            <div class="tab-pane fade" id="system-settings" role="tabpanel">
+                                <form id="systemSettingsForm">
+                                    <h6 class="mb-3">Cấu hình hệ thống</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">Số câu hỏi mỗi trang</label>
+                                        <input type="number" class="form-control" id="questionsPerPage" min="5" max="50" required>
+                                        <small class="text-muted">Số câu hỏi hiển thị trên mỗi trang khi làm bài</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Tự động lưu sau (giây)</label>
+                                        <input type="number" class="form-control" id="autoSaveInterval" min="10" max="300" required>
+                                        <small class="text-muted">Tự động lưu câu trả lời sau mỗi X giây</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Thời gian lưu log (ngày)</label>
+                                        <input type="number" class="form-control" id="logRetentionDays" min="7" max="365" value="30">
+                                        <small class="text-muted">Số ngày lưu trữ log hệ thống (tự động xóa log cũ)</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Tần suất backup tự động (ngày)</label>
+                                        <input type="number" class="form-control" id="backupFrequency" min="0" max="30" value="7">
+                                        <small class="text-muted">Tự động backup dữ liệu sau X ngày (0 = tắt)</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableMaintenanceMode">
+                                        <label class="form-check-label" for="enableMaintenanceMode">
+                                            Bật chế độ bảo trì
+                                        </label>
+                                        <small class="text-muted d-block">Khi bật, chỉ admin mới truy cập được hệ thống</small>
+                                    </div>
+                                    <div class="mb-3 form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enableCaching">
+                                        <label class="form-check-label" for="enableCaching">
+                                            Bật cache hệ thống
+                                        </label>
+                                        <small class="text-muted d-block">Lưu cache để tăng tốc độ tải trang</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Mật khẩu admin mặc định (tùy chọn)</label>
+                                        <input type="password" class="form-control" id="defaultAdminPassword" autocomplete="new-password">
+                                        <small class="text-muted">Mật khẩu mặc định cho tài khoản admin mới (để trống để không thay đổi)</small>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 d-flex justify-content-end gap-2">
+                            <button class="btn btn-secondary" id="resetSettingsBtn">Đặt lại mặc định</button>
+                            <button class="btn btn-primary" id="saveSettingsBtn">
+                                <i class="bi bi-save"></i> Lưu cài đặt
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -670,6 +1311,95 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal Thêm Kỳ Thi -->
+        <div class="modal fade" id="addExamModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Tạo Kỳ Thi Mới</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addExamForm">
+                            <div class="mb-3">
+                                <label class="form-label">Tên kỳ thi <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="examName" required placeholder="VD: Kiểm tra giữa kỳ - Môn học">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Môn học <span class="text-danger">*</span></label>
+                                <select class="form-select" id="examSubjectId" required>
+                                    <option value="">Chọn môn học</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Giáo viên (tùy chọn)</label>
+                                <select class="form-select" id="examTeacherId">
+                                    <option value="">Tự động gán (Admin hiện tại)</option>
+                                </select>
+                                <small class="text-muted">Nếu không chọn, sẽ tự động gán cho admin hiện tại</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Thời gian làm bài (phút) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="examDuration" required min="1" placeholder="VD: 60">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" id="saveExamBtn">Lưu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Xem Chi Tiết Kỳ Thi -->
+        <div class="modal fade" id="viewExamModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Chi Tiết Kỳ Thi</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="examDetailContent">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Đang tải...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Xem Chi Tiết Điểm Số Học Sinh -->
+        <div class="modal fade" id="viewStudentScoresModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Chi Tiết Điểm Số Học Sinh</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="studentScoresContent">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Đang tải...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -701,6 +1431,7 @@ if (!token) {
     setTimeout(() => window.location.href = './login.html', 1500);
     throw new Error('No token');
 }
+
 
 // Biến toàn cục để lưu dữ liệu gốc cho lọc users và chi tiết môn học
 let allUsers = [];
@@ -753,8 +1484,295 @@ document.querySelectorAll('.nav-link').forEach(link => {
             setTimeout(loadSubjectsData, 100);
         } else if (sectionName === 'reports') {
             setTimeout(loadReportsData, 100);
+        } else if (sectionName === 'monitor-cheating') {
+            setTimeout(loadCheatingData, 100);
+        } else if (sectionName === 'settings') {
+            setTimeout(loadSettingsData, 100);
         }
     });
+});
+
+// ==========================================
+// DARK MODE FUNCTIONALITY
+// ==========================================
+(function() {
+    // Kiểm tra theme đã lưu hoặc sử dụng light mode mặc định
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateDarkModeIcon(savedTheme === 'dark');
+
+    // Toggle dark mode
+    document.getElementById('toggleDarkMode')?.addEventListener('click', function() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateDarkModeIcon(newTheme === 'dark');
+    });
+
+    function updateDarkModeIcon(isDark) {
+        const icon = document.getElementById('darkModeIcon');
+        if (icon) {
+            icon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+        }
+    }
+})();
+
+// ==========================================
+// SETTINGS FUNCTIONALITY
+// ==========================================
+async function loadSettingsData() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/settings', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error(await response.text());
+        const settings = await response.json();
+
+        // Fill exam settings
+        if (settings.exam) {
+            document.getElementById('defaultDuration').value = settings.exam.defaultDuration || 60;
+            document.getElementById('defaultPassingScore').value = settings.exam.defaultPassingScore || 5.0;
+            document.getElementById('enableAutoSubmit').checked = settings.exam.enableAutoSubmit !== false;
+            document.getElementById('enableReviewBeforeSubmit').checked = settings.exam.enableReviewBeforeSubmit !== false;
+        }
+
+        // Fill anti-cheat settings
+        if (settings.antiCheat) {
+            document.getElementById('maxWarnings').value = settings.antiCheat.maxWarnings || 3;
+            document.getElementById('enableWebcamMonitoring').checked = settings.antiCheat.enableWebcamMonitoring !== false;
+            document.getElementById('enableTabSwitchDetection').checked = settings.antiCheat.enableTabSwitchDetection !== false;
+            document.getElementById('enableCopyPasteDetection').checked = settings.antiCheat.enableCopyPasteDetection !== false;
+        }
+
+        // Fill notification settings
+        if (settings.notification) {
+            document.getElementById('enableEmail').checked = settings.notification.enableEmail === true;
+            document.getElementById('notifyExamStart').checked = settings.notification.notifyExamStart !== false;
+            document.getElementById('notifyExamEnd').checked = settings.notification.notifyExamEnd !== false;
+            document.getElementById('notifyScoreAvailable').checked = settings.notification.notifyScoreAvailable !== false;
+        }
+
+        // Fill security settings
+        if (settings.security) {
+            document.getElementById('sessionTimeout').value = settings.security.sessionTimeout || 30;
+            document.getElementById('maxLoginAttempts').value = settings.security.maxLoginAttempts || 5;
+            document.getElementById('accountLockoutDuration').value = settings.security.accountLockoutDuration || 15;
+            document.getElementById('requireStrongPassword').checked = settings.security.requireStrongPassword === true;
+            document.getElementById('enableTwoFactor').checked = settings.security.enableTwoFactor === true;
+            document.getElementById('enableIPWhitelist').checked = settings.security.enableIPWhitelist === true;
+        }
+
+        // Fill display settings
+        if (settings.display) {
+            document.getElementById('language').value = settings.display.language || 'vi';
+            document.getElementById('primaryColor').value = settings.display.primaryColor || '#0d6efd';
+            document.getElementById('fontSize').value = settings.display.fontSize || 'medium';
+            document.getElementById('compactMode').checked = settings.display.compactMode === true;
+            document.getElementById('showAnimations').checked = settings.display.showAnimations !== false;
+            document.getElementById('showTooltips').checked = settings.display.showTooltips !== false;
+            document.getElementById('itemsPerPage').value = settings.display.itemsPerPage || 25;
+        }
+
+        // Fill email settings
+        if (settings.email) {
+            document.getElementById('smtpHost').value = settings.email.smtpHost || '';
+            document.getElementById('smtpPort').value = settings.email.smtpPort || '';
+            document.getElementById('smtpSecure').value = settings.email.smtpSecure || 'tls';
+            document.getElementById('smtpEmail').value = settings.email.smtpEmail || '';
+            document.getElementById('emailFromName').value = settings.email.emailFromName || '';
+            // Không fill password field vì lý do bảo mật
+        }
+
+        // Fill user settings
+        if (settings.user) {
+            document.getElementById('minPasswordLength').value = settings.user.minPasswordLength || 8;
+            document.getElementById('passwordExpiryDays').value = settings.user.passwordExpiryDays || 90;
+            document.getElementById('preventPasswordReuse').checked = settings.user.preventPasswordReuse === true;
+            document.getElementById('allowStudentRegistration').checked = settings.user.allowStudentRegistration === true;
+            document.getElementById('requireEmailVerification').checked = settings.user.requireEmailVerification === true;
+            document.getElementById('maxStudentsPerClass').value = settings.user.maxStudentsPerClass || 50;
+        }
+
+        // Fill system settings
+        if (settings.system) {
+            document.getElementById('questionsPerPage').value = settings.system.questionsPerPage || 20;
+            document.getElementById('autoSaveInterval').value = settings.system.autoSaveInterval || 60;
+            document.getElementById('logRetentionDays').value = settings.system.logRetentionDays || 30;
+            document.getElementById('backupFrequency').value = settings.system.backupFrequency || 7;
+            document.getElementById('enableMaintenanceMode').checked = settings.system.enableMaintenanceMode === true;
+            document.getElementById('enableCaching').checked = settings.system.enableCaching !== false;
+            // Không fill password field vì lý do bảo mật
+        }
+    } catch (err) {
+        showNotification('Lỗi tải cài đặt: ' + err.message, 'error');
+    }
+}
+
+// Save settings
+document.getElementById('saveSettingsBtn')?.addEventListener('click', async () => {
+    try {
+        const settings = {
+            exam: {
+                defaultDuration: parseInt(document.getElementById('defaultDuration').value),
+                defaultPassingScore: parseFloat(document.getElementById('defaultPassingScore').value),
+                enableAutoSubmit: document.getElementById('enableAutoSubmit').checked,
+                enableReviewBeforeSubmit: document.getElementById('enableReviewBeforeSubmit').checked
+            },
+            antiCheat: {
+                maxWarnings: parseInt(document.getElementById('maxWarnings').value),
+                enableWebcamMonitoring: document.getElementById('enableWebcamMonitoring').checked,
+                enableTabSwitchDetection: document.getElementById('enableTabSwitchDetection').checked,
+                enableCopyPasteDetection: document.getElementById('enableCopyPasteDetection').checked
+            },
+            notification: {
+                enableEmail: document.getElementById('enableEmail').checked,
+                notifyExamStart: document.getElementById('notifyExamStart').checked,
+                notifyExamEnd: document.getElementById('notifyExamEnd').checked,
+                notifyScoreAvailable: document.getElementById('notifyScoreAvailable').checked
+            },
+            security: {
+                sessionTimeout: parseInt(document.getElementById('sessionTimeout').value),
+                maxLoginAttempts: parseInt(document.getElementById('maxLoginAttempts').value),
+                accountLockoutDuration: parseInt(document.getElementById('accountLockoutDuration').value),
+                requireStrongPassword: document.getElementById('requireStrongPassword').checked,
+                enableTwoFactor: document.getElementById('enableTwoFactor').checked,
+                enableIPWhitelist: document.getElementById('enableIPWhitelist').checked
+            },
+            display: {
+                language: document.getElementById('language').value,
+                primaryColor: document.getElementById('primaryColor').value,
+                fontSize: document.getElementById('fontSize').value,
+                compactMode: document.getElementById('compactMode').checked,
+                showAnimations: document.getElementById('showAnimations').checked,
+                showTooltips: document.getElementById('showTooltips').checked,
+                itemsPerPage: parseInt(document.getElementById('itemsPerPage').value)
+            },
+            email: {
+                smtpHost: document.getElementById('smtpHost').value,
+                smtpPort: document.getElementById('smtpPort').value ? parseInt(document.getElementById('smtpPort').value) : null,
+                smtpSecure: document.getElementById('smtpSecure').value,
+                smtpEmail: document.getElementById('smtpEmail').value,
+                emailFromName: document.getElementById('emailFromName').value
+            },
+            user: {
+                minPasswordLength: parseInt(document.getElementById('minPasswordLength').value),
+                passwordExpiryDays: parseInt(document.getElementById('passwordExpiryDays').value),
+                preventPasswordReuse: document.getElementById('preventPasswordReuse').checked,
+                allowStudentRegistration: document.getElementById('allowStudentRegistration').checked,
+                requireEmailVerification: document.getElementById('requireEmailVerification').checked,
+                maxStudentsPerClass: parseInt(document.getElementById('maxStudentsPerClass').value)
+            },
+            system: {
+                questionsPerPage: parseInt(document.getElementById('questionsPerPage').value),
+                autoSaveInterval: parseInt(document.getElementById('autoSaveInterval').value),
+                logRetentionDays: parseInt(document.getElementById('logRetentionDays').value),
+                backupFrequency: parseInt(document.getElementById('backupFrequency').value),
+                enableMaintenanceMode: document.getElementById('enableMaintenanceMode').checked,
+                enableCaching: document.getElementById('enableCaching').checked
+            }
+        };
+
+        // Chỉ thêm password nếu có nhập
+        const adminPassword = document.getElementById('defaultAdminPassword').value;
+        if (adminPassword && adminPassword.trim() !== '') {
+            settings.system.defaultAdminPassword = adminPassword;
+        }
+
+        const smtpPassword = document.getElementById('smtpPassword').value;
+        if (smtpPassword && smtpPassword.trim() !== '') {
+            settings.email.smtpPassword = smtpPassword;
+        }
+
+        const response = await fetch('http://localhost:3000/api/admin/settings', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showNotification('Lưu cài đặt thành công!', 'success');
+        // Clear password field sau khi lưu
+        document.getElementById('defaultAdminPassword').value = '';
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+});
+
+// Reset settings
+document.getElementById('resetSettingsBtn')?.addEventListener('click', async () => {
+    if (!confirm('Bạn có chắc muốn đặt lại tất cả cài đặt về mặc định?')) return;
+    
+    try {
+        // Reset về default values
+        document.getElementById('defaultDuration').value = 60;
+        document.getElementById('defaultPassingScore').value = 5.0;
+        document.getElementById('enableAutoSubmit').checked = true;
+        document.getElementById('enableReviewBeforeSubmit').checked = true;
+        
+        document.getElementById('maxWarnings').value = 3;
+        document.getElementById('enableWebcamMonitoring').checked = true;
+        document.getElementById('enableTabSwitchDetection').checked = true;
+        document.getElementById('enableCopyPasteDetection').checked = true;
+        
+        document.getElementById('enableEmail').checked = false;
+        document.getElementById('notifyExamStart').checked = true;
+        document.getElementById('notifyExamEnd').checked = true;
+        document.getElementById('notifyScoreAvailable').checked = true;
+        
+        // Reset security settings
+        document.getElementById('sessionTimeout').value = 30;
+        document.getElementById('maxLoginAttempts').value = 5;
+        document.getElementById('accountLockoutDuration').value = 15;
+        document.getElementById('requireStrongPassword').checked = false;
+        document.getElementById('enableTwoFactor').checked = false;
+        document.getElementById('enableIPWhitelist').checked = false;
+        
+        // Reset display settings
+        document.getElementById('language').value = 'vi';
+        document.getElementById('primaryColor').value = '#0d6efd';
+        document.getElementById('fontSize').value = 'medium';
+        document.getElementById('compactMode').checked = false;
+        document.getElementById('showAnimations').checked = true;
+        document.getElementById('showTooltips').checked = true;
+        document.getElementById('itemsPerPage').value = 25;
+        
+        // Reset email settings
+        document.getElementById('smtpHost').value = '';
+        document.getElementById('smtpPort').value = '';
+        document.getElementById('smtpSecure').value = 'tls';
+        document.getElementById('smtpEmail').value = '';
+        document.getElementById('smtpPassword').value = '';
+        document.getElementById('emailFromName').value = '';
+        
+        // Reset user settings
+        document.getElementById('minPasswordLength').value = 8;
+        document.getElementById('passwordExpiryDays').value = 90;
+        document.getElementById('preventPasswordReuse').checked = false;
+        document.getElementById('allowStudentRegistration').checked = true;
+        document.getElementById('requireEmailVerification').checked = false;
+        document.getElementById('maxStudentsPerClass').value = 50;
+        
+        // Reset system settings
+        document.getElementById('questionsPerPage').value = 20;
+        document.getElementById('autoSaveInterval').value = 60;
+        document.getElementById('logRetentionDays').value = 30;
+        document.getElementById('backupFrequency').value = 7;
+        document.getElementById('enableMaintenanceMode').checked = false;
+        document.getElementById('enableCaching').checked = true;
+        document.getElementById('defaultAdminPassword').value = '';
+        
+        showNotification('Đã đặt lại về mặc định. Nhấn "Lưu cài đặt" để áp dụng.', 'info');
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
 });
 
 // Hàm cập nhật biểu đồ userChart
@@ -809,27 +1827,84 @@ async function loadDashboardData() {
         if (statValues[3]) statValues[3].textContent = data.questions || 0;
 
         // Cập nhật biểu đồ userChart với vai trò mặc định (Sinh viên)
-        updateUserChart('Student', data);
+        const userChartCtx = document.getElementById('userChart');
+        if (userChartCtx) {
+            if (userChartCtx.chartInstance) {
+                userChartCtx.chartInstance.destroy();
+            }
+            
+            // Dữ liệu mẫu hoặc từ API
+            const chartData = {
+                student: [5, 8, 12, 15, 10, 18, 20, 15, 22, 18, parseInt(data.students) || 0, 0],
+                teacher: [1, 2, 1, 3, 2, 2, 3, 2, 1, 2, parseInt(data.teachers) || 0, 0]
+            };
+            
+            // Lưu chartData vào context để dùng khi switch
+            userChartCtx.chartData = chartData;
+            
+            userChartCtx.chartInstance = new Chart(userChartCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
+                    datasets: [{
+                        label: 'Sinh viên mới',
+                        data: chartData.student,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
 
         // Thêm sự kiện cho nút Sinh viên và Giáo viên
         const studentBtn = document.getElementById('studentBtn');
         const teacherBtn = document.getElementById('teacherBtn');
 
-        if (studentBtn && teacherBtn) {
-            studentBtn.addEventListener('click', () => {
-                studentBtn.classList.add('active');
-                teacherBtn.classList.remove('active');
-                updateUserChart('Student', data);
+        if (studentBtn && teacherBtn && userChartCtx) {
+            // Xóa event listeners cũ bằng cách remove và add lại
+            const studentBtnParent = studentBtn.parentNode;
+            const teacherBtnParent = teacherBtn.parentNode;
+            const newStudentBtn = studentBtn.cloneNode(true);
+            const newTeacherBtn = teacherBtn.cloneNode(true);
+            
+            studentBtnParent.replaceChild(newStudentBtn, studentBtn);
+            teacherBtnParent.replaceChild(newTeacherBtn, teacherBtn);
+
+            newStudentBtn.addEventListener('click', () => {
+                newStudentBtn.classList.add('active');
+                newTeacherBtn.classList.remove('active');
+                if (userChartCtx.chartInstance && userChartCtx.chartData) {
+                    userChartCtx.chartInstance.data.datasets[0].label = 'Sinh viên mới';
+                    userChartCtx.chartInstance.data.datasets[0].data = userChartCtx.chartData.student;
+                    userChartCtx.chartInstance.data.datasets[0].borderColor = '#0d6efd';
+                    userChartCtx.chartInstance.data.datasets[0].backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                    userChartCtx.chartInstance.update();
+                }
             });
 
-            teacherBtn.addEventListener('click', () => {
-                teacherBtn.classList.add('active');
-                studentBtn.classList.remove('active');
-                updateUserChart('Teacher', data);
+            newTeacherBtn.addEventListener('click', () => {
+                newTeacherBtn.classList.add('active');
+                newStudentBtn.classList.remove('active');
+                if (userChartCtx.chartInstance && userChartCtx.chartData) {
+                    userChartCtx.chartInstance.data.datasets[0].label = 'Giáo viên mới';
+                    userChartCtx.chartInstance.data.datasets[0].data = userChartCtx.chartData.teacher;
+                    userChartCtx.chartInstance.data.datasets[0].borderColor = '#198754';
+                    userChartCtx.chartInstance.data.datasets[0].backgroundColor = 'rgba(25, 135, 84, 0.1)';
+                    userChartCtx.chartInstance.update();
+                }
             });
-        } else {
-            console.error('Không tìm thấy nút Sinh viên hoặc Giáo viên');
-            showNotification('Lỗi: Không tìm thấy nút chuyển đổi Sinh viên/Giáo viên', 'error');
         }
 
         // Cập nhật các biểu đồ khác
@@ -1035,19 +2110,26 @@ function filterStudentsData() {
   tbody.innerHTML = '';
 
   if (filteredStudents.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center">Không tìm thấy sinh viên</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Không tìm thấy sinh viên</td></tr>';
     return;
   }
 
   filteredStudents.forEach(student => {
     const score = Number(student.avg_score) || 0;
     const scoreClass = score >= 8 ? 'bg-success' : score >= 5 ? 'bg-warning' : 'bg-danger';
+    // Lấy subjectId từ URL hoặc lưu trong biến toàn cục
+    const subjectId = window.currentSubjectId || '';
     tbody.innerHTML += `
       <tr>
         <td>${student.user_id}</td>
         <td><strong>${student.full_name}</strong></td>
         <td>${student.email}</td>
         <td><span class="badge ${scoreClass}">${score.toFixed(1)}</span></td>
+        <td>
+          <button class="btn btn-sm btn-info" onclick="viewStudentScores(${subjectId}, ${student.user_id})">
+            <i class="bi bi-eye"></i> Xem chi tiết
+          </button>
+        </td>
       </tr>
     `;
   });
@@ -1056,6 +2138,9 @@ function filterStudentsData() {
 // Cập nhật hàm viewSubject
 async function viewSubject(subjectId) {
   try {
+    // Lưu subjectId để dùng trong viewStudentScores
+    window.currentSubjectId = subjectId;
+    
     const response = await fetch(`http://localhost:3000/api/admin/subjects/${subjectId}/details`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -1284,55 +2369,15 @@ async function loadQuestionsData() {
     }
 }
 
-// Hàm lấy dữ liệu báo cáo
-async function loadReportsData() {
-    try {
-        const period = document.getElementById('reportPeriod')?.value || 'month';
-        const response = await fetch(`http://localhost:3000/api/admin/reports?period=${period}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) throw new Error(await response.text());
-        const data = await response.json();
-        
-        const statValues = document.querySelectorAll('#reports-section .stat-value');
-        if (statValues[0]) statValues[0].textContent = data.stats.total_exams || 0;
-        if (statValues[1]) statValues[1].textContent = (data.stats.completion_rate || 0).toFixed(1) + '%';
-        if (statValues[2]) statValues[2].textContent = (data.stats.average_score || 0).toFixed(1);
-        if (statValues[3]) statValues[3].textContent = data.stats.cheating_warnings || 0;
-
-        const tbody = document.querySelector('#reports-section .table-card tbody');
-        tbody.innerHTML = '';
-        
-        if (data.details.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có dữ liệu trong khoảng thời gian này</td></tr>';
-        } else {
-            data.details.forEach(detail => {
-                const scoreClass = detail.average_score >= 8 ? 'bg-success' : detail.average_score >= 6 ? 'bg-warning' : 'bg-danger';
-                const warningClass = detail.cheating_warnings > 5 ? 'bg-danger' : detail.cheating_warnings > 0 ? 'bg-warning' : 'bg-success';
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${detail.exam_name}</strong></td>
-                        <td>${detail.student_count}</td>
-                        <td>${detail.completion_rate.toFixed(1)}%</td>
-                        <td><span class="badge ${scoreClass}">${detail.average_score.toFixed(1)}</span></td>
-                        <td>${detail.highest_score || 0}</td>
-                        <td>${detail.lowest_score || 0}</td>
-                        <td><span class="badge ${warningClass}">${detail.cheating_warnings}</span></td>
-                    </tr>
-                `;
-            });
-        }
-    } catch (err) {
-        showNotification('Lỗi tải dữ liệu báo cáo: ' + err.message, 'error');
-    }
-}
-
-// Thêm sự kiện cho reportPeriod
-const reportPeriodSelect = document.getElementById('reportPeriod');
-if (reportPeriodSelect) {
-    reportPeriodSelect.addEventListener('change', loadReportsData);
-}
+// Khai báo biến cho reports section (cần đặt trước các hàm sử dụng nó)
+let allReportsData = [];
+let currentReportCharts = {};
+let currentReportFilters = {
+    period: 'month',
+    subject_id: '',
+    start_date: '',
+    end_date: ''
+};
 
 // Xử lý thêm người dùng
 document.getElementById('addUserBtn')?.addEventListener('click', () => {
@@ -1405,6 +2450,79 @@ document.getElementById('saveSubjectBtn')?.addEventListener('click', async () =>
         bootstrap.Modal.getInstance(document.getElementById('addSubjectModal')).hide();
         document.getElementById('addSubjectForm').reset();
         loadSubjectsData();
+    } catch (err) {
+        showNotification('Lỗi: ' + err.message, 'error');
+    }
+});
+
+// Xử lý thêm kỳ thi
+document.getElementById('addExamBtn')?.addEventListener('click', async () => {
+    // Load danh sách môn học và giáo viên
+    try {
+        // Load subjects
+        const subjectsResponse = await fetch('http://localhost:3000/api/admin/subjects', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const subjects = await subjectsResponse.json();
+        
+        const subjectSelect = document.getElementById('examSubjectId');
+        subjectSelect.innerHTML = '<option value="">Chọn môn học</option>';
+        subjects.forEach(subject => {
+            subjectSelect.innerHTML += `<option value="${subject.subject_id}">${subject.subject_name}</option>`;
+        });
+        
+        // Load teachers
+        const usersResponse = await fetch('http://localhost:3000/api/admin/users', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const users = await usersResponse.json();
+        const teachers = users.filter(u => u.role === 'Teacher');
+        
+        const teacherSelect = document.getElementById('examTeacherId');
+        teacherSelect.innerHTML = '<option value="">Chọn giáo viên</option>';
+        teachers.forEach(teacher => {
+            teacherSelect.innerHTML += `<option value="${teacher.user_id}">${teacher.full_name} (${teacher.email})</option>`;
+        });
+        
+        const modal = new bootstrap.Modal(document.getElementById('addExamModal'));
+        modal.show();
+    } catch (err) {
+        showNotification('Lỗi tải dữ liệu: ' + err.message, 'error');
+    }
+});
+
+document.getElementById('saveExamBtn')?.addEventListener('click', async () => {
+    const exam_name = document.getElementById('examName').value;
+    const subject_id = document.getElementById('examSubjectId').value;
+    const duration = document.getElementById('examDuration').value;
+    
+    if (!exam_name || !subject_id || !duration) {
+        showNotification('Vui lòng điền đầy đủ thông tin!', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/exams', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                exam_name, 
+                subject_id: parseInt(subject_id), 
+                duration: parseInt(duration),
+                teacher_id: document.getElementById('examTeacherId').value ? parseInt(document.getElementById('examTeacherId').value) : null
+            })
+        });
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        
+        showNotification('Tạo kỳ thi thành công!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('addExamModal')).hide();
+        document.getElementById('addExamForm').reset();
+        loadExamsData();
     } catch (err) {
         showNotification('Lỗi: ' + err.message, 'error');
     }
@@ -1498,10 +2616,10 @@ function filterCheatingLogs() {
     let filteredLogs = allCheatingLogs;
 
     if (examFilter) {
-        filteredLogs = filteredLogs.filter(log => log.exam_name === examFilter);
+        filteredLogs = filteredLogs.filter(log => log.exam_id == examFilter);
     }
     if (studentFilter) {
-        filteredLogs = filteredLogs.filter(log => log.student_id === studentFilter);
+        filteredLogs = filteredLogs.filter(log => log.student_id == studentFilter);
     }
     if (eventTypeFilter) {
         filteredLogs = filteredLogs.filter(log => log.event_type === eventTypeFilter);
@@ -1521,20 +2639,42 @@ function filterCheatingLogs() {
             'CopyPaste': 'bg-danger',
             'WebcamSuspicious': 'bg-info'
         }[log.event_type] || 'bg-secondary';
+        
+        const eventLabels = {
+            'TabSwitch': '🚫 Chuyển tab',
+            'CopyPaste': '📋 Copy/Paste',
+            'WebcamSuspicious': '📷 Webcam đáng ngờ'
+        };
+        
+        const statusBadge = log.is_banned 
+            ? '<span class="badge bg-danger">Đã cấm</span>' 
+            : log.cheating_detected 
+                ? '<span class="badge bg-warning">Đã phát hiện</span>' 
+                : '<span class="badge bg-secondary">Đang theo dõi</span>';
 
         tbody.innerHTML += `
             <tr>
-                <td>${log.student_name}</td>
-                <td>${log.exam_name}</td>
-                <td>${log.class_name}</td>
-                <td><span class="badge ${eventClass}">${log.event_type}</span></td>
-                <td>${log.event_description}</td>
-                <td>${new Date(log.event_time).toLocaleString('vi-VN')}</td>
+                <td><strong>${log.student_name || 'N/A'}</strong><br><small class="text-muted">ID: ${log.student_id}</small></td>
+                <td>${log.exam_name || 'N/A'}</td>
+                <td>${log.teacher_name || 'N/A'}</td>
+                <td>${log.class_name || 'Chưa có lớp'}</td>
+                <td><span class="badge ${eventClass}">${eventLabels[log.event_type] || log.event_type}</span></td>
+                <td><small>${log.event_description || 'Không có mô tả'}</small></td>
+                <td><small>${new Date(log.event_time).toLocaleString('vi-VN')}</small></td>
+                <td>${statusBadge}</td>
                 <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-sm btn-danger" onclick="penalize(${log.attempt_id}, 'ban')">Cấm</button>
-                        <button class="btn btn-sm btn-warning" onclick="penalize(${log.attempt_id}, 'deduct_points')">Trừ điểm</button>
-                        <button class="btn btn-sm btn-info" onclick="viewWebcam(${log.student_id})">Webcam</button>
+                    <div class="btn-group btn-group-sm" role="group">
+                        ${!log.is_banned ? `
+                            <button class="btn btn-danger" onclick="penalize(${log.attempt_id}, 'ban', '${log.exam_name}', ${log.student_id})" title="Cấm thi">
+                                <i class="bi bi-ban"></i>
+                            </button>
+                            <button class="btn btn-warning" onclick="penalize(${log.attempt_id}, 'deduct_points', '${log.exam_name}', ${log.student_id})" title="Trừ điểm">
+                                <i class="bi bi-dash-circle"></i>
+                            </button>
+                        ` : ''}
+                        <button class="btn btn-info" onclick="viewCheatingDetail(${log.attempt_id})" title="Xem chi tiết">
+                            <i class="bi bi-eye"></i>
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -1542,10 +2682,26 @@ function filterCheatingLogs() {
     });
 }
 
-// Hàm lấy dữ liệu giám sát gian lận
+// Hàm lấy dữ liệu giám sát gian lận (cải thiện)
 async function loadCheatingData() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/monitor/cheating', {
+        // Lấy filter params
+        const examId = document.getElementById('examFilter')?.value || '';
+        const studentId = document.getElementById('studentFilter')?.value || '';
+        const eventType = document.getElementById('eventTypeFilter')?.value || '';
+        const startDate = document.getElementById('startDateFilter')?.value || '';
+        const endDate = document.getElementById('endDateFilter')?.value || '';
+        
+        let url = 'http://localhost:3000/api/admin/monitor/cheating?';
+        const params = [];
+        if (examId) params.push(`exam_id=${examId}`);
+        if (studentId) params.push(`student_id=${studentId}`);
+        if (eventType) params.push(`event_type=${eventType}`);
+        if (startDate) params.push(`start_date=${startDate}`);
+        if (endDate) params.push(`end_date=${endDate}`);
+        url += params.join('&');
+        
+        const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error(await response.text());
@@ -1554,40 +2710,58 @@ async function loadCheatingData() {
         allCheatingLogs = data.logs;
         filterCheatingLogs();
 
-        // Cập nhật bộ lọc kỳ thi
+        // Lấy danh sách bài thi để filter
+        const examResponse = await fetch('http://localhost:3000/api/admin/exams', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const exams = await examResponse.json();
         const examFilter = document.getElementById('examFilter');
-        const uniqueExams = [...new Set(data.logs.map(log => log.exam_name))];
         examFilter.innerHTML = '<option value="">Tất cả kỳ thi</option>';
-        uniqueExams.forEach(exam => {
-            examFilter.innerHTML += `<option value="${exam}">${exam}</option>`;
+        exams.forEach(exam => {
+            examFilter.innerHTML += `<option value="${exam.exam_id}">${exam.exam_name}</option>`;
         });
 
-        // Cập nhật bộ lọc học sinh
-        const studentFilter = document.getElementById('studentFilter');
-        const uniqueStudents = [...new Set(data.logs.map(log => log.student_id))];
-        studentFilter.innerHTML = '<option value="">Tất cả học sinh</option>';
+        // Lấy danh sách học sinh để filter
         const studentResponse = await fetch('http://localhost:3000/api/admin/users', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const students = await studentResponse.json();
-        uniqueStudents.forEach(id => {
-            const student = students.find(s => s.user_id === id);
-            if (student) {
-                studentFilter.innerHTML += `<option value="${id}">${student.full_name}</option>`;
-            }
+        const studentFilter = document.getElementById('studentFilter');
+        studentFilter.innerHTML = '<option value="">Tất cả học sinh</option>';
+        students.filter(s => s.role === 'Student').forEach(student => {
+            studentFilter.innerHTML += `<option value="${student.user_id}">${student.full_name}</option>`;
         });
 
-        // Cập nhật biểu đồ gian lận
+        // Cập nhật thống kê
         const statsResponse = await fetch('http://localhost:3000/api/admin/monitor/cheating/stats', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const statsData = await statsResponse.json();
+        
+        // Cập nhật thống kê tổng quan
+        const totalStats = statsData.totalStats || {};
+        document.getElementById('totalViolations').textContent = totalStats.total_violations || 0;
+        document.getElementById('violatingStudents').textContent = totalStats.total_violating_students || 0;
+        document.getElementById('affectedExams').textContent = totalStats.affected_exams || 0;
+        document.getElementById('bannedStudents').textContent = totalStats.banned_students || 0;
+
+        // Cập nhật biểu đồ gian lận
         const cheatingCtx = document.getElementById('cheatingChart');
-        if (cheatingCtx && !cheatingCtx.chartInstance) {
+        if (cheatingCtx) {
+            if (cheatingCtx.chartInstance) {
+                cheatingCtx.chartInstance.destroy();
+            }
+            
+            const eventLabels = {
+                'TabSwitch': '🚫 Chuyển tab',
+                'CopyPaste': '📋 Copy/Paste',
+                'WebcamSuspicious': '📷 Webcam đáng ngờ'
+            };
+            
             cheatingCtx.chartInstance = new Chart(cheatingCtx.getContext('2d'), {
                 type: 'bar',
                 data: {
-                    labels: statsData.stats.map(s => s.event_type),
+                    labels: statsData.stats.map(s => eventLabels[s.event_type] || s.event_type),
                     datasets: [{
                         label: 'Số lần vi phạm',
                         data: statsData.stats.map(s => s.count),
@@ -1598,7 +2772,7 @@ async function loadCheatingData() {
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true } }
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                 }
             });
         }
@@ -1606,43 +2780,88 @@ async function loadCheatingData() {
         // Cập nhật top vi phạm
         const topViolators = document.getElementById('topViolators');
         topViolators.innerHTML = '';
-        statsData.topViolators.forEach(v => {
-            topViolators.innerHTML += `
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    ${v.full_name}
-                    <span class="badge bg-danger">${v.violation_count} vi phạm</span>
-                </li>
-            `;
-        });
+        if (statsData.topViolators && statsData.topViolators.length > 0) {
+            statsData.topViolators.forEach((v, index) => {
+                topViolators.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-bold">#${index + 1} ${v.full_name}</div>
+                            <small class="text-muted">${v.email || ''}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-danger rounded-pill">${v.violation_count}</span>
+                            <div class="small text-muted">${v.affected_exams} bài thi</div>
+                        </div>
+                    </li>
+                `;
+            });
+        } else {
+            topViolators.innerHTML = '<li class="list-group-item text-center text-muted">Chưa có dữ liệu</li>';
+        }
+
+        // Cập nhật top bài thi vi phạm
+        const topExamsBody = document.getElementById('topExamsBody');
+        if (topExamsBody) {
+            topExamsBody.innerHTML = '';
+            if (statsData.topExams && statsData.topExams.length > 0) {
+                statsData.topExams.forEach((exam, index) => {
+                    topExamsBody.innerHTML += `
+                        <tr>
+                            <td><strong>#${index + 1} ${exam.exam_name}</strong></td>
+                            <td>${exam.class_name || 'Chưa có lớp'}</td>
+                            <td><span class="badge bg-danger">${exam.violation_count}</span></td>
+                            <td><span class="badge bg-warning">${exam.violating_students}</span></td>
+                        </tr>
+                    `;
+                });
+            } else {
+                topExamsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Chưa có dữ liệu</td></tr>';
+            }
+        }
 
         // Gắn sự kiện cho bộ lọc
-        document.getElementById('examFilter').addEventListener('change', filterCheatingLogs);
-        document.getElementById('studentFilter').addEventListener('change', filterCheatingLogs);
-        document.getElementById('eventTypeFilter').addEventListener('change', filterCheatingLogs);
+        document.getElementById('examFilter')?.addEventListener('change', loadCheatingData);
+        document.getElementById('studentFilter')?.addEventListener('change', loadCheatingData);
+        document.getElementById('eventTypeFilter')?.addEventListener('change', loadCheatingData);
+        document.getElementById('startDateFilter')?.addEventListener('change', loadCheatingData);
+        document.getElementById('endDateFilter')?.addEventListener('change', loadCheatingData);
+        document.getElementById('refreshCheatingBtn')?.addEventListener('click', () => {
+            document.getElementById('examFilter').value = '';
+            document.getElementById('studentFilter').value = '';
+            document.getElementById('eventTypeFilter').value = '';
+            document.getElementById('startDateFilter').value = '';
+            document.getElementById('endDateFilter').value = '';
+            loadCheatingData();
+        });
 
         // Gắn sự kiện xuất CSV
-        document.getElementById('exportCheatingCsv').addEventListener('click', () => {
+        document.getElementById('exportCheatingCsv')?.addEventListener('click', () => {
             window.location.href = 'http://localhost:3000/api/admin/monitor/cheating/export';
         });
     } catch (err) {
+        console.error('Lỗi tải dữ liệu gian lận:', err);
         showNotification('Lỗi tải dữ liệu gian lận: ' + err.message, 'error');
     }
 }
 
-// Hàm xử lý hành động cấm/trừ điểm
-async function penalize(attemptId, action) {
+// Hàm xử lý hành động cấm/trừ điểm (cải thiện)
+async function penalize(attemptId, action, examName = '', studentId = null) {
+    if (!confirm(`Bạn có chắc muốn ${action === 'ban' ? 'CẤM THI' : 'TRỪ ĐIỂM'} cho học sinh này?`)) {
+        return;
+    }
+    
     try {
         let body = { attempt_id: attemptId, action };
         if (action === 'deduct_points') {
-            const points = prompt('Nhập số điểm trừ:');
-            if (!points || isNaN(points) || points < 0) {
-                showNotification('Số điểm trừ không hợp lệ!', 'error');
+            const points = prompt(`Nhập số điểm trừ (0-10):`);
+            if (!points || isNaN(points) || points < 0 || points > 10) {
+                showNotification('Số điểm trừ không hợp lệ! Vui lòng nhập từ 0 đến 10', 'error');
                 return;
             }
             body.points_deducted = parseFloat(points);
-            body.reason = 'Vi phạm quy định thi';
+            body.reason = prompt('Nhập lý do trừ điểm:') || 'Vi phạm quy định thi';
         } else {
-            body.reason = 'Vi phạm quy định thi';
+            body.reason = prompt('Nhập lý do cấm thi:') || 'Vi phạm quy định thi nghiêm trọng';
         }
 
         const response = await fetch('http://localhost:3000/api/admin/penalize', {
@@ -1654,18 +2873,57 @@ async function penalize(attemptId, action) {
             body: JSON.stringify(body)
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
+        if (!response.ok) throw new Error(data.error || data.message);
 
-        showNotification(data.message, 'success');
-        loadCheatingData();
+        showNotification(data.message || 'Thao tác thành công!', 'success');
+        setTimeout(() => loadCheatingData(), 500);
     } catch (err) {
-        showNotification('Lỗi: ' + err.message, 'error');
+        console.error('Lỗi penalize:', err);
+        showNotification('Lỗi: ' + (err.message || 'Không thể thực hiện thao tác'), 'error');
+    }
+}
+
+// Hàm xem chi tiết vi phạm
+async function viewCheatingDetail(attemptId) {
+    try {
+        const log = allCheatingLogs.find(l => l.attempt_id === attemptId);
+        if (!log) {
+            showNotification('Không tìm thấy thông tin vi phạm', 'error');
+            return;
+        }
+        
+        // Tìm tất cả vi phạm của attempt này
+        const violations = allCheatingLogs.filter(l => l.attempt_id === attemptId);
+        
+        let message = `📋 Chi tiết vi phạm:\n\n`;
+        message += `Học sinh: ${log.student_name}\n`;
+        message += `Bài thi: ${log.exam_name}\n`;
+        message += `Lớp: ${log.class_name || 'N/A'}\n`;
+        message += `Giáo viên: ${log.teacher_name || 'N/A'}\n`;
+        message += `Điểm: ${log.score || 'Chưa có'}\n`;
+        message += `Trạng thái: ${log.is_banned ? 'Đã bị cấm' : 'Đang theo dõi'}\n\n`;
+        message += `Tổng số vi phạm: ${violations.length}\n\n`;
+        message += `Danh sách vi phạm:\n`;
+        violations.forEach((v, i) => {
+            message += `${i + 1}. ${v.event_type}: ${v.event_description} - ${new Date(v.event_time).toLocaleString('vi-VN')}\n`;
+        });
+        
+        alert(message);
+    } catch (err) {
+        showNotification('Lỗi xem chi tiết: ' + err.message, 'error');
     }
 }
 
 // Hàm xem webcam
 function viewWebcam(studentId) {
-    const socket = io('http://localhost:3000');
+    let socket;
+    if (typeof io !== 'undefined') {
+        socket = io('http://localhost:3000', {
+            auth: {
+                token: localStorage.getItem('token')
+            }
+        });
+    }
     socket.emit('request_webcam', { student_id: studentId });
     const modal = new bootstrap.Modal(document.getElementById('webcamModal'));
     modal.show();
@@ -1762,14 +3020,21 @@ document.getElementById('previewImportBtn')?.addEventListener('click', async () 
 });
 
 // Socket.IO cho thông báo gian lận
-const socket = io('http://localhost:3000');
-socket.on('connect', () => {
-    socket.emit('join', 'admin');
-});
-socket.on('cheating_alert', (data) => {
-    showNotification(`Vi phạm: ${data.event_type} từ học sinh ${data.student_id}`, 'warning');
-    loadCheatingData();
-});
+let socket;
+if (typeof io !== 'undefined') {
+    socket = io('http://localhost:3000', {
+        auth: {
+            token: localStorage.getItem('token')
+        }
+    });
+    socket.on('connect', () => {
+        socket.emit('join', 'admin');
+    });
+    socket.on('cheating_alert', (data) => {
+        showNotification(`Vi phạm: ${data.event_type} từ học sinh ${data.student_id}`, 'warning');
+        loadCheatingData();
+    });
+}
 
 // Cập nhật loadQuestionsData để render bảng câu hỏi
 async function loadQuestionsData() {
@@ -1818,24 +3083,914 @@ async function loadQuestionsData() {
     }
 }
 
-// Khởi tạo dữ liệu giám sát gian lận
-document.querySelector('.nav-link[data-section="monitor-cheating"]').addEventListener('click', () => {
-    setTimeout(loadCheatingData, 100);
-});
+// Khởi tạo dữ liệu giám sát gian lận (đã được xử lý trong navigation handler ở trên)
 
 // Các hàm view (placeholder cho users, exams, questions)
 function viewUser(userId) {
     showNotification('Tính năng xem chi tiết sẽ được phát triển sau', 'info');
 }
 
-function viewExam(examId) {
-    showNotification('Tính năng xem chi tiết sẽ được phát triển sau', 'info');
+// Hàm xem chi tiết kỳ thi
+async function viewExam(examId) {
+    try {
+        const modal = new bootstrap.Modal(document.getElementById('viewExamModal'));
+        const contentDiv = document.getElementById('examDetailContent');
+        
+        // Hiển thị loading
+        contentDiv.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Đang tải...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Lấy dữ liệu chi tiết
+        const response = await fetch(`http://localhost:3000/api/admin/exams/${examId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        
+        const { exam, attempts, stats } = data;
+        
+        // Hiển thị chi tiết
+        contentDiv.innerHTML = `
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5 class="mb-3">Thông tin kỳ thi</h5>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th style="width: 40%;">Tên kỳ thi:</th>
+                            <td><strong>${exam.exam_name}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Môn học:</th>
+                            <td>${exam.subject_name || 'Chưa có'}</td>
+                        </tr>
+                        <tr>
+                            <th>Giáo viên:</th>
+                            <td>${exam.teacher_name || 'Chưa có'}</td>
+                        </tr>
+                        <tr>
+                            <th>Thời gian làm bài:</th>
+                            <td>${exam.duration} phút</td>
+                        </tr>
+                        <tr>
+                            <th>Trạng thái:</th>
+                            <td>
+                                <span class="badge ${
+                                    exam.status === 'completed' ? 'bg-success' :
+                                    exam.status === 'active' ? 'bg-primary' :
+                                    exam.status === 'upcoming' ? 'bg-info' : 'bg-secondary'
+                                }">${exam.status}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Tổng số học sinh:</th>
+                            <td>${stats.total_students || 0}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="mb-3">Thống kê</h5>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-label">Tổng lượt thi</div>
+                                <div class="stat-value">${stats.total_attempts || 0}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-label">Đã nộp bài</div>
+                                <div class="stat-value">${stats.submitted_count || 0}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-label">Điểm trung bình</div>
+                                <div class="stat-value">${parseFloat(stats.avg_score || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-label">Tỷ lệ hoàn thành</div>
+                                <div class="stat-value">${parseFloat(stats.completion_rate || 0).toFixed(1)}%</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-label">Điểm cao nhất</div>
+                                <div class="stat-value">${parseFloat(stats.highest_score || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-label">Điểm thấp nhất</div>
+                                <div class="stat-value">${parseFloat(stats.lowest_score || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h5 class="mb-3">Danh sách học sinh tham gia</h5>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Họ tên</th>
+                            <th>Email</th>
+                            <th>Điểm số</th>
+                            <th>Trạng thái</th>
+                            <th>Thời gian làm</th>
+                            <th>Cảnh báo gian lận</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${attempts.length === 0 ? 
+                            '<tr><td colspan="6" class="text-center">Chưa có học sinh nào tham gia</td></tr>' :
+                            attempts.map(attempt => `
+                                <tr>
+                                    <td>${attempt.full_name}</td>
+                                    <td>${attempt.email}</td>
+                                    <td>
+                                        ${attempt.score !== null ? 
+                                            `<span class="badge ${
+                                                parseFloat(attempt.score) >= 8 ? 'bg-success' :
+                                                parseFloat(attempt.score) >= 6.5 ? 'bg-primary' :
+                                                parseFloat(attempt.score) >= 5 ? 'bg-warning' : 'bg-danger'
+                                            }">${parseFloat(attempt.score).toFixed(2)}</span>` :
+                                            '<span class="text-muted">Chưa có</span>'
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge ${
+                                            attempt.status === 'Submitted' ? 'bg-success' :
+                                            attempt.status === 'InProgress' ? 'bg-primary' :
+                                            attempt.status === 'AutoSubmitted' ? 'bg-warning' : 'bg-secondary'
+                                        }">${attempt.status}</span>
+                                    </td>
+                                    <td>
+                                        ${attempt.start_time ? 
+                                            `${attempt.duration_minutes || 0} phút` : 
+                                            'Chưa bắt đầu'
+                                        }
+                                    </td>
+                                    <td>
+                                        ${attempt.cheating_warnings > 0 ? 
+                                            `<span class="badge bg-danger">${attempt.cheating_warnings}</span>` :
+                                            '<span class="text-muted">0</span>'
+                                        }
+                                    </td>
+                                </tr>
+                            `).join('')
+                        }
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        document.getElementById('examDetailContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> Lỗi tải dữ liệu: ${err.message}
+            </div>
+        `;
+    }
 }
 
 function viewQuestion(questionId) {
     showNotification('Tính năng xem chi tiết sẽ được phát triển sau', 'info');
 }
 
+// Hàm xem chi tiết điểm số của học sinh
+async function viewStudentScores(subjectId, studentId) {
+    try {
+        const modal = new bootstrap.Modal(document.getElementById('viewStudentScoresModal'));
+        const contentDiv = document.getElementById('studentScoresContent');
+        
+        // Hiển thị loading
+        contentDiv.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Đang tải...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Lấy dữ liệu chi tiết điểm số
+        const response = await fetch(`http://localhost:3000/api/admin/subjects/${subjectId}/students/${studentId}/scores`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        
+        const { student, subject, scores, stats } = data;
+        
+        // Hiển thị chi tiết điểm số
+        contentDiv.innerHTML = `
+            <div class="mb-4">
+                <h5 class="mb-3">Thông tin học sinh</h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <p><strong>Họ tên:</strong> ${student.full_name}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <p><strong>Email:</strong> ${student.email}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <p><strong>Môn học:</strong> ${subject.subject_name}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <h5 class="mb-3">Thống kê tổng quan</h5>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-label">Tổng số bài thi</div>
+                            <div class="stat-value">${stats.total_exams || 0}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-label">Đã làm bài</div>
+                            <div class="stat-value">${stats.attempted_exams || 0}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-label">Đã nộp bài</div>
+                            <div class="stat-value">${stats.submitted_exams || 0}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-label">Điểm trung bình</div>
+                            <div class="stat-value ${parseFloat(stats.avg_score || 0) >= 5 ? 'text-success' : 'text-danger'}">
+                                ${parseFloat(stats.avg_score || 0).toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-label">Điểm cao nhất</div>
+                            <div class="stat-value text-success">${parseFloat(stats.highest_score || 0).toFixed(2)}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-label">Điểm thấp nhất</div>
+                            <div class="stat-value text-danger">${parseFloat(stats.lowest_score || 0).toFixed(2)}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h5 class="mb-3">Chi tiết điểm số từng bài thi</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Tên bài thi</th>
+                            <th>Tổng điểm</th>
+                            <th>Điểm đạt được</th>
+                            <th>Tỷ lệ</th>
+                            <th>Trạng thái</th>
+                            <th>Thời gian làm bài</th>
+                            <th>Thời gian nộp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${scores.length === 0 ? 
+                            '<tr><td colspan="8" class="text-center">Chưa có dữ liệu điểm số</td></tr>' :
+                            scores.map((score, index) => {
+                                const examScore = parseFloat(score.score) || 0;
+                                const totalPoints = parseFloat(score.total_points) || 1;
+                                const percentage = totalPoints > 0 ? (examScore / totalPoints * 100).toFixed(1) : 0;
+                                
+                                const scoreClass = examScore >= totalPoints * 0.8 ? 'bg-success' :
+                                                  examScore >= totalPoints * 0.65 ? 'bg-primary' :
+                                                  examScore >= totalPoints * 0.5 ? 'bg-warning' : 'bg-danger';
+                                
+                                const statusClass = score.status === 'Submitted' ? 'bg-success' :
+                                                   score.status === 'InProgress' ? 'bg-primary' :
+                                                   score.status === 'AutoSubmitted' ? 'bg-warning' : 'bg-secondary';
+                                
+                                const statusText = score.status_text || score.status || 'Chưa làm';
+                                
+                                const startTime = score.start_time ? new Date(score.start_time).toLocaleString('vi-VN') : 'Chưa bắt đầu';
+                                const endTime = score.end_time ? new Date(score.end_time).toLocaleString('vi-VN') : 'Chưa nộp';
+                                
+                                return `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td><strong>${score.exam_name}</strong></td>
+                                        <td>${totalPoints.toFixed(2)}</td>
+                                        <td>
+                                            ${score.score !== null ? 
+                                                `<span class="badge ${scoreClass}">${examScore.toFixed(2)}</span>` :
+                                                '<span class="text-muted">Chưa có</span>'
+                                            }
+                                        </td>
+                                        <td>
+                                            ${score.score !== null ? 
+                                                `<span class="${parseFloat(percentage) >= 50 ? 'text-success' : 'text-danger'}">${percentage}%</span>` :
+                                                '<span class="text-muted">-</span>'
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge ${statusClass}">${statusText}</span>
+                                        </td>
+                                        <td>
+                                            ${score.duration_minutes !== null ? 
+                                                `${score.duration_minutes} phút` : 
+                                                '<span class="text-muted">-</span>'
+                                            }
+                                        </td>
+                                        <td><small>${endTime}</small></td>
+                                    </tr>
+                                `;
+                            }).join('')
+                        }
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        document.getElementById('studentScoresContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> Lỗi tải dữ liệu: ${err.message}
+            </div>
+        `;
+    }
+}
+// ==========================================
+// THÊM CODE NÀY VÀO CUỐI PHẦN <script> TRONG admin.html
+// (Sau dòng: setTimeout(loadDashboardData, 100);)
+// ==========================================
+
+// Hàm tải dữ liệu báo cáo (CẢI TIẾN)
+async function loadReportsData() {
+    try {
+        showLoading('reportTotalExams');
+        
+        const params = new URLSearchParams(currentReportFilters);
+        const response = await fetch(`http://localhost:3000/api/admin/reports?${params}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        
+        // Cập nhật thống kê tổng quan
+        updateReportStats(data.stats || {});
+        
+        // Cập nhật biểu đồ
+        updateScoreTrendChart(data.trend || []);
+        updateGradeDistributionChart(data.gradeDistribution || []);
+        updateSubjectComparisonChart(data.subjectComparison || []);
+        
+        // Cập nhật bảng top students
+        updateTopStudentsTable(data.topStudents || []);
+        updateWarningStudentsTable(data.warningStudents || []);
+        
+        // Cập nhật bảng chi tiết
+        allReportsData = data.details || [];
+        renderReportTable(allReportsData);
+        
+        showNotification('Đã tải báo cáo thành công!', 'success');
+        
+    } catch (err) {
+        console.error('Lỗi tải báo cáo:', err);
+        showNotification('Lỗi tải dữ liệu báo cáo: ' + err.message, 'error');
+        document.getElementById('reportTotalExams').textContent = '0';
+    }
+}
+
+// Cập nhật thống kê tổng quan
+function updateReportStats(stats) {
+    document.getElementById('reportTotalExams').textContent = stats.total_exams || 0;
+    document.getElementById('reportCompletionRate').textContent = 
+        (parseFloat(stats.completion_rate) || 0).toFixed(1) + '%';
+    document.getElementById('reportAvgScore').textContent = 
+        (parseFloat(stats.average_score) || 0).toFixed(2);
+    document.getElementById('reportCheatingWarnings').textContent = 
+        stats.cheating_warnings || 0;
+    
+    // Cập nhật xu hướng
+    const completionTrend = stats.completion_trend || 0;
+    const scoreTrend = stats.score_trend || 0;
+    
+    updateTrendIndicator('reportCompletionTrend', completionTrend, '%');
+    updateTrendIndicator('reportScoreTrend', scoreTrend, '');
+    
+    document.getElementById('reportCheatingDetail').textContent = 
+        `${stats.violating_students || 0} học sinh vi phạm`;
+}
+
+function updateTrendIndicator(elementId, value, suffix) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const isPositive = value >= 0;
+    element.className = `stat-change ${isPositive ? 'text-success' : 'text-danger'}`;
+    element.innerHTML = `
+        <i class="bi bi-arrow-${isPositive ? 'up' : 'down'}"></i> 
+        ${isPositive ? '+' : ''}${value.toFixed(1)}${suffix}
+    `;
+}
+
+// Cập nhật biểu đồ xu hướng điểm
+function updateScoreTrendChart(trendData) {
+    const ctx = document.getElementById('scoreTrendChart');
+    if (!ctx) return;
+    
+    if (currentReportCharts.scoreTrend) {
+        currentReportCharts.scoreTrend.destroy();
+    }
+    
+    const chartType = document.querySelector('[data-chart-type].active')?.dataset.chartType || 'line';
+    
+    currentReportCharts.scoreTrend = new Chart(ctx.getContext('2d'), {
+        type: chartType,
+        data: {
+            labels: trendData.map(d => d.label || d.date),
+            datasets: [{
+                label: 'Điểm trung bình',
+                data: trendData.map(d => d.avg_score),
+                borderColor: '#0d6efd',
+                backgroundColor: chartType === 'line' ? 'rgba(13, 110, 253, 0.1)' : '#0d6efd',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `Điểm TB: ${context.parsed.y.toFixed(2)}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 10,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+}
+
+// Cập nhật biểu đồ phân bố xếp loại
+function updateGradeDistributionChart(gradeData) {
+    const ctx = document.getElementById('gradeDistributionChart');
+    if (!ctx) return;
+    
+    if (currentReportCharts.gradeDistribution) {
+        currentReportCharts.gradeDistribution.destroy();
+    }
+    
+    const excellent = gradeData.find(g => g.grade === 'Xuất sắc')?.count || 0;
+    const good = gradeData.find(g => g.grade === 'Khá')?.count || 0;
+    const average = gradeData.find(g => g.grade === 'Trung bình')?.count || 0;
+    const weak = gradeData.find(g => g.grade === 'Yếu')?.count || 0;
+    const total = excellent + good + average + weak;
+    
+    // Cập nhật phần trăm
+    document.getElementById('excellentPercent').textContent = 
+        total > 0 ? ((excellent / total) * 100).toFixed(1) + '%' : '0%';
+    document.getElementById('goodPercent').textContent = 
+        total > 0 ? ((good / total) * 100).toFixed(1) + '%' : '0%';
+    document.getElementById('averagePercent').textContent = 
+        total > 0 ? ((average / total) * 100).toFixed(1) + '%' : '0%';
+    document.getElementById('weakPercent').textContent = 
+        total > 0 ? ((weak / total) * 100).toFixed(1) + '%' : '0%';
+    
+    currentReportCharts.gradeDistribution = new Chart(ctx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Xuất sắc', 'Khá', 'Trung bình', 'Yếu'],
+            datasets: [{
+                data: [excellent, good, average, weak],
+                backgroundColor: ['#198754', '#0d6efd', '#ffc107', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+// Cập nhật biểu đồ so sánh môn học
+function updateSubjectComparisonChart(subjectData) {
+    const ctx = document.getElementById('subjectComparisonChart');
+    if (!ctx) return;
+    
+    if (currentReportCharts.subjectComparison) {
+        currentReportCharts.subjectComparison.destroy();
+    }
+    
+    currentReportCharts.subjectComparison = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: subjectData.map(s => s.subject_name),
+            datasets: [{
+                label: 'Điểm trung bình',
+                data: subjectData.map(s => s.avg_score),
+                backgroundColor: '#0d6efd'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 10,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+}
+
+// Cập nhật bảng top students
+function updateTopStudentsTable(students) {
+    const tbody = document.getElementById('topStudentsTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Chưa có dữ liệu</td></tr>';
+        return;
+    }
+    
+    students.forEach((student, index) => {
+        tbody.innerHTML += `
+            <tr>
+                <td><strong>#${index + 1}</strong></td>
+                <td>${student.full_name}</td>
+                <td><span class="badge bg-success">${(parseFloat(student.avg_score) || 0).toFixed(2)}</span></td>
+                <td>${student.exam_count}</td>
+            </tr>
+        `;
+    });
+}
+
+// Cập nhật bảng students cần hỗ trợ
+function updateWarningStudentsTable(students) {
+    const tbody = document.getElementById('warningStudentsTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Không có học sinh cần hỗ trợ</td></tr>';
+        return;
+    }
+    
+    students.forEach((student, index) => {
+        tbody.innerHTML += `
+            <tr>
+                <td><strong>#${index + 1}</strong></td>
+                <td>${student.full_name}</td>
+                <td><span class="badge bg-danger">${(parseFloat(student.avg_score) || 0).toFixed(2)}</span></td>
+                <td><span class="badge bg-warning">${student.warning_count || 0}</span></td>
+            </tr>
+        `;
+    });
+}
+
+// Render bảng báo cáo chi tiết
+function renderReportTable(data, page = 1, pageSize = 10) {
+    const tbody = document.getElementById('examReportTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>';
+        return;
+    }
+    
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const pageData = data.slice(start, end);
+    
+    pageData.forEach(exam => {
+        const completionClass = exam.completion_rate >= 80 ? 'bg-success' : 
+                               exam.completion_rate >= 50 ? 'bg-warning' : 'bg-danger';
+        const scoreClass = exam.average_score >= 8 ? 'bg-success' : 
+                          exam.average_score >= 6.5 ? 'bg-primary' :
+                          exam.average_score >= 5 ? 'bg-warning' : 'bg-danger';
+        const cheatingClass = exam.cheating_warnings > 5 ? 'bg-danger' : 
+                             exam.cheating_warnings > 0 ? 'bg-warning' : 'bg-success';
+        
+        tbody.innerHTML += `
+            <tr>
+                <td><strong>${exam.exam_name}</strong></td>
+                <td>${exam.subject_name || 'N/A'}</td>
+                <td>${exam.student_count}</td>
+                <td><span class="badge ${completionClass}">${(parseFloat(exam.completion_rate) || 0).toFixed(1)}%</span></td>
+                <td><span class="badge ${scoreClass}">${(parseFloat(exam.average_score) || 0).toFixed(2)}</span></td>
+                <td>${exam.highest_score ? (parseFloat(exam.highest_score) || 0).toFixed(2) : 'N/A'}</td>
+                <td>${exam.lowest_score ? (parseFloat(exam.lowest_score) || 0).toFixed(2) : 'N/A'}</td>
+                <td><span class="badge ${cheatingClass}">${exam.cheating_warnings}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="viewExamReport(${exam.exam_id})">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    // Cập nhật pagination
+    updateReportPagination(data.length, page, pageSize);
+}
+
+// Cập nhật pagination
+function updateReportPagination(total, currentPage, pageSize) {
+    const pagination = document.getElementById('reportPagination');
+    if (!pagination) return;
+    
+    const totalPages = Math.ceil(total / pageSize);
+    
+    pagination.innerHTML = '';
+    
+    // Nút Previous
+    pagination.innerHTML += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${currentPage - 1}">Trước</a>
+        </li>
+    `;
+    
+    // Các trang
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            pagination.innerHTML += `
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                </li>
+            `;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            pagination.innerHTML += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    // Nút Next
+    pagination.innerHTML += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${currentPage + 1}">Sau</a>
+        </li>
+    `;
+    
+    // Gắn sự kiện click
+    pagination.querySelectorAll('a.page-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const page = parseInt(e.target.dataset.page);
+            if (page) renderReportTable(allReportsData, page, pageSize);
+        });
+    });
+}
+
+// Xem chi tiết báo cáo kỳ thi
+function viewExamReport(examId) {
+    // Chuyển sang tab exams và load chi tiết
+    document.querySelector('[data-section="exams"]').click();
+    setTimeout(() => viewExam(examId), 100);
+}
+
+// Xuất Excel
+document.getElementById('exportExcel')?.addEventListener('click', async () => {
+    try {
+        const params = new URLSearchParams(currentReportFilters);
+        window.location.href = `http://localhost:3000/api/admin/reports/export/excel?${params}`;
+        showNotification('Đang tải file Excel...', 'info');
+    } catch (err) {
+        showNotification('Lỗi xuất Excel: ' + err.message, 'error');
+    }
+});
+
+// Áp dụng bộ lọc
+document.getElementById('applyReportFilter')?.addEventListener('click', () => {
+    currentReportFilters.period = document.getElementById('reportPeriod').value;
+    currentReportFilters.subject_id = document.getElementById('reportSubjectFilter').value;
+    
+    if (currentReportFilters.period === 'custom') {
+        currentReportFilters.start_date = document.getElementById('startDate').value;
+        currentReportFilters.end_date = document.getElementById('endDate').value;
+    }
+    
+    loadReportsData();
+});
+
+// Reset bộ lọc
+document.getElementById('resetReportFilter')?.addEventListener('click', () => {
+    document.getElementById('reportPeriod').value = 'month';
+    document.getElementById('reportSubjectFilter').value = '';
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('customDateRange').style.display = 'none';
+    document.getElementById('customDateRangeTo').style.display = 'none';
+    
+    currentReportFilters = {
+        period: 'month',
+        subject_id: '',
+        start_date: '',
+        end_date: ''
+    };
+    
+    loadReportsData();
+});
+
+// Hiển thị custom date range khi chọn "Tùy chỉnh"
+document.getElementById('reportPeriod')?.addEventListener('change', (e) => {
+    const customDateRange = document.getElementById('customDateRange');
+    const customDateRangeTo = document.getElementById('customDateRangeTo');
+    
+    if (e.target.value === 'custom') {
+        customDateRange.style.display = 'block';
+        customDateRangeTo.style.display = 'block';
+    } else {
+        customDateRange.style.display = 'none';
+        customDateRangeTo.style.display = 'none';
+    }
+});
+
+// Chuyển đổi kiểu biểu đồ xu hướng
+document.querySelectorAll('[data-chart-type]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('[data-chart-type]').forEach(b => b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        
+        // Reload chart với type mới
+        const trendData = currentReportCharts.scoreTrend?.data.labels.map((label, i) => ({
+            label,
+            avg_score: currentReportCharts.scoreTrend.data.datasets[0].data[i]
+        })) || [];
+        updateScoreTrendChart(trendData);
+    });
+});
+
+// Tìm kiếm trong bảng báo cáo
+document.getElementById('searchExamReport')?.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    const filteredData = allReportsData.filter(exam => 
+        exam.exam_name.toLowerCase().includes(searchTerm) ||
+        (exam.subject_name && exam.subject_name.toLowerCase().includes(searchTerm))
+    );
+    renderReportTable(filteredData);
+});
+
+// Sắp xếp bảng báo cáo
+document.querySelectorAll('#examReportTableBody').forEach(table => {
+    table.closest('table')?.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const sortKey = th.dataset.sort;
+            const currentOrder = th.dataset.order || 'asc';
+            const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+            
+            // Reset tất cả các icon
+            document.querySelectorAll('.sortable i').forEach(icon => {
+                icon.className = 'bi bi-arrow-down-up';
+            });
+            
+            // Cập nhật icon hiện tại
+            const icon = th.querySelector('i');
+            if (icon) {
+                icon.className = newOrder === 'asc' ? 'bi bi-sort-up' : 'bi bi-sort-down';
+            }
+            th.dataset.order = newOrder;
+            
+            // Sắp xếp dữ liệu
+            allReportsData.sort((a, b) => {
+                let aVal = a[sortKey];
+                let bVal = b[sortKey];
+                
+                // Xử lý các trường hợp đặc biệt
+                if (sortKey === 'exam_name' || sortKey === 'subject') {
+                    aVal = (aVal || '').toString().toLowerCase();
+                    bVal = (bVal || '').toString().toLowerCase();
+                } else {
+                    aVal = parseFloat(aVal) || 0;
+                    bVal = parseFloat(bVal) || 0;
+                }
+                
+                if (newOrder === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+            
+            renderReportTable(allReportsData);
+        });
+    });
+});
+
+// Xuất PDF
+document.getElementById('exportPDF')?.addEventListener('click', async () => {
+    try {
+        const params = new URLSearchParams(currentReportFilters);
+        const token = localStorage.getItem('token');
+        
+        // PDF export cần authorization header, nên dùng fetch thay vì window.location
+        const response = await fetch(`http://localhost:3000/api/admin/reports/export/pdf?${params}`, {
+            headers: { 
+                'Authorization': `Bearer ${token}` 
+            }
+        });
+        
+        if (!response.ok) throw new Error('Lỗi xuất PDF');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bao_cao_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showNotification('Đã xuất PDF thành công!', 'success');
+    } catch (err) {
+        console.error('Lỗi xuất PDF:', err);
+        showNotification('Lỗi xuất PDF: ' + err.message, 'error');
+    }
+});
+
+// In báo cáo
+document.getElementById('printReport')?.addEventListener('click', () => {
+    window.print();
+});
+
+// Tải danh sách môn học cho bộ lọc
+async function loadSubjectsForReportFilter() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/subjects', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const subjects = await response.json();
+        
+        const select = document.getElementById('reportSubjectFilter');
+        if (select) {
+            select.innerHTML = '<option value="">Tất cả môn học</option>';
+            subjects.forEach(subject => {
+                select.innerHTML += `<option value="${subject.subject_id}">${subject.subject_name}</option>`;
+            });
+        }
+    } catch (err) {
+        console.error('Lỗi tải môn học:', err);
+    }
+}
+
+// Helper function: Show loading
+function showLoading(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    }
+}
+
+// Khởi tạo khi vào reports section
+const reportsNavLink = document.querySelector('[data-section="reports"]');
+if (reportsNavLink) {
+    const originalClickHandler = reportsNavLink.onclick;
+    reportsNavLink.onclick = function(e) {
+        if (originalClickHandler) originalClickHandler.call(this, e);
+        setTimeout(() => {
+            loadSubjectsForReportFilter();
+            loadReportsData();
+        }, 100);
+    };
+}
 // Khởi tạo dữ liệu ban đầu
 setTimeout(loadDashboardData, 100);
     </script>

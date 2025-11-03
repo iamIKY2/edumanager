@@ -109,19 +109,38 @@ router.get('/:examId', authMiddleware, roleMiddleware(['student']), async (req, 
 
     // Lấy lịch sử làm bài
     const [attempts] = await req.db.query(
-      `SELECT attempt_id, score, start_time, end_time, status, cheating_detected
+      `SELECT attempt_id, score, start_time, end_time, status, cheating_detected, is_fully_graded
        FROM exam_attempts
        WHERE exam_id = ? AND student_id = ?
        ORDER BY start_time DESC`,
       [examId, studentId]
     );
 
+    // Kiểm tra xem có câu tự luận chưa chấm cho mỗi attempt
+    const attemptsWithGradingStatus = await Promise.all(attempts.map(async (attempt) => {
+      const [hasPendingEssay] = await req.db.query(
+        `SELECT COUNT(*) as count
+         FROM exam_attempt_answers eaa
+         JOIN exam_questions eq ON eaa.question_id = eq.question_id
+         JOIN question_bank qb ON eq.question_id = qb.question_id
+         WHERE eaa.attempt_id = ?
+           AND qb.question_type IN ('Essay', 'FillInBlank')
+           AND (eaa.is_graded = 0 OR eaa.is_graded IS NULL)`,
+        [attempt.attempt_id]
+      );
+      
+      return {
+        ...attempt,
+        has_pending_grading: (hasPendingEssay[0].count || 0) > 0
+      };
+    }));
+
     const examData = { ...exam[0], status: exam[0].computed_status };
     delete examData.computed_status;
 
     res.json({
       exam: examData,
-      attempts: attempts
+      attempts: attemptsWithGradingStatus
     });
   } catch (err) {
     console.error('❌ Error:', err);
@@ -369,6 +388,50 @@ router.post('/:examId/save-answer', authMiddleware, roleMiddleware(['student']),
 });
 
 // ============================================
+// 🚨 LOG GIAN LẬN TRONG LÚC THI
+// ============================================
+router.post('/:examId/cheating-log', authMiddleware, roleMiddleware(['student']), async (req, res) => {
+  const { examId } = req.params;
+  const { attempt_id, event_type, event_description } = req.body;
+  const studentId = req.user.id || req.user.user_id;
+
+  try {
+    if (!attempt_id || !event_type) {
+      return res.status(400).json({ error: 'Thiếu attempt_id hoặc event_type' });
+    }
+
+    // Xác thực attempt thuộc về học sinh và bài thi
+    const [attempt] = await req.db.query(
+      `SELECT attempt_id FROM exam_attempts
+       WHERE attempt_id = ? AND student_id = ? AND exam_id = ?`,
+      [attempt_id, studentId, examId]
+    );
+
+    if (!attempt.length) {
+      return res.status(403).json({ error: 'Attempt không hợp lệ' });
+    }
+
+    // Ghi log gian lận
+    await req.db.query(
+      `INSERT INTO anti_cheating_logs (attempt_id, event_type, event_description, event_time)
+       VALUES (?, ?, ?, NOW())`,
+      [attempt_id, event_type, event_description || null]
+    );
+
+    // Đánh dấu cờ nghi ngờ nếu cần
+    await req.db.query(
+      `UPDATE exam_attempts SET cheating_detected = 1 WHERE attempt_id = ?`,
+      [attempt_id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error in cheating-log:', err);
+    res.status(500).json({ error: 'Lỗi khi ghi log gian lận', details: err.message });
+  }
+});
+
+// ============================================
 // 📤 NỘP BÀI THI - ĐÃ SỬA LOGIC TÍNH ĐIỂM
 // ============================================
 router.post('/:examId/submit', authMiddleware, roleMiddleware(['student']), async (req, res) => {
@@ -478,20 +541,48 @@ router.post('/:examId/submit', authMiddleware, roleMiddleware(['student']), asyn
     // ⭐ LÀM TRÒN ĐIỂM (1 chữ số thập phân)
     totalScore = Math.round(totalScore * 10) / 10;
 
+    // ⭐ KIỂM TRA XEM CÓ CÂU HỎI TỰ LUẬN/FILLINBLANK CHƯA CHẤM KHÔNG
+    const [pendingManual] = await req.db.query(
+      `SELECT COUNT(*) as count
+       FROM exam_attempt_answers eaa
+       JOIN exam_questions eq ON eaa.question_id = eq.question_id
+       JOIN question_bank qb ON eq.question_id = qb.question_id
+       WHERE eaa.attempt_id = ?
+         AND qb.question_type IN ('Essay', 'FillInBlank')
+         AND (eaa.is_graded = 0 OR eaa.is_graded IS NULL)`,
+      [attempt_id]
+    );
+
+    // ⭐ is_fully_graded chỉ = 1 nếu KHÔNG có câu hỏi tự luận nào chưa chấm
+    const isFullyGraded = pendingManual[0].count === 0 ? 1 : 0;
+
     // ⭐ CẬP NHẬT ĐIỂM VÀ TRẠNG THÁI
     await req.db.query(
       `UPDATE exam_attempts 
-       SET status = 'Submitted', score = ?, end_time = NOW(), is_fully_graded = 1
+       SET status = 'Submitted', score = ?, end_time = NOW(), is_fully_graded = ?
        WHERE attempt_id = ?`,
-      [totalScore, attempt_id]
+      [totalScore, isFullyGraded, attempt_id]
     );
 
-    console.log('✅ Đã nộp bài:', { attempt_id, totalScore });
+    console.log('✅ Đã nộp bài:', { attempt_id, totalScore, isFullyGraded });
+
+    // Kiểm tra xem có câu tự luận không
+    const [hasEssayQuestions] = await req.db.query(
+      `SELECT COUNT(*) as count
+       FROM exam_questions eq
+       JOIN question_bank qb ON eq.question_id = qb.question_id
+       WHERE eq.exam_id = ? AND qb.question_type IN ('Essay', 'FillInBlank')`,
+      [examId]
+    );
 
     res.json({
       success: true,
       score: totalScore,
-      message: 'Nộp bài thành công'
+      is_fully_graded: isFullyGraded,
+      has_essay_questions: (hasEssayQuestions[0].count || 0) > 0,
+      message: isFullyGraded === 0 && (hasEssayQuestions[0].count || 0) > 0 
+        ? 'Nộp bài thành công. Bài thi có câu tự luận cần giáo viên chấm điểm.'
+        : 'Nộp bài thành công'
     });
   } catch (err) {
     console.error('❌ Error in submit:', err);
@@ -604,13 +695,27 @@ router.get('/:examId/result/:attemptId', authMiddleware, roleMiddleware(['studen
       correct_count: formattedResults.filter(r => r.is_correct === 1).length
     });
 
+    // Kiểm tra xem có câu tự luận chưa chấm không
+    const [hasPendingEssay] = await req.db.query(
+      `SELECT COUNT(*) as count
+       FROM exam_attempt_answers eaa
+       JOIN exam_questions eq ON eaa.question_id = eq.question_id
+       JOIN question_bank qb ON eq.question_id = qb.question_id
+       WHERE eaa.attempt_id = ?
+         AND qb.question_type IN ('Essay', 'FillInBlank')
+         AND (eaa.is_graded = 0 OR eaa.is_graded IS NULL)`,
+      [attemptId]
+    );
+
     res.json({
       attempt: {
         score: attempt[0].score || 0,
         total_points: attempt[0].total_points || 0,
         start_time: attempt[0].start_time,
         end_time: attempt[0].end_time,
-        exam_name: attempt[0].exam_name
+        exam_name: attempt[0].exam_name,
+        is_fully_graded: attempt[0].is_fully_graded || 0,
+        has_pending_grading: (hasPendingEssay[0].count || 0) > 0
       },
       results: formattedResults
     });

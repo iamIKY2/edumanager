@@ -54,8 +54,13 @@
                     <button class="menu-toggle" id="menuToggle">☰</button>
                     <h1 class="header-title" id="pageTitle">Dashboard</h1>
                 </div>
-                <div id="welcomeMessage" style="font-size:18px; font-weight:600; color:#555;"></div>
-                <div class="notification-badge" onclick="showNotifications()" title="Thông báo">🔔</div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+    <button id="themeToggle" class="theme-toggle" title="Chuyển đổi giao diện">
+        <span class="theme-icon">🌙</span>
+    </button>
+    <div class="notification-badge" onclick="showNotifications()" title="Thông báo">🔔</div>
+    <div id="welcomeMessage" style="font-size:18px; font-weight:600; color:#555;"></div>
+</div>
             </div>
 
             <!-- DASHBOARD SECTION -->
@@ -471,40 +476,62 @@
                 </div>
             </div>
 
-            <!-- GRADING SECTION -->
-            <div class="content-section" id="grading">
-                <div class="stats-grid">
-                    <div class="stat-card" style="cursor: pointer;" onclick="showNotification('Tính năng đang phát triển', 'info')">
-                        <div class="stat-icon">⏳</div>
-                        <div class="stat-number">15</div>
-                        <div class="stat-label">Bài chờ chấm</div>
-                    </div>
-                    <div class="stat-card" style="cursor: pointer;" onclick="showNotification('Tính năng đang phát triển', 'info')">
-                        <div class="stat-icon">✅</div>
-                        <div class="stat-number">89</div>
-                        <div class="stat-label">Bài đã chấm</div>
-                    </div>
-                    <div class="stat-card" style="cursor: pointer;" onclick="showNotification('Tính năng đang phát triển', 'info')">
-                        <div class="stat-icon">📝</div>
-                        <div class="stat-number">12</div>
-                        <div class="stat-label">Bài tự luận</div>
-                    </div>
-                    <div class="stat-card" style="cursor: pointer;" onclick="showNotification('Tính năng đang phát triển', 'info')">
-                        <div class="stat-icon">☑️</div>
-                        <div class="stat-number">77</div>
-                        <div class="stat-label">Bài trắc nghiệm</div>
-                    </div>
-                </div>
+<!-- GRADING SECTION -->
+<div class="content-section" id="grading">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-number" id="gradingPendingCount">0</div>
+            <div class="stat-label">Bài chờ chấm</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-number" id="gradingGradedCount">0</div>
+            <div class="stat-label">Bài đã chấm</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-number" id="gradingEssayCount">0</div>
+            <div class="stat-label">Câu tự luận</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">✍️</div>
+            <div class="stat-number" id="gradingFillCount">0</div>
+            <div class="stat-label">Câu điền khẩu</div>
+        </div>
+    </div>
 
-                <div class="card">
-                    <h2 class="card-title" style="margin-bottom: 20px;">Danh sách bài cần chấm</h2>
-                    <div class="empty-state">
-                        <div class="empty-state-icon">✅</div>
-                        <div class="empty-state-text">Không có bài thi nào cần chấm</div>
-                        <div class="empty-state-subtext">Tất cả bài thi đã được chấm điểm</div>
-                    </div>
-                </div>
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 20px;">📋 Danh sách bài cần chấm</h2>
+        <div id="gradingExamList" class="exam-list">
+            <!-- Bài thi sẽ được render ở đây -->
+        </div>
+    </div>
+</div>
+<!-- GRADING MODAL -->
+<div id="gradingModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h3 id="gradingModalTitle">✍️ Chấm bài</h3>
+            <span class="close" onclick="closeGradingModal()">&times;</span>
+        </div>
+        
+        <div id="gradingModalInfo" style="background: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <!-- Thông tin học sinh và bài thi -->
+        </div>
+        
+        <form id="gradingForm">
+            <div id="gradingQuestionsList">
+                <!-- Danh sách câu hỏi cần chấm -->
             </div>
+            
+            <div style="margin-top: 30px; display: flex; gap: 15px; justify-content: flex-end; position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #e2e8f0;">
+                <button type="button" class="btn btn-secondary" onclick="closeGradingModal()">Hủy</button>
+                <button type="submit" class="btn btn-success">💾 Lưu điểm</button>
+            </div>
+        </form>
+    </div>
+</div>
 
              <div class="content-section" id="anti-cheating">
                 <div class="card" style="margin-bottom: 20px;">
@@ -604,58 +631,22 @@
                     </div>
 
                     <div class="search-bar">
-                        <input type="text" class="search-input" placeholder="🔍 Tìm kiếm câu hỏi...">
-                        <select style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                        <input type="text" class="search-input" placeholder="🔍 Tìm kiếm câu hỏi..." id="questionSearchInput">
+                        <select style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;" id="questionSubjectSelect">
                             <option value="all">Tất cả môn</option>
-                            <option value="math">Toán học</option>
-                            <option value="physics">Vật lý</option>
-                            <option value="chemistry">Hóa học</option>
+                            <!-- Danh sách môn sẽ được load động -->
                         </select>
-                        <select style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                        <select style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;" id="questionDifficultySelect">
                             <option value="all">Tất cả độ khó</option>
-                            <option value="easy">Dễ</option>
-                            <option value="medium">Trung bình</option>
-                            <option value="hard">Khó</option>
+                            <option value="Easy">Dễ</option>
+                            <option value="Medium">Trung bình</option>
+                            <option value="Hard">Khó</option>
                         </select>
                     </div>
 
                     <div class="question-grid" id="questionList">
-                        <div class="question-item">
-                            <div class="question-header">
-                                <div class="question-tags">
-                                    <span class="tag">Toán học</span>
-                                    <span class="tag">Trung bình</span>
-                                </div>
-                                <button class="btn btn-small btn-secondary">✏️ Sửa</button>
-                            </div>
-                            <div class="question-content">
-                                Giải phương trình: x² - 5x + 6 = 0
-                            </div>
-                            <div class="question-options">
-                                <div class="question-option">A. x = 1 hoặc x = 6</div>
-                                <div class="question-option correct">B. x = 2 hoặc x = 3 ✓</div>
-                                <div class="question-option">C. x = -2 hoặc x = -3</div>
-                                <div class="question-option">D. x = 0 hoặc x = 5</div>
-                            </div>
-                        </div>
-
-                        <div class="question-item">
-                            <div class="question-header">
-                                <div class="question-tags">
-                                    <span class="tag">Vật lý</span>
-                                    <span class="tag">Dễ</span>
-                                </div>
-                                <button class="btn btn-small btn-secondary">✏️ Sửa</button>
-                            </div>
-                            <div class="question-content">
-                                Đơn vị đo lường lực trong hệ SI là gì?
-                            </div>
-                            <div class="question-options">
-                                <div class="question-option correct">A. Newton (N) ✓</div>
-                                <div class="question-option">B. Kilogram (kg)</div>
-                                <div class="question-option">C. Joule (J)</div>
-                                <div class="question-option">D. Watt (W)</div>
-                            </div>
+                        <div style="text-align: center; padding: 40px;">
+                            <p>⏳ Đang tải câu hỏi...</p>
                         </div>
                     </div>
                 </div>
@@ -666,40 +657,21 @@
                 <div class="card">
                     <div class="card-header">
                         <h2 class="card-title">Lịch thi</h2>
-                        <button class="btn btn-primary" onclick="showNotification('Tính năng tạo lịch thi đang phát triển', 'info')">➕ Tạo lịch thi</button>
+                        <button class="btn btn-primary" onclick="showCreateExamModal()">➕ Tạo bài thi</button>
                     </div>
 
                     <div style="margin-top: 20px;">
-                        <h3 style="color: #2d3748; margin-bottom: 15px;">Lịch thi sắp tới</h3>
-                        <div class="exam-list">
-                            <div class="exam-item">
-                                <div class="exam-header">
-                                    <div>
-                                        <div class="exam-title">Kiểm tra 15 phút - Chương 1</div>
-                                        <div class="exam-meta">
-                                            <span>🏫 Toán 10A1</span>
-                                            <span>📅 15/11/2024</span>
-                                            <span>⏰ 07:30</span>
-                                            <span>📍 Phòng 301</span>
-                                        </div>
-                                    </div>
-                                    <span class="exam-status status-upcoming">Sắp diễn ra</span>
-                                </div>
-                            </div>
-
-                            <div class="exam-item">
-                                <div class="exam-header">
-                                    <div>
-                                        <div class="exam-title">Kiểm tra giữa kỳ</div>
-                                        <div class="exam-meta">
-                                            <span>🏫 Văn 11A1</span>
-                                            <span>📅 18/11/2024</span>
-                                            <span>⏰ 09:00</span>
-                                            <span>📍 Phòng 205</span>
-                                        </div>
-                                    </div>
-                                    <span class="exam-status status-upcoming">Sắp diễn ra</span>
-                                </div>
+                        <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                            <button class="btn btn-small btn-primary" onclick="loadExamSchedule('all')" id="scheduleFilterAll">Tất cả</button>
+                            <button class="btn btn-small btn-secondary" onclick="loadExamSchedule('upcoming')" id="scheduleFilterUpcoming">Sắp tới</button>
+                            <button class="btn btn-small btn-secondary" onclick="loadExamSchedule('active')" id="scheduleFilterActive">Đang diễn ra</button>
+                            <button class="btn btn-small btn-secondary" onclick="loadExamSchedule('completed')" id="scheduleFilterCompleted">Đã kết thúc</button>
+                        </div>
+                        
+                        <h3 style="color: #2d3748; margin-bottom: 15px;" id="scheduleTitle">Lịch thi sắp tới</h3>
+                        <div class="exam-list" id="examScheduleList">
+                            <div style="text-align: center; padding: 40px;">
+                                <p>⏳ Đang tải lịch thi...</p>
                             </div>
                         </div>
                     </div>
@@ -728,19 +700,91 @@
                 </div>
 
                 <div class="card">
-                    <h2 class="card-title" style="margin-bottom: 20px;">Báo cáo chi tiết</h2>
-                    <div class="stats-grid">
+                    <h2 class="card-title" style="margin-bottom: 20px;">📊 Báo cáo chi tiết</h2>
+                    
+                    <!-- Thống kê điểm số -->
+                    <h3 style="color: #2d3748; margin: 20px 0 15px 0; font-size: 1.2rem;">📈 Thống kê điểm số</h3>
+                    <div class="stats-grid" style="margin-bottom: 30px;">
                         <div class="stat-card">
                             <div class="stat-label">Tỷ lệ đạt</div>
-                            <div class="stat-number" style="font-size: 2rem; color: #48bb78;">87%</div>
+                            <div class="stat-number" id="statPassRate" style="font-size: 2rem; color: #48bb78;">0%</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">(≥ 5 điểm)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Điểm trung bình</div>
+                            <div class="stat-number" id="statAvgScore" style="font-size: 2rem; color: #667eea;">0</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Tất cả bài thi</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Điểm cao nhất</div>
-                            <div class="stat-number" style="font-size: 2rem; color: #667eea;">9.8</div>
+                            <div class="stat-number" id="statMaxScore" style="font-size: 2rem; color: #48bb78;">0</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Điểm tối đa</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Điểm thấp nhất</div>
-                            <div class="stat-number" style="font-size: 2rem; color: #f56565;">5.2</div>
+                            <div class="stat-number" id="statMinScore" style="font-size: 2rem; color: #f56565;">0</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Điểm tối thiểu</div>
+                        </div>
+                    </div>
+
+                    <!-- Thống kê bài thi -->
+                    <h3 style="color: #2d3748; margin: 20px 0 15px 0; font-size: 1.2rem;">📝 Thống kê bài thi</h3>
+                    <div class="stats-grid" style="margin-bottom: 30px;">
+                        <div class="stat-card">
+                            <div class="stat-label">Bài đã chấm</div>
+                            <div class="stat-number" id="statGradedAttempts" style="font-size: 1.8rem; color: #48bb78;">0</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Hoàn thành</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Bài chờ chấm</div>
+                            <div class="stat-number" id="statPendingAttempts" style="font-size: 1.8rem; color: #f59e0b;">0</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Đang xử lý</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Tổng bài làm</div>
+                            <div class="stat-number" id="statTotalAttempts" style="font-size: 1.8rem; color: #667eea;">0</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Tất cả</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Tổng câu hỏi</div>
+                            <div class="stat-number" id="statTotalQuestions" style="font-size: 1.8rem; color: #9f7aea;">0</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Trong ngân hàng</div>
+                        </div>
+                    </div>
+
+                    <!-- Thống kê trạng thái bài thi -->
+                    <h3 style="color: #2d3748; margin: 20px 0 15px 0; font-size: 1.2rem;">📋 Trạng thái bài thi</h3>
+                    <div class="stats-grid" style="margin-bottom: 30px;">
+                        <div class="stat-card">
+                            <div class="stat-label">Nháp</div>
+                            <div class="stat-number" id="statDraftExams" style="font-size: 1.5rem; color: #718096;">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Sắp diễn ra</div>
+                            <div class="stat-number" id="statUpcomingExams" style="font-size: 1.5rem; color: #4299e1;">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Đang diễn ra</div>
+                            <div class="stat-number" id="statActiveExams" style="font-size: 1.5rem; color: #48bb78;">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Đã kết thúc</div>
+                            <div class="stat-number" id="statCompletedExams" style="font-size: 1.5rem; color: #667eea;">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Thống kê học sinh -->
+                    <h3 style="color: #2d3748; margin: 20px 0 15px 0; font-size: 1.2rem;">👥 Thống kê học sinh</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Đã làm bài thi</div>
+                            <div class="stat-number" id="statStudentsWithExams" style="font-size: 1.8rem; color: #48bb78;">0</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Học sinh tích cực</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Chưa làm bài</div>
+                            <div class="stat-number" id="statStudentsWithoutExams" style="font-size: 1.8rem; color: #f56565;">0</div>
+                            <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Cần theo dõi</div>
                         </div>
                     </div>
                 </div>
@@ -854,6 +898,21 @@
     </div>
     <div id="toast" class="toast">
         <span id="toastMessage"></span>
+    </div>
+
+    <!-- Modal chi tiết bài thi -->
+    <div id="examDetailModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 id="examDetailModalTitle">📋 Chi tiết bài thi</h3>
+                <span class="close" onclick="closeExamDetailModal()">&times;</span>
+            </div>
+            <div id="examDetailContent" style="padding: 20px;">
+                <div style="text-align: center; padding: 40px;">
+                    <p>⏳ Đang tải thông tin...</p>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 </html>

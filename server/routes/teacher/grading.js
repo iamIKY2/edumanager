@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../../middleware/auth');
 const roleMiddleware = require('../../middleware/role');
+const { createNotification } = require('../shared/helpers');
 
 // ============================================
 // 📋 LẤY DANH SÁCH BÀI THI CẦN CHẤM
@@ -25,56 +26,84 @@ router.get('/pending', authMiddleware, roleMiddleware(['teacher']), async (req, 
         e.exam_name,
         e.duration,
         u.full_name as student_name,
+        u.user_id as student_code,
         (SELECT COUNT(*) 
          FROM exam_attempt_answers eaa
          JOIN exam_questions eq ON eaa.question_id = eq.question_id
          JOIN question_bank qb ON eq.question_id = qb.question_id
          WHERE eaa.attempt_id = ea.attempt_id 
            AND qb.question_type IN ('Essay', 'FillInBlank')
-           AND eaa.is_graded = 0
+           AND (eaa.is_graded = 0 OR eaa.is_graded IS NULL)
         ) as pending_questions
        FROM exam_attempts ea
        JOIN exams e ON ea.exam_id = e.exam_id
        JOIN users u ON ea.student_id = u.user_id
        WHERE e.teacher_id = ?
          AND ea.status IN ('Submitted', 'AutoSubmitted')
-         AND ea.is_fully_graded = 0
        ORDER BY ea.end_time DESC`,
       [teacherId]
     );
 
-    // Lọc chỉ những attempt có câu hỏi chưa chấm
-    const needGrading = attempts.filter(a => a.pending_questions > 0);
+    console.log('✅ All attempts:', attempts.length);
+    console.log('📊 Attempts data:', JSON.stringify(attempts, null, 2));
+
+    // QUAN TRỌNG: Lọc chỉ những attempt CÓ câu hỏi chưa chấm
+    const needGrading = attempts.filter(a => {
+      const pending = parseInt(a.pending_questions) || 0;
+      console.log(`🔍 Attempt ${a.attempt_id}: ${pending} pending questions`);
+      return pending > 0;
+    });
+
+    console.log('✅ Found pending grading:', needGrading.length);
 
     // Thống kê
     const [stats] = await req.db.query(
       `SELECT 
-        COUNT(DISTINCT CASE WHEN eaa.is_graded = 0 AND qb.question_type = 'Essay' THEN eaa.attempt_id END) as pending_essays,
-        COUNT(DISTINCT CASE WHEN eaa.is_graded = 0 AND qb.question_type = 'FillInBlank' THEN eaa.attempt_id END) as pending_fill,
-        COUNT(DISTINCT CASE WHEN eaa.is_graded = 1 THEN eaa.attempt_id END) as graded_count,
-        COUNT(DISTINCT CASE WHEN qb.question_type IN ('SingleChoice', 'MultipleChoice') THEN eaa.attempt_id END) as pending_choice
+        COUNT(DISTINCT CASE 
+          WHEN eaa.is_graded = 0 AND qb.question_type = 'Essay' 
+          THEN eaa.question_id
+        END) as pending_essays,
+        COUNT(DISTINCT CASE 
+          WHEN eaa.is_graded = 0 AND qb.question_type = 'FillInBlank' 
+          THEN eaa.question_id
+        END) as pending_fill,
+        COUNT(DISTINCT CASE 
+          WHEN eaa.is_graded = 1 
+          THEN eaa.attempt_id 
+        END) as graded_count,
+        COUNT(DISTINCT CASE 
+          WHEN qb.question_type IN ('SingleChoice', 'MultipleChoice') 
+          THEN eaa.attempt_id 
+        END) as pending_choice
        FROM exam_attempts ea
        JOIN exams e ON ea.exam_id = e.exam_id
        JOIN exam_attempt_answers eaa ON ea.attempt_id = eaa.attempt_id
        JOIN exam_questions eq ON eaa.question_id = eq.question_id
        JOIN question_bank qb ON eq.question_id = qb.question_id
-       WHERE e.teacher_id = ? AND ea.status IN ('Submitted', 'AutoSubmitted')`,
+       WHERE e.teacher_id = ? 
+         AND ea.status IN ('Submitted', 'AutoSubmitted')`,
       [teacherId]
     );
 
-    console.log('✅ Found pending grading:', needGrading.length);
-
-    res.json({
+    const result = {
       attempts: needGrading,
-      pendingEssays: stats[0]?.pending_essays || 0,
-      pendingFillInBlank: stats[0]?.pending_fill || 0,
-      gradedCount: stats[0]?.graded_count || 0,
-      pendingChoice: stats[0]?.pending_choice || 0
-    });
+      pendingEssays: parseInt(stats[0]?.pending_essays) || 0,
+      pendingFillInBlank: parseInt(stats[0]?.pending_fill) || 0,
+      gradedCount: parseInt(stats[0]?.graded_count) || 0,
+      pendingChoice: parseInt(stats[0]?.pending_choice) || 0
+    };
+
+    console.log('✅ Sending response:', JSON.stringify(result, null, 2));
+
+    res.json(result);
 
   } catch (err) {
     console.error('❌ Error:', err);
-    res.status(500).json({ error: 'Lỗi khi tải danh sách bài cần chấm', details: err.message });
+    res.status(500).json({ 
+      error: 'Lỗi khi tải danh sách bài cần chấm', 
+      details: err.message,
+      stack: err.stack 
+    });
   }
 });
 
@@ -157,15 +186,15 @@ router.get('/:attemptId', authMiddleware, roleMiddleware(['teacher']), async (re
 // ============================================
 router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
   const { attemptId } = req.params;
-  const { grades } = req.body; // [{ question_id, teacher_score, teacher_comment }]
+  const { grades } = req.body;
   const teacherId = req.user.id || req.user.user_id;
 
   try {
     console.log('🔵 Submitting grades:', attemptId, grades);
 
-    // Kiểm tra quyền
+    // Kiểm tra quyền - Lấy thêm thông tin exam_name và student_id
     const [attempt] = await req.db.query(
-      `SELECT ea.*, e.teacher_id, e.exam_id
+      `SELECT ea.*, e.teacher_id, e.exam_id, e.exam_name, ea.student_id
        FROM exam_attempts ea
        JOIN exams e ON ea.exam_id = e.exam_id
        WHERE ea.attempt_id = ? AND e.teacher_id = ?`,
@@ -177,6 +206,11 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
     }
 
     const examId = attempt[0].exam_id;
+    const examName = attempt[0].exam_name;
+    const studentId = attempt[0].student_id;
+    
+    // ✅ QUAN TRỌNG: Lấy giá trị is_fully_graded TRƯỚC KHI cập nhật điểm
+    const wasFullyGraded = attempt[0].is_fully_graded === 1;
 
     // Cập nhật điểm cho từng câu
     for (const grade of grades) {
@@ -232,6 +266,58 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
     );
 
     console.log('✅ Grading saved:', { totalScore, isFullyGraded });
+    console.log('🔵 [Grading] Status check - wasFullyGraded:', wasFullyGraded, 'isFullyGraded:', isFullyGraded);
+    console.log('🔵 [Grading] Full condition check:', {
+      isFullyGraded: isFullyGraded === 1,
+      gradesLength: grades.length,
+      hasIo: !!req.io,
+      hasStudentId: !!studentId,
+      studentIdValue: studentId,
+      examName: examName
+    });
+
+    // ✅ GỬI THÔNG BÁO CHO HỌC SINH KHI GIÁO VIÊN CHẤM ĐIỂM
+    // Gửi thông báo nếu:
+    // 1. Bài thi đã được chấm hoàn toàn (isFullyGraded === 1)
+    // 2. Có câu hỏi được chấm trong lần này (grades.length > 0) - đảm bảo giáo viên vừa chấm điểm
+    // 3. Có socket.io và studentId
+    if (isFullyGraded === 1 && grades.length > 0 && req.io && studentId) {
+      try {
+        console.log('🔵 [Grading] Sending notification to student:', studentId);
+        console.log('🔵 [Grading] Room:', `user_${studentId}`);
+        console.log('🔵 [Grading] Exam name:', examName);
+        console.log('🔵 [Grading] Score:', totalScore);
+        console.log('🔵 [Grading] wasFullyGraded (before):', wasFullyGraded);
+        console.log('🔵 [Grading] isFullyGraded (after):', isFullyGraded);
+        console.log('🔵 [Grading] Grades in this session:', grades.length);
+        
+        await createNotification(
+          req.db,
+          req.io,
+          studentId,
+          `Bài thi "${examName}" của bạn đã được chấm điểm. Điểm số: ${totalScore} điểm`,
+          'Info',
+          examId,
+          'Exam'
+        );
+        console.log('✅ [Grading] Notification created and sent to student:', studentId);
+      } catch (notifError) {
+        console.error('⚠️ [Grading] Error sending notification:', notifError);
+        console.error('⚠️ [Grading] Error stack:', notifError.stack);
+        // Không throw error vì chấm điểm đã thành công
+      }
+    } else {
+      console.log('ℹ️ [Grading] Notification not sent - conditions check:', {
+        isFullyGraded: isFullyGraded === 1,
+        hasGrades: grades.length > 0,
+        hasIo: !!req.io,
+        hasStudentId: !!studentId,
+        reason: !isFullyGraded ? 'Not fully graded yet' : 
+                grades.length === 0 ? 'No grades submitted in this session' :
+                !req.io ? 'Socket.io not available' : 
+                !studentId ? 'Student ID not found' : 'Unknown'
+      });
+    }
 
     res.json({
       success: true,

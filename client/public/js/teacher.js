@@ -1,5 +1,25 @@
 // /client/public/js/teacher.js
+//  CHỈ HIỂN THỊ LOG LỖI
+const originalLog = console.log;
+const originalWarn = console.warn;
+
+console.log = function(...args) {
+    const firstArg = String(args[0] || '');
+    if (firstArg.includes('❌') || firstArg.toLowerCase().includes('error')) {
+        originalLog.apply(console, args);
+    }
+};
+
+console.warn = function(...args) {
+    const firstArg = String(args[0] || '');
+    if (firstArg.includes('⚠️')) {
+        originalWarn.apply(console, args);
+    }
+};
+
+
 // Data storage
+
 let appData = {
     classes: [],
     students: [],
@@ -200,7 +220,7 @@ async function renderExams() {
 }
 
 function showNotifications() {
-    fetchNotifications(); // Lấy danh sách thông báo
+    fetchNotifications();
     const notificationList = document.querySelector('#notifications .notification-list');
     const popup = document.createElement('div');
     popup.className = 'notification-popup';
@@ -214,7 +234,6 @@ function showNotifications() {
     document.body.appendChild(popup);
 }
 
-// Fetch classes from API
 async function fetchClasses() {
     const token = localStorage.getItem('token');
     try {
@@ -384,7 +403,6 @@ function bindEvents() {
 // Navigation
 
 function navigateTo(section) {
-    console.log('🔵 Navigating to:', section);
     
     // 1. Update menu items
     document.querySelectorAll('.menu-item').forEach(item => {
@@ -420,7 +438,6 @@ function navigateTo(section) {
         targetSection.style.opacity = '1';
         targetSection.style.visibility = 'visible';
         targetSection.classList.add('active');
-        console.log('✅ Showing:', section);
     } else {
         console.error('❌ Section not found:', section);
         return;
@@ -453,6 +470,10 @@ function navigateTo(section) {
         fetchNotifications();
     }
 
+    if (section === 'statistics') {
+        loadStatistics();
+    }    
+
     if (window.innerWidth <= 768) {
         document.getElementById('sidebar').classList.remove('open');
     }
@@ -484,7 +505,7 @@ async function renderDashboard() {
 
         if (!response.ok) throw new Error('Lỗi tải dữ liệu dashboard');
         const classes = await response.json();
-        appData.classes = classes; // Lưu vào appData
+        appData.classes = classes;
         
         const recentClasses = classes.slice(0, 2);
         const grid = document.getElementById('dashboardClasses');
@@ -635,8 +656,6 @@ async function viewClass(classId) {
     
     try {
         const token = localStorage.getItem('token');
-        
-        // 1. Fetch students
         const studentsResponse = await fetch(`http://localhost:3000/api/teacher/classes/${classId}/students`, {  
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -647,8 +666,6 @@ async function viewClass(classId) {
         
         appData.students = await studentsResponse.json();
         document.getElementById('studentCount').textContent = appData.students.length;
-        
-       // 2. Fetch exams
 console.log('🔵 Fetching exams for class:', classId);
         const examsResponse = await fetch(`http://localhost:3000/api/teacher/classes/${classId}/exams`, {  
     headers: { 'Authorization': `Bearer ${token}` }
@@ -682,7 +699,6 @@ renderGrades();
     }
 }
 
-// Cập nhật examCount sau khi renderExams đã fetch xong
 const examCountInClass = appData.exams.filter(e => e.class_id === classId).length;
 document.getElementById('examCount').textContent = examCountInClass;
     
@@ -928,21 +944,25 @@ async function removeStudent(id, event) {
 }
 
 // ⭐ THAY THẾ HÀM renderAllExams() HOÀN TOÀN BẰNG CODE NÀY
-
 async function renderAllExams() {
-    const list = document.getElementById('allExamsList');
     const token = localStorage.getItem('token');
-
-    // Hiển thị loading
-    list.innerHTML = `
-        <div style="text-align: center; padding: 40px; color: #666;">
-            <div style="font-size: 3rem; margin-bottom: 15px;">⏳</div>
-            <div>Đang tải danh sách bài thi...</div>
+    const container = document.getElementById('allExamsList');
+    
+    if (!container) {
+        console.error('❌ [AllExams] #allExamsList element not found!');
+        return;
+    }
+    
+    // Show loading
+    container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; color: #666;">
+            <div style="font-size: 4rem; margin-bottom: 20px; animation: spin 2s linear infinite;">⏳</div>
+            <div style="font-size: 1.1rem; font-weight: 500;">Đang tải danh sách bài thi...</div>
         </div>
     `;
-
+    
     try {
-        console.log('🔵 Fetching all exams...');
+        console.log('🔵 [AllExams] Fetching all exams...');
         
         const response = await fetch('http://localhost:3000/api/teacher/exams/all', {
             headers: { 
@@ -950,24 +970,19 @@ async function renderAllExams() {
                 'Content-Type': 'application/json'
             }
         });
-
-        console.log('📡 Response status:', response.status);
-
+        
+        console.log('📡 [AllExams] Response status:', response.status);
+        
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || `HTTP ${response.status}: Lỗi tải danh sách bài thi`);
+            throw new Error(errorData.error || 'Lỗi tải danh sách bài thi');
         }
-
-        const allExams = await response.json();
-        console.log('✅ All exams loaded:', allExams.length, 'exams');
-        console.log('📊 Data:', allExams);
-
-        if (!Array.isArray(allExams)) {
-            throw new Error('Dữ liệu trả về không phải mảng');
-        }
-
-        if (allExams.length === 0) {
-            list.innerHTML = `
+        
+        const exams = await response.json();
+        console.log('✅ [AllExams] Loaded', exams.length, 'exams');
+        
+        if (exams.length === 0) {
+            container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">📝</div>
                     <div class="empty-state-text">Chưa có bài thi nào</div>
@@ -976,372 +991,171 @@ async function renderAllExams() {
             `;
             return;
         }
-
-        list.innerHTML = allExams.map(exam => {
+        
+        // Render exam list
+        container.innerHTML = exams.map(exam => {
             const statusText = {
-                'upcoming': 'Sắp diễn ra',
-                'active': 'Đang diễn ra',
-                'completed': 'Đã kết thúc',
-                'draft': 'Nháp'
-            };
+                'draft': '📝 Nháp',
+                'upcoming': '⏰ Sắp diễn ra',
+                'active': '✅ Đang diễn ra',
+                'completed': '🏁 Đã kết thúc'
+            }[exam.status] || exam.status;
             
-            const statusColors = {
-                'upcoming': '#ffa502',
-                'active': '#26de81',
-                'completed': '#95a5a6',
-                'draft': '#a29bfe'
-            };
-            
-            // Format date từ start_time hoặc exam_date
-            let examDate = 'Chưa có ngày';
-            const dateStr = exam.start_time || exam.exam_date;
-            if (dateStr) {
-                try {
-                    const date = new Date(dateStr);
-                    examDate = date.toLocaleString('vi-VN', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                } catch (e) {
-                    console.error('Date parse error:', e);
-                    examDate = dateStr; // Fallback
-                }
-            }
-            
-            const status = exam.status || 'draft';
+            const statusClass = {
+                'draft': 'status-draft',
+                'upcoming': 'status-upcoming',
+                'active': 'status-active',
+                'completed': 'status-completed'
+            }[exam.status] || '';
             
             return `
-                <div class="exam-item" style="border-left: 4px solid ${statusColors[status]};">
-                    <div class="exam-header">
-                        <div>
-                            <div class="exam-title">${exam.title || exam.exam_name || 'Không có tên'}</div>
-                            <div class="exam-meta">
-                                <span>🏫 ${exam.class_name || 'Chưa gán lớp'}</span>
-                                <span>📅 ${examDate}</span>
-                                <span>⏱️ ${exam.duration || 0} phút</span>
-                                <span>👥 ${exam.submissions || 0} bài nộp</span>
+                <div class="exam-item" style="border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 15px; background: white; transition: all 0.3s;">
+                    <div class="exam-header" style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                        <div style="flex: 1;">
+                            <div class="exam-title" style="font-size: 1.2rem; font-weight: 600; color: #2d3748; margin-bottom: 8px;">
+                                ${exam.title || exam.exam_name}
+                            </div>
+                            <div class="exam-meta" style="display: flex; flex-wrap: wrap; gap: 15px; color: #718096; font-size: 0.9rem;">
+                                <span>🏫 ${exam.class_name || 'Chưa có lớp'}</span>
+                                <span>📅 ${new Date(exam.start_time).toLocaleDateString('vi-VN')}</span>
+                                <span>⏱️ ${exam.duration} phút</span>
+                                <span>📝 ${exam.submissions || 0} lượt thi</span>
                             </div>
                         </div>
-                        <span class="exam-status status-${status}">${statusText[status] || 'Không rõ'}</span>
+                        <span class="exam-status ${statusClass}" style="padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                            ${statusText}
+                        </span>
                     </div>
-                    <div class="exam-actions">
-                        <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.exam_id})">Xem chi tiết</button>
-                        <button class="btn btn-small btn-secondary" onclick="editExam(${exam.exam_id})">Chỉnh sửa</button>
-                        <button class="btn btn-small btn-danger" onclick="deleteExam(${exam.exam_id}, event)">Xóa</button>
+                    <div class="exam-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary btn-small" onclick="viewExamDetail(${exam.exam_id}, 'exams')" style="padding: 8px 16px;">
+                            📋 Xem chi tiết
+                        </button>
+                        <button class="btn btn-secondary btn-small" onclick="editExam(${exam.exam_id})" style="padding: 8px 16px;">
+                            ✏️ Chỉnh sửa
+                        </button>
+                        <button class="btn btn-danger btn-small" onclick="deleteExam(${exam.exam_id}, event)" style="padding: 8px 16px;">
+                            🗑️ Xóa
+                        </button>
                     </div>
                 </div>
             `;
         }).join('');
         
-        console.log('✅ Rendered successfully!');
-
+        console.log('✅ [AllExams] Rendered successfully');
+        
     } catch (error) {
-        console.error('❌ Error in renderAllExams:', error);
-        list.innerHTML = `
+        console.error('❌ [AllExams] Error:', error);
+        container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">❌</div>
                 <div class="empty-state-text">Lỗi tải danh sách bài thi</div>
                 <div class="empty-state-subtext">${error.message}</div>
-                <button class="btn btn-primary" onclick="renderAllExams()" style="margin-top: 15px;">🔄 Thử lại</button>
+                <button class="btn btn-primary" onclick="renderAllExams()" style="margin-top: 15px;">
+                    🔄 Thử lại
+                </button>
             </div>
         `;
+        showNotification('❌ ' + error.message, 'error');
     }
 }
 
-function showAddExam() {
-    document.getElementById('classDetail').classList.remove('active');
-    document.getElementById('addExamForm').style.display = 'block';
-}
-
-async function handleAddExam(event) {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    const token = localStorage.getItem('token');
-
-    console.log('🔵 Creating exam for class:', appData.currentClassId);
-
-    try {
-        const response = await fetch(`http://localhost:3000/api/teacher/classes/${appData.currentClassId}/exams`, {  
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                examName: formData.get('examName'),
-                examDate: formData.get('examDate'),
-                duration: formData.get('duration'),
-                description: formData.get('description'),
-                status: formData.get('status')
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Lỗi tạo bài thi');
-        }
-
-        const result = await response.json();
-        console.log('✅ Exam created:', result);
-        
-        // Fetch lại exams từ server
-            const examsResponse = await fetch(`http://localhost:3000/api/teacher/classes/${appData.currentClassId}/exams`, { 
-
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        const classExams = await examsResponse.json();
-        
-        // Cập nhật appData
-        if (!appData.exams) appData.exams = [];
-        appData.exams = appData.exams.filter(e => e.class_id !== appData.currentClassId);
-        appData.exams.push(...classExams);
-        
-        // Cập nhật UI
-        document.getElementById('examCount').textContent = classExams.length;
-        
-        // Cập nhật class data
-        const cls = appData.classes.find(c => c.class_id === appData.currentClassId);
-        if (cls) cls.exams = classExams.length;
-        
-        renderExams();
-        renderDashboard();
-        hideAddExam();
-        
-        // Chuyển sang tab Bài thi
-        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        document.querySelector('.tab[data-tab="exams"]').classList.add('active');
-        document.getElementById('exams-tab').classList.add('active');
-        
-        showNotification('✅ Thêm bài thi thành công!');
-        event.target.reset();
-    } catch (error) {
-        console.error('❌ Error:', error);
-        showNotification(`❌ ${error.message}`, 'error');
-    }
-}
-
-function hideAddExam() {
-    document.getElementById('addExamForm').style.display = 'none';
-    document.getElementById('classDetail').classList.add('active');
-}
-
-
-async function renderExams() {
-    const list = document.getElementById('examList');
+// render câu hỏi đã fix còn lỗi
+function renderQuestionsList(container, questions, examId) {
+    if (!container) return;
     
-    if (!appData.exams) {
-        appData.exams = [];
-    }
+    container.innerHTML = '';
     
-    const classExams = appData.exams.filter(e => e.class_id === appData.currentClassId);
-    
-    if (classExams.length === 0) {
-        list.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">📝</div>
-                <div class="empty-state-text">Chưa có bài thi nào</div>
-                <div class="empty-state-subtext">Thêm bài thi cho lớp học của bạn</div>
-            </div>
-        `;
-        return;
-    }
-
-    list.innerHTML = classExams.map(exam => {
-        const statusText = {
-            'upcoming': 'Sắp diễn ra',
-            'active': 'Đang diễn ra',
-            'completed': 'Đã kết thúc'
-        };
-        
-        // ✅ Format date từ start_time hoặc exam_date
-        let examDate = 'Chưa có ngày';
-        const dateStr = exam.start_time || exam.exam_date;
-        if (dateStr) {
-            const date = new Date(dateStr);
-            examDate = date.toLocaleString('vi-VN', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-        
-        return `
-            <div class="exam-item">
-                <div class="exam-header">
-                    <div>
-                        <div class="exam-title">${exam.title}</div>
-                        <div class="exam-meta">
-                            <span>📅 ${examDate}</span>
-                            <span>⏱️ ${exam.duration} phút</span>
-                            <span>👥 ${exam.submissions || 0} bài nộp</span>
-                        </div>
-                    </div>
-                    <span class="exam-status status-${exam.status}">${statusText[exam.status]}</span>
-                </div>
-                <div class="exam-actions">
-                    <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.exam_id})">Xem chi tiết</button>
-                    <button class="btn btn-small btn-secondary" onclick="editExam(${exam.exam_id})">Chỉnh sửa</button>
-                    <button class="btn btn-small btn-danger" onclick="deleteExam(${exam.exam_id}, event)">Xóa</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-// Biến lưu trữ thông tin bài thi hiện tại
-let currentExam = null;
-
-// Hàm quay lại danh sách bài thi
-function backToExamList() {
-    const examListContainer = document.getElementById('examListContainer');
-    const examDetail = document.getElementById('examDetail');
-    const editExamForm = document.getElementById('editExamForm');
-    
-    // Ẩn detail và edit form
-    if (examDetail) {
-        examDetail.style.display = 'none';
-        examDetail.style.visibility = 'hidden';
-    }
-    if (editExamForm) {
-        editExamForm.style.display = 'none';
-        editExamForm.style.visibility = 'hidden';
-    }
-    
-    // Hiện list
-    if (examListContainer) {
-        examListContainer.style.display = 'block';
-        examListContainer.style.visibility = 'visible';
-        examListContainer.style.opacity = '1';
-    }
-    
-    currentExam = null;
-    console.log('✅ Back to exam list');
-}
-
-// Hàm hiển thị chi tiết bài thi
-async function viewExamDetail(examId) {
-    try {
-        const token = localStorage.getItem('token');
-        
-        // Fetch thông tin bài thi
-        const examsResponse = await fetch('http://localhost:3000/api/teacher/exams/all', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!examsResponse.ok) {
-            throw new Error('Lỗi tải thông tin bài thi');
-        }
-        
-        const exams = await examsResponse.json();
-        const exam = exams.find(e => e.exam_id === parseInt(examId));
-        
-        if (!exam) {
-            showNotification('Không tìm thấy bài thi', 'error');
-            return;
-        }
-
-        // Fetch danh sách câu hỏi
-        const questionsResponse = await fetch(`http://localhost:3000/api/teacher/exams/${examId}/questions`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!questionsResponse.ok) {
-            throw new Error('Lỗi tải danh sách câu hỏi');
-        }
-        
-        const questionsData = await questionsResponse.json();
-        currentExam = { ...exam, questions: questionsData.questions || [] };
-
-        // ✅ FIX: Ẩn/hiện đúng cách với setAttribute
-        const examListContainer = document.getElementById('examListContainer');
-        const examDetail = document.getElementById('examDetail');
-        const editExamForm = document.getElementById('editExamForm');
-        
-        // Ẩn list và edit form
-        if (examListContainer) {
-            examListContainer.style.display = 'none';
-            examListContainer.style.visibility = 'hidden';
-        }
-        if (editExamForm) {
-            editExamForm.style.display = 'none';
-            editExamForm.style.visibility = 'hidden';
-        }
-        
-        // Hiện exam detail
-        if (examDetail) {
-            examDetail.style.display = 'block';
-            examDetail.style.visibility = 'visible';
-            examDetail.style.opacity = '1';
-            examDetail.style.position = 'relative';
-            examDetail.style.zIndex = '10';
-        }
-
-        // ✅ Cập nhật thông tin (với kiểm tra null)
-        const titleEl = document.getElementById('examDetailTitle');
-        const classEl = document.getElementById('examDetailClass');
-        const dateEl = document.getElementById('examDetailDate');
-        const durationEl = document.getElementById('examDetailDuration');
-        const descEl = document.getElementById('examDetailDescription');
-        const statusEl = document.getElementById('examDetailStatus');
-        
-        if (titleEl) titleEl.textContent = exam.title || exam.exam_name || 'Không có tên';
-        if (classEl) classEl.textContent = exam.class_name || 'Không có lớp';
-        if (dateEl) dateEl.textContent = new Date(exam.start_time).toLocaleString('vi-VN');
-        if (durationEl) durationEl.textContent = exam.duration;
-        if (descEl) descEl.textContent = exam.description || 'Không có mô tả';
-        if (statusEl) {
-            statusEl.textContent = {
-                draft: 'Nháp',
-                upcoming: 'Sắp diễn ra',
-                active: 'Đang diễn ra',
-                completed: 'Đã kết thúc'
-            }[exam.status] || exam.status;
-        }
-
-        // Hiển thị danh sách câu hỏi
-        const questionsContainer = document.getElementById('examDetailQuestions');
-        if (questionsContainer) {
-            questionsContainer.innerHTML = '';
+    if (questions && questions.length > 0) {
+        questions.forEach((q, index) => {
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-item';
+            questionDiv.style.cssText = 'border: 1px solid #e2e8f0; padding: 15px; margin-bottom: 15px; border-radius: 8px; background: white;';
             
-            if (questionsData.questions && questionsData.questions.length > 0) {
-                questionsData.questions.forEach((q, index) => {
-                    const questionDiv = document.createElement('div');
-                    questionDiv.className = 'question-item';
-                    questionDiv.innerHTML = `
-                        <p><strong>Câu ${index + 1} (${q.points} điểm):</strong> ${q.question_content}</p>
-                        <p><strong>Loại:</strong> ${q.question_type}</p>
-                        <p><strong>Độ khó:</strong> ${q.difficulty}</p>
+            questionDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                        <p style="font-weight: 600; color: #2d3748; margin-bottom: 8px;">
+                            Câu ${q.question_order || index + 1} (${q.points} điểm): ${q.question_content}
+                        </p>
+                        <p style="color: #718096; font-size: 0.9rem; margin-bottom: 10px;">
+                            <span style="background: #edf2f7; padding: 3px 8px; border-radius: 4px; margin-right: 5px;">
+                                ${getQuestionTypeText(q.question_type)}
+                            </span>
+                            <span style="background: ${getDifficultyColor(q.difficulty)}; color: white; padding: 3px 8px; border-radius: 4px;">
+                                ${q.difficulty}
+                            </span>
+                        </p>
+                        
                         ${q.options && q.options.length > 0 ? `
-                            <div class="options">
+                            <div style="margin: 10px 0;">
                                 ${q.options.map((opt, i) => `
-                                    <p class="option ${opt.is_correct ? 'correct' : ''}">
-                                        ${String.fromCharCode(65 + i)}. ${opt.option_content}
-                                        ${opt.is_correct ? '(Đúng)' : ''}
+                                    <p style="color: ${opt.is_correct ? '#48bb78' : '#4a5568'}; margin: 5px 0; font-weight: ${opt.is_correct ? '600' : '400'};">
+                                        ${String.fromCharCode(65 + i)}. ${opt.option_content} ${opt.is_correct ? '✅' : ''}
                                     </p>
                                 `).join('')}
                             </div>
-                        ` : ''}
-                        <p><strong>Đáp án đúng:</strong> ${q.correct_answer_text}</p>
-                    `;
-                    questionsContainer.appendChild(questionDiv);
-                });
-            } else {
-                questionsContainer.innerHTML = '<p>Chưa có câu hỏi nào trong bài thi.</p>';
-            }
-        }
-
-        console.log('✅ Exam detail displayed successfully');
-    } catch (err) {
-        console.error('Error viewing exam details:', err);
-        showNotification('❌ Lỗi: ' + err.message, 'error');
+                        ` : `
+                            <p style="color: #718096; font-style: italic;">Đáp án: ${q.correct_answer_text || 'Tự luận'}</p>
+                        `}
+                    </div>
+                    
+                    <button class="btn btn-small btn-danger" onclick="deleteQuestion(${examId}, ${q.question_id})" title="Xóa câu hỏi" style="margin-left: 10px;">
+                        🗑️
+                    </button>
+                </div>
+            `;
+            container.appendChild(questionDiv);
+        });
+    } else {
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: #718096;">Chưa có câu hỏi nào</div>';
     }
+}
+
+
+// HELPER FUNCTIONS
+function getQuestionTypeText(type) {
+    const types = {
+        'SingleChoice': '📝 Trắc nghiệm 1 đáp án',
+        'MultipleChoice': '☑️ Trắc nghiệm nhiều đáp án',
+        'FillInBlank': '✍️ Điền khẩu',
+        'Essay': '📄 Tự luận'
+    };
+    return types[type] || type;
+}
+
+function getDifficultyColor(difficulty) {
+    const colors = {
+        'Easy': '#48bb78',
+        'Medium': '#ed8936',
+        'Hard': '#f56565'
+    };
+    return colors[difficulty] || '#718096';
+}
+
+// hàm back to exam list fix lỗi 
+function backToExamList() {
+    if (examDetailContext === 'exams') {
+        const modal = document.getElementById('examDetailModal');
+        if (modal) modal.style.display = 'none';
+    } else {
+        const examDetail = document.getElementById('examDetail');
+        const editExamForm = document.getElementById('editExamForm');
+        const examListContainer = document.getElementById('examListContainer');
+        
+        if (examDetail) examDetail.style.display = 'none';
+        if (editExamForm) editExamForm.style.display = 'none';
+        if (examListContainer) examListContainer.style.display = 'block';
+    }
+    
+    currentExam = null;
+    examDetailContext = 'class';
+}
+
+function closeExamDetailModal() {
+    const modal = document.getElementById('examDetailModal');
+    if (modal) modal.style.display = 'none';
+    currentExam = null;
+    examDetailContext = 'class';
 }
 
 // Hàm hiển thị form chỉnh sửa bài thi
@@ -1398,7 +1212,7 @@ function showEditExam() {
         }
     }
 
-    // ✅ Toggle display
+    //  Toggle display
     const examDetail = document.getElementById('examDetail');
     const editExamForm = document.getElementById('editExamForm');
     
@@ -1460,7 +1274,7 @@ async function handleEditExam(event) {
         }
 
         showNotification('✅ Cập nhật bài thi thành công', 'success');
-        await viewExamDetail(examId); // Tải lại chi tiết bài thi
+        await viewExamDetail(examId); 
     } catch (err) {
         console.error('Error updating exam:', err);
         showNotification('❌ Lỗi khi cập nhật bài thi: ' + err.message, 'error');
@@ -1554,7 +1368,7 @@ async function handleEditQuestion(event) {
 
         showNotification('✅ Cập nhật câu hỏi thành công', 'success');
         closeEditQuestionModal();
-        await viewExamDetail(examId); // Tải lại chi tiết bài thi
+        await viewExamDetail(examId); 
     } catch (err) {
         console.error('Error updating question:', err);
         showNotification('❌ Lỗi khi cập nhật câu hỏi: ' + err.message, 'error');
@@ -1578,7 +1392,7 @@ async function deleteQuestion(examId, questionId) {
         }
 
         showNotification('✅ Xóa câu hỏi thành công', 'success');
-        await viewExamDetail(examId); // Tải lại chi tiết bài thi
+        await viewExamDetail(examId); 
     } catch (err) {
         console.error('Error deleting question:', err);
         showNotification('❌ Lỗi khi xóa câu hỏi: ' + err.message, 'error');
@@ -1621,12 +1435,17 @@ async function deleteExam(examId, event) {
     }
 }
 
-// ============================================
-// 📊 RENDER BẢNG ĐIỂM - HIỂN THỊ ĐIỂM TỪNG KỲ THI
-// ============================================
+
+//  RENDER BẢNG ĐIỂM - HIỂN THỊ ĐIỂM TỪNG KỲ THI
+
 async function renderGrades() {
     const container = document.getElementById('grades-tab');
     const token = localStorage.getItem('token');
+    
+    if (!container) {
+        console.error('❌ [Grades] Container not found');
+        return;
+    }
     
     // Hiển thị loading
     container.innerHTML = `
@@ -1638,21 +1457,37 @@ async function renderGrades() {
     
     try {
         // 1. Lấy danh sách học sinh
-        const studentsResponse = await fetch(`http://localhost:3000/api/teacher/classes/${appData.currentClassId}/students`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
         
-        if (!studentsResponse.ok) throw new Error('Lỗi tải danh sách học sinh');
+        const studentsResponse = await fetch(
+            `http://localhost:3000/api/teacher/classes/${appData.currentClassId}/students`, 
+            { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        
+        if (!studentsResponse.ok) {
+            const errorData = await studentsResponse.json();
+            throw new Error(errorData.error || 'Lỗi tải danh sách học sinh');
+        }
+        
         const students = await studentsResponse.json();
+        console.log('✅ [Grades] Students loaded:', students.length);
         
         // 2. Lấy danh sách bài thi của lớp
-        const examsResponse = await fetch(`http://localhost:3000/api/teacher/classes/${appData.currentClassId}/exams`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        console.log('🔵 [Grades] Loading exams for class:', appData.currentClassId);
         
-        if (!examsResponse.ok) throw new Error('Lỗi tải danh sách bài thi');
+        const examsResponse = await fetch(
+            `http://localhost:3000/api/teacher/classes/${appData.currentClassId}/exams`, 
+            { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        
+        if (!examsResponse.ok) {
+            const errorData = await examsResponse.json();
+            throw new Error(errorData.error || 'Lỗi tải danh sách bài thi');
+        }
+        
         const exams = await examsResponse.json();
+        console.log('✅ [Grades] Exams loaded:', exams.length);
         
+        // Check empty states
         if (students.length === 0) {
             container.innerHTML = `
                 <h3 style="color: #2d3748; margin-bottom: 20px;">📊 Bảng điểm chi tiết</h3>
@@ -1676,12 +1511,14 @@ async function renderGrades() {
         }
         
         // 3. Lấy điểm từng bài thi cho từng học sinh
+        console.log('🔵 [Grades] Loading grades for each student...');
         const gradesData = [];
         
         for (const student of students) {
             const studentGrades = {
                 student_id: student.user_id,
                 full_name: student.full_name,
+                student_code: student.student_id,
                 exams: {}
             };
             
@@ -1695,17 +1532,22 @@ async function renderGrades() {
                     
                     if (gradeResponse.ok) {
                         const gradeData = await gradeResponse.json();
-                        studentGrades.exams[exam.exam_id] = gradeData.score !== null ? parseFloat(gradeData.score).toFixed(1) : '-';
+                        studentGrades.exams[exam.exam_id] = gradeData.score !== null 
+                            ? parseFloat(gradeData.score).toFixed(1) 
+                            : '-';
                     } else {
                         studentGrades.exams[exam.exam_id] = '-';
                     }
-                } catch {
+                } catch (err) {
+                    console.warn(`⚠️ [Grades] Error loading grade for student ${student.user_id}, exam ${exam.exam_id}:`, err);
                     studentGrades.exams[exam.exam_id] = '-';
                 }
             }
             
             gradesData.push(studentGrades);
         }
+        
+        console.log('✅ [Grades] Grades data loaded:', gradesData);
         
         // 4. Render bảng điểm
         container.innerHTML = `
@@ -1754,7 +1596,7 @@ async function renderGrades() {
                                             <div>
                                                 <div style="font-weight: 500;">${student.full_name}</div>
                                                 <div style="font-size: 0.85rem; color: #718096;">
-                                                    MSSV: ${student.student_id}
+                                                    MSSV: ${student.student_code}
                                                 </div>
                                             </div>
                                         </div>
@@ -1805,10 +1647,10 @@ async function renderGrades() {
             </div>
         `;
         
-        console.log('✅ Grades table rendered successfully');
+        console.log('✅ [Grades] Grades table rendered successfully');
         
     } catch (error) {
-        console.error('❌ Error rendering grades:', error);
+        console.error('❌ [Grades] Error:', error);
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">❌</div>
@@ -1822,9 +1664,7 @@ async function renderGrades() {
     }
 }
 
-// ============================================
-// 📥 XUẤT BẢNG ĐIỂM RA EXCEL
-// ============================================
+//  XUẤT BẢNG ĐIỂM RA EXCEL
 function exportGradesToExcel() {
     const table = document.getElementById('gradesTableDetail');
     if (!table) {
@@ -1844,9 +1684,7 @@ function exportGradesToExcel() {
         const rowData = [];
         
         cols.forEach(col => {
-            // Lấy text, bỏ qua HTML
             let text = col.textContent.trim();
-            // Escape dấu ngoặc kép
             text = text.replace(/"/g, '""');
             rowData.push(`"${text}"`);
         });
@@ -1873,16 +1711,22 @@ function exportGradesToExcel() {
     showNotification('✅ Đã xuất bảng điểm ra file CSV', 'success');
 }
 
-// Chart
+// Chart - Initialize with empty data, will be populated by loadStatistics()
 function initializeChart() {
-    const ctx = document.getElementById('statisticsChart').getContext('2d');
-    appData.currentChart = new Chart(ctx, {
+    const ctx = document.getElementById('statisticsChart');
+    if (!ctx) return;
+    
+    if (appData.currentChart) {
+        appData.currentChart.destroy();
+    }
+    
+    appData.currentChart = new Chart(ctx.getContext('2d'), {
         type: 'bar',
         data: {
             labels: ['Giỏi (8-10)', 'Khá (6.5-8)', 'Trung bình (5-6.5)', 'Yếu (<5)'],
             datasets: [{
                 label: 'Số lượng học sinh',
-                data: [25, 45, 65, 21],
+                data: [0, 0, 0, 0],
                 backgroundColor: [
                     'rgba(72, 187, 120, 0.8)',
                     'rgba(66, 153, 225, 0.8)',
@@ -1917,50 +1761,216 @@ function updateStatsDropdown() {
         appData.classes.map(cls => `<option value="${cls.class_id}">${cls.class_name}</option>`).join('');
 }
 
-function updateStatistics() {
-    showNotification('Đang cập nhật thống kê...', 'info');
+// Load statistics from API
+async function loadStatistics() {
+    const token = localStorage.getItem('token');
+    const classId = document.getElementById('statsClass')?.value || 'all';
+    
+    try {
+        const url = classId === 'all' 
+            ? 'http://localhost:3000/api/teacher/statistics'
+            : `http://localhost:3000/api/teacher/statistics?classId=${classId}`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Không thể tải thống kê');
+        }
+
+        const stats = await response.json();
+        
+        // Update chart with real data
+        updateChartWithData(stats);
+        
+        // Update statistics cards in HTML
+        updateStatisticsCards(stats);
+        
+    } catch (err) {
+        console.error('❌ Lỗi khi tải thống kê:', err);
+        showNotification('❌ Không thể tải thống kê. Vui lòng thử lại.', 'error');
+    }
 }
 
-function updateChartType() {
-    const chartType = document.getElementById('chartType').value;
-    if (appData.currentChart) {
+function updateChartWithData(stats) {
+    if (!appData.currentChart) {
+        initializeChart();
+    }
+    
+    const distribution = stats.class_stats?.distribution || stats.distribution;
+    const chartType = document.getElementById('chartType')?.value || 'bar';
+    
+    // Update chart data
+    const labels = ['Giỏi (8-10)', 'Khá (6.5-8)', 'Trung bình (5-6.5)', 'Yếu (<5)'];
+    const data = [
+        distribution['Giỏi (8-10)'] || 0,
+        distribution['Khá (6.5-8)'] || 0,
+        distribution['Trung bình (5-6.5)'] || 0,
+        distribution['Yếu (<5)'] || 0
+    ];
+    
+    // Destroy old chart if type changed
+    if (appData.currentChart.config.type !== chartType) {
         appData.currentChart.destroy();
     }
-
-    const ctx = document.getElementById('statisticsChart').getContext('2d');
-    appData.currentChart = new Chart(ctx, {
-        type: chartType,
-        data: {
-            labels: ['Giỏi (8-10)', 'Khá (6.5-8)', 'Trung bình (5-6.5)', 'Yếu (<5)'],
-            datasets: [{
-                label: 'Số lượng học sinh',
-                data: [25, 45, 65, 21],
-                backgroundColor: [
-                    'rgba(72, 187, 120, 0.8)',
-                    'rgba(66, 153, 225, 0.8)',
-                    'rgba(236, 201, 75, 0.8)',
-                    'rgba(245, 101, 101, 0.8)'
-                ],
-                borderColor: [
-                    'rgba(72, 187, 120, 1)',
-                    'rgba(66, 153, 225, 1)',
-                    'rgba(236, 201, 75, 1)',
-                    'rgba(245, 101, 101, 1)'
-                ],
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: chartType === 'pie', position: 'bottom' }
+    
+    const ctx = document.getElementById('statisticsChart');
+    if (!ctx) return;
+    
+    if (!appData.currentChart || appData.currentChart.config.type !== chartType) {
+        appData.currentChart = new Chart(ctx.getContext('2d'), {
+            type: chartType,
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Số lượng học sinh',
+                    data: data,
+                    backgroundColor: [
+                        'rgba(72, 187, 120, 0.8)',
+                        'rgba(66, 153, 225, 0.8)',
+                        'rgba(236, 201, 75, 0.8)',
+                        'rgba(245, 101, 101, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(72, 187, 120, 1)',
+                        'rgba(66, 153, 225, 1)',
+                        'rgba(236, 201, 75, 1)',
+                        'rgba(245, 101, 101, 1)'
+                    ],
+                    borderWidth: 2
+                }]
             },
-            scales: chartType !== 'pie' ? {
-                y: { beginAtZero: true }
-            } : {}
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: chartType === 'pie', position: 'bottom' }
+                },
+                scales: chartType !== 'pie' ? {
+                    y: { beginAtZero: true }
+                } : {}
+            }
+        });
+    } else {
+        // Update existing chart
+        appData.currentChart.data.labels = labels;
+        appData.currentChart.data.datasets[0].data = data;
+        appData.currentChart.update();
+    }
+}
+
+function updateStatisticsCards(stats) {
+    // Update pass rate
+    const passRateElement = document.getElementById('statPassRate');
+    if (passRateElement && stats.pass_rate !== undefined) {
+        passRateElement.textContent = `${stats.pass_rate}%`;
+    }
+    
+    // Update average score
+    const avgScoreElement = document.getElementById('statAvgScore');
+    if (avgScoreElement && stats.avg_score !== undefined) {
+        avgScoreElement.textContent = stats.avg_score;
+    }
+    
+    // Update max score
+    const maxScoreElement = document.getElementById('statMaxScore');
+    if (maxScoreElement && stats.max_score !== undefined) {
+        maxScoreElement.textContent = stats.max_score;
+    }
+    
+    // Update min score
+    const minScoreElement = document.getElementById('statMinScore');
+    if (minScoreElement && stats.min_score !== undefined) {
+        minScoreElement.textContent = stats.min_score;
+    }
+    
+    // Update exam grading stats
+    const gradedAttemptsElement = document.getElementById('statGradedAttempts');
+    if (gradedAttemptsElement && stats.graded_attempts !== undefined) {
+        gradedAttemptsElement.textContent = stats.graded_attempts;
+    }
+    
+    const pendingAttemptsElement = document.getElementById('statPendingAttempts');
+    if (pendingAttemptsElement && stats.pending_attempts !== undefined) {
+        pendingAttemptsElement.textContent = stats.pending_attempts;
+    }
+    
+    const totalAttemptsElement = document.getElementById('statTotalAttempts');
+    if (totalAttemptsElement && stats.total_attempts !== undefined) {
+        totalAttemptsElement.textContent = stats.total_attempts;
+    }
+    
+    // Update question stats
+    const totalQuestionsElement = document.getElementById('statTotalQuestions');
+    if (totalQuestionsElement && stats.total_questions !== undefined) {
+        totalQuestionsElement.textContent = stats.total_questions;
+    }
+    
+    // Update exam status stats
+    if (stats.exam_status) {
+        const draftExamsElement = document.getElementById('statDraftExams');
+        if (draftExamsElement) {
+            draftExamsElement.textContent = stats.exam_status.draft || 0;
         }
-    });
+        
+        const upcomingExamsElement = document.getElementById('statUpcomingExams');
+        if (upcomingExamsElement) {
+            upcomingExamsElement.textContent = stats.exam_status.upcoming || 0;
+        }
+        
+        const activeExamsElement = document.getElementById('statActiveExams');
+        if (activeExamsElement) {
+            activeExamsElement.textContent = stats.exam_status.active || 0;
+        }
+        
+        const completedExamsElement = document.getElementById('statCompletedExams');
+        if (completedExamsElement) {
+            completedExamsElement.textContent = stats.exam_status.completed || 0;
+        }
+    }
+    
+    // Update student stats
+    const studentsWithExamsElement = document.getElementById('statStudentsWithExams');
+    if (studentsWithExamsElement && stats.students_with_exams !== undefined) {
+        studentsWithExamsElement.textContent = stats.students_with_exams;
+    }
+    
+    const studentsWithoutExamsElement = document.getElementById('statStudentsWithoutExams');
+    if (studentsWithoutExamsElement && stats.students_without_exams !== undefined) {
+        studentsWithoutExamsElement.textContent = stats.students_without_exams;
+    }
+}
+
+function updateStatistics() {
+    loadStatistics();
+}
+
+async function updateChartType() {
+    // Get current statistics data from appData or reload if needed
+    const token = localStorage.getItem('token');
+    const classId = document.getElementById('statsClass')?.value || 'all';
+    
+    try {
+        const url = classId === 'all' 
+            ? 'http://localhost:3000/api/teacher/statistics'
+            : `http://localhost:3000/api/teacher/statistics?classId=${classId}`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            const stats = await response.json();
+            updateChartWithData(stats);
+        }
+    } catch (err) {
+        console.error('❌ Lỗi khi cập nhật loại biểu đồ:', err);
+    }
 }
 
 // Notifications
@@ -2040,7 +2050,7 @@ async function importExamFromExcel(event) {
             ${selectExam.outerHTML}
             <button class="btn btn-primary" onclick="proceedWithImport(this, '${fileInput.id}')">Xác nhận</button>
         `;
-        fileInput.value = ''; // Reset input để có thể chọn lại file
+        fileInput.value = ''; 
         return;
     } else {
         // Trong section Tạo bài thi: Tạo bài thi mới trước khi import
@@ -2238,8 +2248,8 @@ async function loadCheatingLogs() {
         
         console.log('🔵 [Cheating] Loading logs... examId:', examId, 'eventType:', eventType);
         
-        // ✅ Build URL
-        let url = 'http://localhost:3000/api/teacher/cheating-logs';
+        // ✅ Build URL (explicit backend host to avoid same-origin HTML response)
+       let url = 'http://localhost:3000/api/teacher/cheating/cheating-logs';
         const params = new URLSearchParams();
         if (examId !== 'all') params.append('exam_id', examId);
         if (eventType !== 'all') params.append('event_type', eventType);
@@ -2251,7 +2261,8 @@ async function loadCheatingLogs() {
         const response = await fetch(url, {
             headers: { 
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             }
         });
         
@@ -2265,7 +2276,7 @@ async function loadCheatingLogs() {
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
             console.error('❌ [Cheating] Not JSON response:', text.substring(0, 200));
-            throw new Error('Server trả về HTML thay vì JSON. Kiểm tra route /api/teacher/cheating-logs');
+            throw new Error('Server trả về HTML thay vì JSON. Kiểm tra route /api/teacher/cheating');
         }
         
         if (!response.ok) {
@@ -2298,7 +2309,7 @@ async function loadCheatingLogs() {
                             <button class="btn btn-primary" onclick="loadCheatingLogs()">
                                 🔄 Thử lại
                             </button>
-                            <button class="btn btn-secondary" onclick="console.log('Debug info:', {url: 'http://localhost:3000/api/teacher/cheating-logs', token: localStorage.getItem('token')})">
+                            <button class="btn btn-secondary" onclick="console.log('Debug info:', {url: 'http://localhost:3000/api/teacher/cheating', token: localStorage.getItem('token')})">
                                 🔍 Debug
                             </button>
                         </div>
@@ -2446,8 +2457,11 @@ async function viewStudentCheatingDetail(studentId, examId, attemptId) {
     try {
         console.log('🔵 [Detail] Loading:', attemptId);
         
-        const response = await fetch(`http://localhost:3000/api/teacher/cheating-logs/${attemptId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+        const response = await fetch(`http://localhost:3000/api/teacher/cheating/cheating-logs/${attemptId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
         });
         
         if (!response.ok) {
@@ -2461,15 +2475,23 @@ async function viewStudentCheatingDetail(studentId, examId, attemptId) {
         const detailCard = document.getElementById('studentCheatingDetail');
         if (listCard) listCard.style.display = 'none';
         if (detailCard) detailCard.style.display = 'block';
-        // Update info
-        document.getElementById('studentCheatingName').textContent = data.student_name;
-        document.getElementById('studentCheatingScore').textContent = data.score !== null ? `${data.score} điểm` : 'Chưa chấm';
-        document.getElementById('detailExamName').textContent = data.exam_name;
-        document.getElementById('detailExamTime').textContent = new Date(data.start_time).toLocaleString('vi-VN');
-        document.getElementById('detailTotalViolations').textContent = data.logs.length;
+        // Update info (với kiểm tra null)
+        const nameEl = document.getElementById('studentCheatingName');
+        const scoreEl = document.getElementById('studentCheatingScore');
+        const examNameEl = document.getElementById('detailExamName');
+        const examTimeEl = document.getElementById('detailExamTime');
+        const violationsEl = document.getElementById('detailTotalViolations');
+        
+        if (nameEl) nameEl.textContent = data.student_name;
+        if (scoreEl) scoreEl.textContent = data.score !== null ? `${data.score} điểm` : 'Chưa chấm';
+        if (examNameEl) examNameEl.textContent = data.exam_name;
+        if (examTimeEl) examTimeEl.textContent = new Date(data.start_time).toLocaleString('vi-VN');
+        if (violationsEl) violationsEl.textContent = data.logs.length;
+        
         // Render timeline
         const timeline = document.getElementById('cheatingTimeline');
-        timeline.innerHTML = data.logs.sort((a, b) => new Date(b.event_time) - new Date(a.event_time)).map(log => {
+        if (timeline) {
+            timeline.innerHTML = data.logs.sort((a, b) => new Date(b.event_time) - new Date(a.event_time)).map(log => {
             const types = {
                 TabSwitch: { icon: '🚫', color: '#f56565', name: 'Chuyển tab' },
                 CopyPaste: { icon: '📋', color: '#ffa502', name: 'Copy/Paste' },
@@ -2491,6 +2513,7 @@ async function viewStudentCheatingDetail(studentId, examId, attemptId) {
                 </div>
             `;
         }).join('');
+        }
         
     } catch (error) {
         console.error('❌ [Detail] Error:', error);
@@ -2500,8 +2523,10 @@ async function viewStudentCheatingDetail(studentId, examId, attemptId) {
 
 // Back to list
 function backToCheatingList() {
-    document.getElementById('cheatingListCard').style.display = 'block';
-    document.getElementById('studentCheatingDetail').style.display = 'none';
+    const listCard = document.getElementById('cheatingListCard');
+    const detailCard = document.getElementById('studentCheatingDetail');
+    if (listCard) listCard.style.display = 'block';
+    if (detailCard) detailCard.style.display = 'none';
     cheatingData.currentStudentDetail = null;
 }
 
@@ -2523,7 +2548,7 @@ async function banStudent() {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch('http://localhost:3000/api/teacher/ban-student', {
+        const response = await fetch('/api/anti-cheating/ban-student', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -2577,86 +2602,179 @@ function exportCheatingReport() {
     showNotification('✅ Đã xuất báo cáo', 'success');
 }
 
-//  Hook vào navigateTo
-if (typeof window.originalNavigateTo === 'undefined') {
-    window.originalNavigateTo = navigateTo;
-    navigateTo = async function(section) {
-        window.originalNavigateTo(section);
+// ============================================
+// 🎯 UNIFIED NAVIGATION SYSTEM
+// ============================================
+
+// Wrap original navigateTo
+(function() {
+    const _originalNavigateTo = navigateTo;
+    
+    window.navigateTo = async function(section) {
+        console.log('🔵 [Navigation] Navigating to:', section);
         
-        if (section === 'anti-cheating') {
-            console.log('🔵 [Nav] Loading anti-cheating section');
-            await loadExamsForCheating();
-            await loadCheatingLogs();
-        }
+        // Gọi navigation gốc
+        _originalNavigateTo(section);
+        
+        // Load data SAU khi UI render
+        setTimeout(async () => {
+            switch(section) {
+                case 'questions':
+                    console.log('🔵 [Questions] Auto-loading...');
+                    questionBankCurrentPage = 0;
+                    await loadQuestionBankForSection();
+                    break;
+                    
+                case 'grading':
+                    await loadGradingSection();
+                    break;
+                    
+                case 'anti-cheating':
+                    await loadExamsForCheating();
+                    await loadCheatingLogs();
+                    break;
+                    
+                case 'exams':
+                    await renderAllExams();
+                    break;
+                    
+                case 'schedule':
+                    await loadExamSchedule(currentScheduleFilter || 'all');
+                    break;
+            }
+        }, 200);
     };
-}
+})();
+
 // 📝 LOAD DANH SÁCH BÀI THI CẦN CHẤM
 async function loadGradingSection() {
     const token = localStorage.getItem('token');
     const container = document.getElementById('grading');
     
+    console.log('🔵 [Grading] Container found:', !!container);
+    
+    if (!container) {
+        console.error('❌ [Grading] #grading element not found!');
+        return;
+    }
+    
+    const examListContainer = document.getElementById('gradingExamList');
+    
+    if (!examListContainer) {
+        console.error('❌ [Grading] #gradingExamList not found!');
+        return;
+    }
+    
+    // Show loading
+    examListContainer.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; color: #666;">
+            <div style="font-size: 4rem; margin-bottom: 20px; animation: spin 2s linear infinite;">⏳</div>
+            <div style="font-size: 1.1rem; font-weight: 500;">Đang tải danh sách bài cần chấm...</div>
+        </div>
+    `;
+    
     try {
-        console.log('🔵 Loading grading section...');
-        const response = await fetch('http://localhost:3000/api/teacher/grading/pending', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) {
-            throw new Error('Lỗi tải danh sách bài cần chấm');
-        }
-        const data = await response.json();
-        console.log('✅ Grading data:', data);
-        const totalPending = data.pendingEssays + data.pendingFillInBlank;
-        document.querySelector('#grading .stat-card:nth-child(1) .stat-number').textContent = totalPending;
-        document.querySelector('#grading .stat-card:nth-child(2) .stat-number').textContent = data.gradedCount;
-        document.querySelector('#grading .stat-card:nth-child(3) .stat-number').textContent = data.pendingEssays;
-        document.querySelector('#grading .stat-card:nth-child(4) .stat-number').textContent = data.pendingChoice;
-        const list = container.querySelector('.card:last-child');
+        console.log('🔵 [Grading] Fetching pending exams...');
         
-        if (data.attempts.length === 0) {
-            list.innerHTML = `
-                <h2 class="card-title" style="margin-bottom: 20px;">Danh sách bài cần chấm</h2>
+        const response = await fetch('http://localhost:3000/api/teacher/grading/pending', {
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('📡 [Grading] Response status:', response.status);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi tải danh sách');
+        }
+        
+        const data = await response.json();
+        console.log('✅ [Grading] Data loaded:', data);
+        console.log('✅ [Grading] Attempts:', data.attempts);
+        
+        // Update stats
+        const totalPending = (data.pendingEssays || 0) + (data.pendingFillInBlank || 0);
+        
+        const pendingEl = document.getElementById('gradingPendingCount');
+        const gradedEl = document.getElementById('gradingGradedCount');
+        const essayEl = document.getElementById('gradingEssayCount');
+        const fillEl = document.getElementById('gradingFillCount');
+        
+        if (pendingEl) pendingEl.textContent = totalPending;
+        if (gradedEl) gradedEl.textContent = data.gradedCount || 0;
+        if (essayEl) essayEl.textContent = data.pendingEssays || 0;
+        if (fillEl) fillEl.textContent = data.pendingFillInBlank || 0;
+        
+        console.log('✅ [Grading] Stats updated:', { 
+            totalPending, 
+            graded: data.gradedCount,
+            essays: data.pendingEssays,
+            fill: data.pendingFillInBlank
+        });
+        
+        // Render exam list
+        if (!data.attempts || data.attempts.length === 0) {
+            examListContainer.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">✅</div>
                     <div class="empty-state-text">Không có bài thi nào cần chấm</div>
                     <div class="empty-state-subtext">Tất cả bài thi đã được chấm điểm</div>
                 </div>
             `;
+            console.log('ℹ️ [Grading] No attempts to grade');
             return;
         }
         
-        list.innerHTML = `
-            <h2 class="card-title" style="margin-bottom: 20px;">Danh sách bài cần chấm</h2>
-            <div class="exam-list">
-                ${data.attempts.map(attempt => `
-                    <div class="exam-item">
-                        <div class="exam-header">
-                            <div>
-                                <div class="exam-title">${attempt.exam_name}</div>
-                                <div class="exam-meta">
-                                    <span>👤 ${attempt.student_name}</span>
-                                    <span>📅 ${new Date(attempt.end_time).toLocaleString('vi-VN')}</span>
-                                    <span>⏱️ ${attempt.duration} phút</span>
-                                    <span style="color: #ffa502; font-weight: 600;">
-                                        ⚠️ ${attempt.pending_questions} câu chưa chấm
-                                    </span>
-                                </div>
-                            </div>
-                            <span class="exam-status" style="background: #ffa502;">Chờ chấm</span>
-                        </div>
-                        <div class="exam-actions">
-                            <button class="btn btn-primary" onclick="startGrading(${attempt.attempt_id}, ${attempt.exam_id})">
-                                ✍️ Chấm bài
-                            </button>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
+        console.log('🔵 [Grading] Rendering', data.attempts.length, 'attempts...');
         
-        console.log('✅ Grading section loaded');
+        examListContainer.innerHTML = data.attempts.map(attempt => {
+            console.log('🔵 [Grading] Rendering attempt:', attempt);
+            
+            return `
+                <div class="exam-item" style="border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 15px; background: #f7fafc; transition: all 0.3s;">
+                    <div class="exam-header" style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                        <div style="flex: 1;">
+                            <div class="exam-title" style="font-size: 1.2rem; font-weight: 600; color: #2d3748; margin-bottom: 8px;">
+                                ${attempt.exam_name}
+                            </div>
+                            <div class="exam-meta" style="display: flex; flex-wrap: wrap; gap: 15px; color: #718096; font-size: 0.9rem;">
+                                <span>👤 ${attempt.student_name}</span>
+                                <span>📅 ${new Date(attempt.end_time).toLocaleString('vi-VN')}</span>
+                                <span>⏱️ ${attempt.duration} phút</span>
+                                <span style="color: #ffa502; font-weight: 600;">
+                                    ⚠️ ${attempt.pending_questions} câu chưa chấm
+                                </span>
+                            </div>
+                        </div>
+                        <span class="exam-status" style="background: #ffa502; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                            Chờ chấm
+                        </span>
+                    </div>
+                    <div class="exam-actions" style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="startGrading(${attempt.attempt_id}, ${attempt.exam_id})" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                            ✍️ Chấm bài
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        console.log('✅ [Grading] Section rendered successfully!');
         
     } catch (error) {
-        console.error('❌ Error loading grading section:', error);
+        console.error('❌ [Grading] Error:', error);
+        examListContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">❌</div>
+                <div class="empty-state-text">Lỗi tải danh sách bài cần chấm</div>
+                <div class="empty-state-subtext">${error.message}</div>
+                <button class="btn btn-primary" onclick="loadGradingSection()" style="margin-top: 15px;">
+                    🔄 Thử lại
+                </button>
+            </div>
+        `;
         showNotification('❌ ' + error.message, 'error');
     }
 }
@@ -2867,26 +2985,10 @@ function closeGradingModal() {
     }
 }
 
-// 🔄 HOOK VÀO NAVIGATION
-if (typeof window.originalNavigateToGrading === 'undefined') {
-    window.originalNavigateToGrading = navigateTo;
-    navigateTo = async function(section) {
-        window.originalNavigateToGrading(section);
-        
-        if (section === 'grading') {
-            console.log('🔵 Loading grading section');
-            await loadGradingSection();
-        }
-    };
-}
-// TẠO THỦ CÔNG & NGÂN HÀNG CÂU HỎI
-
-// State lưu câu hỏi đang tạo
 let manualExamQuestions = [];
 let questionBankData = [];
 let selectedQuestionsFromBank = new Set();
 
-//  XỬ LÝ CLICK "TẠO THỦ CÔNG"
 function showManualExamCreation() {
     const examsSection = document.getElementById('exams');
     const originalCards = examsSection.querySelector('.card');
@@ -3800,7 +3902,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const title = card.querySelector('h3');
                 if (title && title.textContent.includes('Tạo thủ công')) {
                     card.onclick = showManualExamCreation;
-                    console.log('✅ Đã gắn sự kiện cho nút Tạo thủ công');
                 }
             });
         }
@@ -3853,9 +3954,392 @@ function addQuestionBankButton() {
     } else {
         cardGrid.appendChild(newCard);
     }
-    
-    console.log('✅ Đã thêm nút Ngân hàng câu hỏi');
 }
+
+// 📚 LOAD NGÂN HÀNG CÂU HỎI CHO SECTION "NGÂN HÀNG CÂU HỎI"
+let questionBankCurrentPage = 0;
+let questionBankTotalPages = 0;
+const questionBankPageSize = 20;
+let questionBankFilters = {
+    search: '',
+    subject_id: 'all',
+    difficulty: 'all',
+    question_type: 'all'
+};
+
+async function loadQuestionBankForSection() {
+    console.log('🔵 [QuestionBank] Loading...');
+    
+    const questionList = document.getElementById('questionList');
+    if (!questionList) {
+        console.error('❌ [QuestionBank] #questionList not found!');
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    const searchInput = document.getElementById('questionSearchInput');
+    const subjectSelect = document.getElementById('questionSubjectSelect');
+    const difficultySelect = document.getElementById('questionDifficultySelect');
+    
+    // Lấy filters từ UI
+    if (searchInput) questionBankFilters.search = searchInput.value.trim();
+    if (subjectSelect) questionBankFilters.subject_id = subjectSelect.value;
+    if (difficultySelect) questionBankFilters.difficulty = difficultySelect.value;
+    
+    console.log('🔵 [QuestionBank] Filters:', questionBankFilters);
+    
+    questionList.innerHTML = '<div style="text-align: center; padding: 40px;"><p>⏳ Đang tải câu hỏi...</p></div>';
+    
+    try {
+        const params = new URLSearchParams({
+            limit: questionBankPageSize,
+            offset: questionBankCurrentPage * questionBankPageSize,
+            ...(questionBankFilters.search && { search: questionBankFilters.search }),
+            ...(questionBankFilters.subject_id !== 'all' && { subject_id: questionBankFilters.subject_id }),
+            ...(questionBankFilters.difficulty !== 'all' && { difficulty: questionBankFilters.difficulty }),
+            ...(questionBankFilters.question_type !== 'all' && { question_type: questionBankFilters.question_type })
+        });
+        
+        const url = `http://localhost:3000/api/teacher/exams/question-bank?${params}`;
+        console.log('📡 [QuestionBank] Fetching:', url);
+        
+        const res = await fetch(url, {
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('📡 [QuestionBank] Response status:', res.status);
+        
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.error('❌ [QuestionBank] Error response:', errorText);
+            throw new Error('Không thể tải danh sách câu hỏi (HTTP ' + res.status + ')');
+        }
+        
+        const data = await res.json();
+        console.log('✅ [QuestionBank] Data received:', data);
+        
+        // Xử lý cả 2 format: { questions: [], total: N } hoặc trực tiếp array
+        let questions = [];
+        let total = 0;
+        
+        if (Array.isArray(data)) {
+            questions = data;
+            total = data.length;
+        } else if (data.questions && Array.isArray(data.questions)) {
+            questions = data.questions;
+            total = data.total || data.questions.length;
+        } else {
+            console.error('❌ [QuestionBank] Unexpected data format:', data);
+            throw new Error('Dữ liệu trả về không đúng định dạng');
+        }
+        
+        console.log('✅ [QuestionBank] Questions:', questions.length, 'Total:', total);
+        
+        questionBankTotalPages = Math.ceil(total / questionBankPageSize);
+        
+        if (questions.length === 0) {
+            questionList.innerHTML = '<div style="text-align: center; padding: 40px;"><p>📭 Chưa có câu hỏi nào trong ngân hàng</p></div>';
+            return;
+        }
+        
+        // Hiển thị câu hỏi
+        questionList.innerHTML = questions.map(q => {
+            const difficultyColors = {
+                'Easy': '#48bb78',
+                'Medium': '#ed8936',
+                'Hard': '#f56565'
+            };
+            const difficultyLabels = {
+                'Easy': 'Dễ',
+                'Medium': 'Trung bình',
+                'Hard': 'Khó'
+            };
+            const typeLabels = {
+                'SingleChoice': 'Trắc nghiệm 1 đáp án',
+                'MultipleChoice': 'Trắc nghiệm nhiều đáp án',
+                'FillInBlank': 'Điền khẩu',
+                'Essay': 'Tự luận'
+            };
+            
+            return `
+                <div class="question-item" style="border: 2px solid #e2e8f0; border-radius: 10px; padding: 20px; margin-bottom: 15px; background: white;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <span style="background: #667eea; color: white; padding: 4px 10px; border-radius: 5px; font-size: 12px;">${q.subject_name || 'Chưa có môn'}</span>
+                            <span style="background: ${difficultyColors[q.difficulty] || '#667eea'}; color: white; padding: 4px 10px; border-radius: 5px; font-size: 12px;">
+                                ${difficultyLabels[q.difficulty] || q.difficulty}
+                            </span>
+                            <span style="background: #a0aec0; color: white; padding: 4px 10px; border-radius: 5px; font-size: 12px;">
+                                ${typeLabels[q.question_type] || q.question_type}
+                            </span>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 15px; color: #2d3748; font-size: 15px;">
+                        ${q.question_content || 'Chưa có nội dung'}
+                    </div>
+                    ${q.correct_answer_text ? `
+                        <div style="padding: 10px; background: #e6fffa; border-left: 3px solid #48bb78; border-radius: 5px; font-size: 13px;">
+                            <strong>✅ Đáp án:</strong> ${q.correct_answer_text}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+        
+        console.log('✅ [QuestionBank] Rendered', questions.length, 'questions');
+        
+        // Thêm pagination nếu cần...
+        
+    } catch (err) {
+        console.error('❌ [QuestionBank] Error:', err);
+        questionList.innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <p style="color: #f56565;">❌ ${err.message}</p>
+                <button class="btn btn-primary" onclick="loadQuestionBankForSection()">🔄 Thử lại</button>
+            </div>
+        `;
+    }
+}
+
+// Load câu hỏi khi vào section "Ngân hàng câu hỏi"
+const originalShowSection = window.showSection || function(sectionId) {
+    const sections = document.querySelectorAll('.content-section');
+    sections.forEach(s => s.classList.remove('active'));
+    const section = document.getElementById(sectionId);
+    if (section) section.classList.add('active');
+};
+
+window.showSection = function(sectionId) {
+    originalShowSection(sectionId);
+    if (sectionId === 'questions') {
+        questionBankCurrentPage = 0;
+        loadQuestionBankForSection();
+    }
+};
+
+// Thêm event listeners cho search và filters
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        const searchInput = document.getElementById('questionSearchInput');
+        const subjectSelect = document.getElementById('questionSubjectSelect');
+        const difficultySelect = document.getElementById('questionDifficultySelect');
+        
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    questionBankCurrentPage = 0;
+                    loadQuestionBankForSection();
+                }, 500); // Debounce 500ms
+            });
+        }
+        
+        if (subjectSelect) {
+            subjectSelect.addEventListener('change', function() {
+                questionBankCurrentPage = 0;
+                loadQuestionBankForSection();
+            });
+        }
+        
+        if (difficultySelect) {
+            difficultySelect.addEventListener('change', function() {
+                questionBankCurrentPage = 0;
+                loadQuestionBankForSection();
+            });
+        }
+    }, 1000);
+});
+
+// 📅 LOAD LỊCH THI
+let currentScheduleFilter = 'all';
+
+async function loadExamSchedule(filter = 'all') {
+    currentScheduleFilter = filter;
+    const examScheduleList = document.getElementById('examScheduleList');
+    const scheduleTitle = document.getElementById('scheduleTitle');
+    
+    if (!examScheduleList) return;
+    
+    const token = localStorage.getItem('token');
+    
+    // Update filter buttons
+    ['all', 'upcoming', 'active', 'completed'].forEach(f => {
+        const btn = document.getElementById(`scheduleFilter${f.charAt(0).toUpperCase() + f.slice(1)}`);
+        if (btn) {
+            btn.className = f === filter ? 'btn btn-small btn-primary' : 'btn btn-small btn-secondary';
+        }
+    });
+    
+    // Update title
+    const titles = {
+        'all': 'Tất cả lịch thi',
+        'upcoming': 'Lịch thi sắp tới',
+        'active': 'Đang diễn ra',
+        'completed': 'Đã kết thúc'
+    };
+    if (scheduleTitle) scheduleTitle.textContent = titles[filter] || 'Lịch thi';
+    
+    examScheduleList.innerHTML = '<div style="text-align: center; padding: 40px;"><p>⏳ Đang tải lịch thi...</p></div>';
+    
+    try {
+        const res = await fetch('http://localhost:3000/api/teacher/exams/all', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error('Không thể tải lịch thi');
+        
+        let exams = await res.json();
+        
+        // Filter theo status
+        if (filter !== 'all') {
+            exams = exams.filter(exam => exam.status === filter);
+        }
+        
+        // Sắp xếp: upcoming và active trước, completed sau
+        exams.sort((a, b) => {
+            if ((a.status === 'upcoming' || a.status === 'active') && b.status === 'completed') return -1;
+            if (a.status === 'completed' && (b.status === 'upcoming' || b.status === 'active')) return 1;
+            return new Date(b.start_time) - new Date(a.start_time);
+        });
+        
+        if (exams.length === 0) {
+            examScheduleList.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <p style="color: #718096;">📭 Chưa có bài thi nào ${filter === 'all' ? '' : `ở trạng thái ${titles[filter]}`}</p>
+                </div>
+            `;
+            return;
+        }
+        
+        examScheduleList.innerHTML = exams.map(exam => {
+            const startTime = new Date(exam.start_time);
+            const endTime = new Date(startTime.getTime() + (exam.duration || 0) * 60000);
+            const now = new Date();
+            
+            // Tính status
+            let status = exam.status;
+            let statusClass = 'status-upcoming';
+            let statusText = 'Sắp diễn ra';
+            
+            if (status === 'active' || (now >= startTime && now < endTime)) {
+                statusClass = 'status-active';
+                statusText = 'Đang diễn ra';
+            } else if (status === 'completed' || now >= endTime) {
+                statusClass = 'status-completed';
+                statusText = 'Đã kết thúc';
+            } else if (now < startTime) {
+                statusClass = 'status-upcoming';
+                statusText = 'Sắp diễn ra';
+            }
+            
+            // Format thời gian
+            const dateStr = startTime.toLocaleDateString('vi-VN', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric' 
+            });
+            const timeStr = startTime.toLocaleTimeString('vi-VN', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            // Tính thời gian còn lại hoặc đã qua
+            let timeInfo = '';
+            if (now < startTime) {
+                const diff = startTime - now;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                if (hours > 24) {
+                    const days = Math.floor(hours / 24);
+                    timeInfo = `<span style="color: #667eea;">Còn ${days} ngày</span>`;
+                } else if (hours > 0) {
+                    timeInfo = `<span style="color: #667eea;">Còn ${hours} giờ ${minutes} phút</span>`;
+                } else {
+                    timeInfo = `<span style="color: #667eea;">Còn ${minutes} phút</span>`;
+                }
+            } else if (now >= startTime && now < endTime) {
+                const diff = endTime - now;
+                const minutes = Math.floor(diff / (1000 * 60));
+                timeInfo = `<span style="color: #48bb78; font-weight: 600;">Còn ${minutes} phút</span>`;
+            }
+            
+            return `
+                <div class="exam-item">
+                    <div class="exam-header">
+                        <div style="flex: 1;">
+                            <div class="exam-title">${exam.title || exam.exam_name || 'Bài thi'}</div>
+                            <div class="exam-meta">
+                                <span>🏫 ${exam.class_name || 'Chưa có lớp'}</span>
+                                <span>📅 ${dateStr}</span>
+                                <span>⏰ ${timeStr}</span>
+                                <span>⏱️ ${exam.duration || 0} phút</span>
+                                ${exam.submissions ? `<span>📝 ${exam.submissions} lượt thi</span>` : ''}
+                            </div>
+                            ${timeInfo ? `<div style="margin-top: 8px; font-size: 13px;">${timeInfo}</div>` : ''}
+                            ${exam.description ? `<div style="margin-top: 8px; color: #718096; font-size: 13px;">${exam.description}</div>` : ''}
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-end;">
+                            <span class="exam-status ${statusClass}">${statusText}</span>
+                            <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.exam_id})">📋 Chi tiết</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (err) {
+        console.error('❌ Error loading exam schedule:', err);
+        examScheduleList.innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <p style="color: #f56565;">❌ Lỗi khi tải lịch thi</p>
+                <button class="btn btn-primary" onclick="loadExamSchedule('${filter}')">🔄 Thử lại</button>
+            </div>
+        `;
+    }
+}
+
+
+function closeExamDetailModal() {
+    const modal = document.getElementById('examDetailModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function viewExamQuestions(examId) {
+    closeExamDetailModal();
+    if (window.showSection) {
+        showSection('exams');
+    }
+    showNotification('Tính năng xem câu hỏi đang được phát triển', 'info');
+}
+
+function viewExamGrades(examId) {
+    closeExamDetailModal();
+    if (window.showSection) {
+        showSection('exams');
+    }
+    showNotification('Tính năng xem điểm đang được phát triển', 'info');
+}
+
+// Đóng modal khi click outside
+document.addEventListener('click', function(event) {
+    const examDetailModal = document.getElementById('examDetailModal');
+    if (event.target === examDetailModal) {
+        closeExamDetailModal();
+    }
+});
+
+// Load lịch thi khi vào section
+const originalShowSectionSchedule = window.showSection;
+window.showSection = function(sectionId) {
+    if (originalShowSectionSchedule) originalShowSectionSchedule(sectionId);
+    if (sectionId === 'schedule') {
+        loadExamSchedule(currentScheduleFilter || 'all');
+    }
+};
 
 // Responsive
 window.addEventListener('resize', function() {
@@ -3863,3 +4347,41 @@ window.addEventListener('resize', function() {
         document.getElementById('sidebar').classList.remove('open');
     }
 });
+
+// Load theme từ localStorage khi trang load
+(function() {
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    if (currentTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        updateThemeIcon(true);
+    }
+})();
+
+// Setup event listener sau khi DOM loaded
+document.addEventListener('DOMContentLoaded', function() {
+    const themeToggle = document.getElementById('themeToggle');
+    
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            
+            // Lưu vào localStorage
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            
+            // Cập nhật icon
+            updateThemeIcon(isDark);
+            
+            // Hiển thị thông báo (không dùng emoji để tránh bị filter)
+            const message = isDark ? 'Đã chuyển sang chế độ tối' : 'Đã chuyển sang chế độ sáng';
+            showNotification(message, 'info');
+        });
+    }
+});
+
+function updateThemeIcon(isDark) {
+    const icon = document.querySelector('.theme-icon');
+    if (icon) {
+        icon.textContent = isDark ? '☀️' : '🌙';
+    }
+}

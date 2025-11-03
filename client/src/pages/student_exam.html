@@ -891,7 +891,9 @@
         if (response.ok) {
             console.log('✅ Nộp bài thành công:', result);
             localStorage.removeItem('current_exam');
-            showSubmitModal(result.score, examData.total_points || 100, result.message);
+            // Kiểm tra nếu có câu tự luận chưa chấm
+            const hasPendingGrading = (result.has_essay_questions && !result.is_fully_graded) || !result.is_fully_graded;
+            showSubmitModal(result.score, examData.total_points || 100, result.message, hasPendingGrading);
         } else {
             console.error('❌ Lỗi từ server:', result);
             throw new Error(result.error || 'Lỗi khi nộp bài');
@@ -902,13 +904,30 @@
     }
 }
 
-    function showSubmitModal(score, totalPoints, message) {
+    function showSubmitModal(score, totalPoints, message, hasPendingGrading = false) {
         const modal = document.getElementById('submitModal');
         const modalScore = document.getElementById('modalScore');
         const modalMessage = document.getElementById('modalMessage');
 
-        modalScore.textContent = `${score}/${totalPoints}`;
-        modalMessage.textContent = message;
+        // Nếu có câu tự luận chưa chấm, không hiển thị điểm
+        if (hasPendingGrading) {
+            modalScore.innerHTML = `
+                <div style="font-size: 24px; font-weight: 600; color: #667eea;">
+                    ✅ Đã hoàn thành bài thi
+                </div>
+            `;
+            modalMessage.textContent = message || 'Bài thi của bạn đang chờ giáo viên chấm điểm. Điểm số sẽ được cập nhật sau khi giáo viên hoàn tất chấm bài.';
+        } else {
+            // Format điểm: loại bỏ .0 khi không cần
+            const scoreNum = parseFloat(score || 0);
+            const totalNum = parseFloat(totalPoints || 0);
+            const displayScore = scoreNum % 1 === 0 ? scoreNum.toString() : scoreNum.toFixed(1);
+            const displayTotal = totalNum % 1 === 0 ? totalNum.toString() : totalNum.toFixed(1);
+            
+            modalScore.textContent = `${displayScore}/${displayTotal}`;
+            modalMessage.textContent = message || 'Nộp bài thành công!';
+        }
+        
         modal.style.display = 'flex';
 
         modal.dataset.examId = examData.exam_id;
