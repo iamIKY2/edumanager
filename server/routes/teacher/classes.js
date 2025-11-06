@@ -70,6 +70,158 @@ router.post('/', authMiddleware, roleMiddleware(['teacher']), async (req, res) =
   }
 });
 
+// ============================================
+// 📋 LẤY HOẠT ĐỘNG GẦN ĐÂY (PHẢI ĐẶT TRƯỚC /:classId)
+// ============================================
+router.get('/recent-activities', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
+  const teacherId = req.user.id || req.user.user_id;
+
+  try {
+    const activities = [];
+
+    // 1. Bài thi mới được nộp (trong 24 giờ qua)
+    const [recentSubmissions] = await req.db.query(
+      `SELECT 
+        e.exam_id,
+        e.exam_name,
+        c.class_id,
+        c.class_name,
+        COUNT(ea.attempt_id) as submission_count,
+        MAX(ea.end_time) as latest_submission_time
+       FROM exam_attempts ea
+       JOIN exams e ON ea.exam_id = e.exam_id
+       LEFT JOIN classes c ON e.class_id = c.class_id
+       WHERE e.teacher_id = ?
+         AND ea.status IN ('Submitted', 'AutoSubmitted')
+         AND ea.end_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+       GROUP BY e.exam_id, e.exam_name, c.class_id, c.class_name
+       ORDER BY latest_submission_time DESC
+       LIMIT 5`,
+      [teacherId]
+    );
+
+    for (const submission of recentSubmissions) {
+      const timeAgo = getTimeAgo(submission.latest_submission_time);
+      activities.push({
+        type: 'exam_submitted',
+        icon: '📝',
+        title: `Có ${submission.submission_count} bài thi mới được nộp`,
+        content: `${submission.class_name || 'Chưa có lớp'} - ${submission.exam_name}`,
+        time: timeAgo,
+        timestamp: submission.latest_submission_time,
+        exam_id: submission.exam_id,
+        class_id: submission.class_id
+      });
+    }
+
+    // 2. Học sinh mới tham gia lớp (trong 7 ngày qua)
+    const [newStudents] = await req.db.query(
+      `SELECT 
+        c.class_id,
+        c.class_name,
+        COUNT(cs.student_id) as student_count,
+        MAX(cs.joined_at) as latest_join_time
+       FROM class_students cs
+       JOIN classes c ON cs.class_id = c.class_id
+       WHERE c.teacher_id = ?
+         AND cs.joined_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+       GROUP BY c.class_id, c.class_name
+       ORDER BY latest_join_time DESC
+       LIMIT 5`,
+      [teacherId]
+    );
+
+    for (const student of newStudents) {
+      const timeAgo = getTimeAgo(student.latest_join_time);
+      activities.push({
+        type: 'student_joined',
+        icon: '👥',
+        title: `${student.student_count} học sinh mới tham gia lớp`,
+        content: student.class_name,
+        time: timeAgo,
+        timestamp: student.latest_join_time,
+        class_id: student.class_id
+      });
+    }
+
+    // 3. Bài thi mới được tạo (trong 7 ngày qua)
+    const [newExams] = await req.db.query(
+      `SELECT 
+        e.exam_id,
+        e.exam_name,
+        c.class_id,
+        c.class_name,
+        e.created_at
+       FROM exams e
+       LEFT JOIN classes c ON e.class_id = c.class_id
+       WHERE e.teacher_id = ?
+         AND e.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+         AND e.status != 'deleted'
+       ORDER BY e.created_at DESC
+       LIMIT 5`,
+      [teacherId]
+    );
+
+    for (const exam of newExams) {
+      const timeAgo = getTimeAgo(exam.created_at);
+      activities.push({
+        type: 'exam_created',
+        icon: '✨',
+        title: 'Bài thi mới được tạo',
+        content: `${exam.class_name || 'Chưa có lớp'} - ${exam.exam_name}`,
+        time: timeAgo,
+        timestamp: exam.created_at,
+        exam_id: exam.exam_id,
+        class_id: exam.class_id
+      });
+    }
+
+    // Sắp xếp theo thời gian mới nhất
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // Giới hạn 10 hoạt động gần nhất
+    res.json(activities.slice(0, 10));
+
+  } catch (err) {
+    console.error('❌ Error getting recent activities:', err);
+    res.status(500).json({ error: 'Lỗi khi lấy hoạt động gần đây', details: err.message });
+  }
+});
+
+// Hàm helper để tính thời gian đã trôi qua
+function getTimeAgo(dateTime) {
+  const now = new Date();
+  const past = new Date(dateTime);
+  const diffInSeconds = Math.floor((now - past) / 1000);
+
+  if (diffInSeconds < 60) {
+    return 'Vừa xong';
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} phút trước`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} giờ trước`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays} ngày trước`;
+  }
+
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks} tuần trước`;
+  }
+
+  const diffInMonths = Math.floor(diffInDays / 30);
+  return `${diffInMonths} tháng trước`;
+}
+
 // Lấy danh sách lớp học của giáo viên
 router.get('/', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
   const teacherId = req.user.id || req.user.user_id;
@@ -128,10 +280,13 @@ router.post('/:classId/exams', authMiddleware, roleMiddleware(['teacher']), asyn
       startTime = `${examDate} ${hours}:${minutes}:00`;
     }
 
+    // Tạo mã code 6 số cho bài thi
+    const examCode = Math.floor(100000 + Math.random() * 900000).toString();
+
     const [result] = await req.db.query(
-      `INSERT INTO exams (exam_name, class_id, subject_id, teacher_id, start_time, duration, description, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'upcoming')`,
-      [examName, classId, classResult[0].subject_id, teacherId, startTime, duration, description || '']
+      `INSERT INTO exams (exam_name, class_id, subject_id, teacher_id, start_time, duration, description, password, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'upcoming')`,
+      [examName, classId, classResult[0].subject_id, teacherId, startTime, duration, description || '', examCode]
     );
 
     await createNotification(
@@ -152,7 +307,8 @@ router.post('/:classId/exams', authMiddleware, roleMiddleware(['teacher']), asyn
         title: examName,
         exam_date: startTime,
         duration,
-        description
+        description,
+        exam_code: examCode
       }
     });
   } catch (err) {

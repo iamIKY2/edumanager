@@ -101,20 +101,9 @@
                     <div class="card-header">
                         <h2 class="card-title">Hoạt động gần đây</h2>
                     </div>
-                    <div class="notification-list">
-                        <div class="notification-item">
-                            <div class="notification-header">
-                                <span class="notification-title">📝 Có 5 bài thi mới được nộp</span>
-                                <span class="notification-time">2 giờ trước</span>
-                            </div>
-                            <div class="notification-content">Lớp Toán 10A1 - Kiểm tra giữa kỳ</div>
-                        </div>
-                        <div class="notification-item">
-                            <div class="notification-header">
-                                <span class="notification-title">👥 3 học sinh mới tham gia lớp</span>
-                                <span class="notification-time">5 giờ trước</span>
-                            </div>
-                            <div class="notification-content">Lớp Văn 11A1</div>
+                    <div class="notification-list" id="recentActivitiesList">
+                        <div style="text-align: center; padding: 40px; color: #718096;">
+                            <p>⏳ Đang tải hoạt động...</p>
                         </div>
                     </div>
                 </div>
@@ -217,15 +206,50 @@
                                             <button class="btn btn-secondary" onclick="showEditExam()">✏️ Chỉnh sửa</button>
                                         </div>
                                     </div>
-                                    <div id="examDetailContent">
-                                        <div class="exam-meta" style="margin-bottom: 20px;">
-                                            <p><strong>Lớp:</strong> <span id="examDetailClass"></span></p>
-                                            <p><strong>Ngày thi:</strong> <span id="examDetailDate"></span></p>
-                                            <p><strong>Thời lượng:</strong> <span id="examDetailDuration"></span> phút</p>
-                                            <p><strong>Mô tả:</strong> <span id="examDetailDescription"></span></p>
-                                            <p><strong>Trạng thái:</strong> <span id="examDetailStatus"></span></p>
+                                    <div id="examDetailContentClass" style="padding: 20px;">
+                                        <!-- Thông tin cơ bản -->
+                                        <div style="background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                                                <div>
+                                                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">🏫 Lớp học</p>
+                                                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;" id="examDetailClass">-</p>
+                                                </div>
+                                                <div>
+                                                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">📅 Ngày thi</p>
+                                                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;" id="examDetailDate">-</p>
+                                                </div>
+                                                <div>
+                                                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">⏱️ Thời lượng</p>
+                                                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;" id="examDetailDuration">-</p>
+                                                </div>
+                                                <div>
+                                                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">🔐 Mã code</p>
+                                                    <p style="font-size: 1.1rem; font-weight: 600; color: #667eea; font-family: 'Courier New', monospace; letter-spacing: 2px;" id="examDetailCode">-</p>
+                                                </div>
+                                                <div>
+                                                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">📊 Trạng thái</p>
+                                                    <p style="font-size: 1.1rem; font-weight: 600;" id="examDetailStatus">-</p>
+                                                </div>
+                                                <div>
+                                                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">📝 Số câu hỏi</p>
+                                                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;" id="examDetailQuestionCount">-</p>
+                                                </div>
+                                                <div>
+                                                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">⭐ Tổng điểm</p>
+                                                    <p style="font-size: 1.1rem; font-weight: 600; color: #48bb78;" id="examDetailTotalPoints">-</p>
+                                                </div>
+                                                <div>
+                                                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">👥 Số bài nộp</p>
+                                                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;" id="examDetailSubmissions">-</p>
+                                                </div>
+                                            </div>
+                                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                                                <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">📄 Mô tả</p>
+                                                <p style="font-size: 1rem; color: #2d3748;" id="examDetailDescription">-</p>
+                                            </div>
                                         </div>
-                                        <h3 style="color: #2d3748; margin-bottom: 15px;">Danh sách câu hỏi</h3>
+                                        
+                                        <h3 style="color: #2d3748; margin-bottom: 15px; font-size: 1.3rem;">📋 Danh sách câu hỏi</h3>
                                         <div id="examDetailQuestions" class="question-list"></div>
                                     </div>
                                 </div>
@@ -902,14 +926,41 @@
 
     <!-- Modal chi tiết bài thi -->
     <div id="examDetailModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
             <div class="modal-header">
                 <h3 id="examDetailModalTitle">📋 Chi tiết bài thi</h3>
                 <span class="close" onclick="closeExamDetailModal()">&times;</span>
             </div>
-            <div id="examDetailContent" style="padding: 20px;">
+            <div id="examDetailModalContent" style="padding: 25px;">
                 <div style="text-align: center; padding: 40px;">
                     <p>⏳ Đang tải thông tin...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal hiển thị mã code bài thi -->
+    <div id="examCodeModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>🔐 Mã code bài thi</h3>
+                <span class="close" onclick="closeExamCodeModal()">&times;</span>
+            </div>
+            <div style="padding: 30px; text-align: center;">
+                <p style="margin-bottom: 20px; color: #666; font-size: 14px;">Bài thi đã được tạo thành công! Vui lòng cung cấp mã code này cho học sinh để họ có thể làm bài thi.</p>
+                
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 15px; margin-bottom: 20px;">
+                    <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin-bottom: 10px; font-weight: 500;">Mã code bài thi:</p>
+                    <div id="examCodeDisplay" style="font-size: 36px; font-weight: bold; color: white; letter-spacing: 8px; font-family: 'Courier New', monospace; margin: 10px 0;">000000</div>
+                    <p id="examCodeName" style="color: rgba(255,255,255,0.9); font-size: 16px; margin-top: 10px; font-weight: 500;"></p>
+                </div>
+                
+                <button id="copyCodeBtn" class="btn btn-primary" style="width: 100%; padding: 15px; font-size: 16px; font-weight: 600;" onclick="copyExamCode()">
+                    📋 Copy mã code
+                </button>
+                
+                <div id="copySuccessMsg" style="margin-top: 15px; color: #48bb78; font-weight: 600; display: none;">
+                    ✅ Đã copy mã code vào clipboard!
                 </div>
             </div>
         </div>

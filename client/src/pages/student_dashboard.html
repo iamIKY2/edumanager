@@ -341,6 +341,22 @@
         </div>
     </div>
 
+    <!-- Exam Code Modal -->
+    <div class="modal" id="examCodeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔐 Nhập mã code bài thi</h3>
+                <span class="close" onclick="closeModal('examCodeModal')">&times;</span>
+            </div>
+            <div>
+                <p style="margin-bottom: 15px; color: #666;">Vui lòng nhập mã code 6 số mà giáo viên đã cung cấp để bắt đầu làm bài thi.</p>
+                <input type="text" class="input-field" id="examCodeInput" placeholder="Nhập mã code (6 số)" maxlength="6" pattern="[0-9]{6}" style="text-align: center; font-size: 24px; letter-spacing: 5px; font-weight: bold;">
+                <div id="examCodeError" style="color: #ff4757; margin-top: 10px; display: none;"></div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="submitExamCode()">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Socket.IO connection
         let socket;
@@ -400,6 +416,7 @@
             loadTestHistory();  
             loadStatistics();
             loadNotifications(); // Load thông báo khi trang load
+            initExamCodeInput(); // Khởi tạo input mã code
         });
         
         // Đảm bảo user_id được lưu khi fetchUserData
@@ -1315,6 +1332,9 @@ async function loadTestHistory() {
 // ============================================
 // 🚀 BẮT ĐẦU LÀM BÀI THI - ĐÃ SỬA
 // ============================================
+// Lưu examId tạm thời để sử dụng khi submit code
+let pendingExamId = null;
+
 async function startTest(examId) {
     const token = localStorage.getItem('token');
     
@@ -1354,21 +1374,69 @@ async function startTest(examId) {
             return;
         }
         
-        showToast('🚀 Đang tải bài kiểm tra...', 'info');
+        // Lưu examId và hiển thị modal nhập code
+        pendingExamId = examId;
+        document.getElementById('examCodeInput').value = '';
+        document.getElementById('examCodeError').style.display = 'none';
+        document.getElementById('examCodeError').textContent = '';
+        openModal('examCodeModal');
         
-        const response = await fetch(`http://127.0.0.1:3000/api/student/exams/${examId}/start`, {
+        // Focus vào input và enter để submit
+        setTimeout(() => {
+            document.getElementById('examCodeInput').focus();
+        }, 100);
+        
+    } catch (error) {
+        showToast(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Hàm submit mã code
+async function submitExamCode() {
+    const examCode = document.getElementById('examCodeInput').value.trim();
+    const errorDiv = document.getElementById('examCodeError');
+    
+    // Validate
+    if (!examCode || examCode.length !== 6 || !/^\d{6}$/.test(examCode)) {
+        errorDiv.textContent = '⚠️ Mã code phải là 6 chữ số!';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    if (!pendingExamId) {
+        showToast('❌ Lỗi: Không tìm thấy thông tin bài thi!', 'error');
+        closeModal('examCodeModal');
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    errorDiv.style.display = 'none';
+    
+    try {
+        showToast('🚀 Đang kiểm tra mã code...', 'info');
+        
+        const response = await fetch(`http://127.0.0.1:3000/api/student/exams/${pendingExamId}/start`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ exam_code: examCode })
         });
         
         const data = await response.json();
         
         if (!response.ok) {
+            // Kiểm tra nếu cần mã code
+            if (data.requires_code) {
+                errorDiv.textContent = '❌ ' + data.error;
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
             // ⭐ XỬ LÝ LỖI ĐÃ LÀM BÀI
             if (data.redirect === 'test-history') {
+                closeModal('examCodeModal');
                 showToast('❌ ' + data.error, 'error');
                 setTimeout(() => {
                     showSection('test-history');
@@ -1378,8 +1446,12 @@ async function startTest(examId) {
             throw new Error(data.error || 'Không thể bắt đầu làm bài');
         }
         
+        // Đóng modal và chuyển đến trang làm bài
+        closeModal('examCodeModal');
+        showToast('✅ Mã code đúng! Đang chuyển đến bài thi...', 'success');
+        
         localStorage.setItem('current_exam', JSON.stringify({
-            exam_id: examId,
+            exam_id: pendingExamId,
             attempt_id: data.attempt_id,
             exam_name: data.exam.exam_name,
             duration: data.exam.duration,
@@ -1387,9 +1459,35 @@ async function startTest(examId) {
             questions: data.questions
         }));
         
-        window.location.href = `./student_exam.html?exam_id=${examId}&attempt_id=${data.attempt_id}`;
+        setTimeout(() => {
+            window.location.href = `./student_exam.html?exam_id=${pendingExamId}&attempt_id=${data.attempt_id}`;
+        }, 500);
+        
+        pendingExamId = null;
+        
     } catch (error) {
-        showToast(`❌ ${error.message}`, 'error');
+        errorDiv.textContent = '❌ ' + error.message;
+        errorDiv.style.display = 'block';
+    }
+}
+
+// Cho phép nhấn Enter để submit (sẽ được gọi từ DOMContentLoaded)
+function initExamCodeInput() {
+    const examCodeInput = document.getElementById('examCodeInput');
+    if (examCodeInput) {
+        examCodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitExamCode();
+            }
+        });
+        
+        // Chỉ cho phép nhập số
+        examCodeInput.addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length > 6) {
+                this.value = this.value.substring(0, 6);
+            }
+        });
     }
 }
 // ============================================

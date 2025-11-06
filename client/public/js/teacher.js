@@ -135,6 +135,18 @@ async function handleAddExam(event) {
         const result = await response.json();
         console.log('✅ Exam created:', result);
         
+        // Hiển thị mã code bài thi cho giáo viên
+        const examCode = result.exam?.exam_code || result.exam_code;
+        if (examCode) {
+            showNotification('✅ Tạo bài thi thành công!', 'success');
+            // Hiển thị modal mã code
+            setTimeout(() => {
+                showExamCodeModal(examCode, result.exam?.title || result.exam?.exam_name || formData.get('examName'));
+            }, 500);
+        } else {
+            showNotification('✅ Tạo bài thi thành công!', 'success');
+        }
+        
         // Fetch lại exams từ server
         const examsResponse = await fetch(`http://localhost:3000/api/classes/${appData.currentClassId}/exams`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -163,7 +175,6 @@ async function handleAddExam(event) {
         document.querySelector('.tab[data-tab="exams"]').classList.add('active');
         document.getElementById('exams-tab').classList.add('active');
         
-        showNotification('✅ Thêm bài thi thành công!');
         event.target.reset();
     } catch (error) {
         console.error('❌ Error:', error);
@@ -537,9 +548,66 @@ async function renderDashboard() {
         `).join('');
 
         updateDashboardStats();
+        loadRecentActivities(); // Load hoạt động gần đây
     } catch (error) {
         console.error('Lỗi trong renderDashboard:', error);
         showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Hàm load hoạt động gần đây
+async function loadRecentActivities() {
+    const token = localStorage.getItem('token');
+    const activitiesList = document.getElementById('recentActivitiesList');
+    
+    if (!activitiesList) return;
+    
+    try {
+        const response = await fetch('http://localhost:3000/api/teacher/classes/recent-activities', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Lỗi tải hoạt động gần đây');
+        }
+        
+        const activities = await response.json();
+        
+        if (activities.length === 0) {
+            activitiesList.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #718096;">
+                    <p>📭 Chưa có hoạt động nào gần đây</p>
+                </div>
+            `;
+            return;
+        }
+        
+        activitiesList.innerHTML = activities.map(activity => {
+            const clickHandler = activity.exam_id 
+                ? `onclick="viewExamDetail(${activity.exam_id})"` 
+                : activity.class_id 
+                    ? `onclick="viewClass(${activity.class_id})"` 
+                    : '';
+            
+            return `
+                <div class="notification-item" style="cursor: ${clickHandler ? 'pointer' : 'default'};" ${clickHandler}>
+                    <div class="notification-header">
+                        <span class="notification-title">${activity.icon} ${activity.title}</span>
+                        <span class="notification-time">${activity.time}</span>
+                    </div>
+                    <div class="notification-content">${activity.content}</div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('❌ Lỗi khi tải hoạt động gần đây:', error);
+        activitiesList.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #f56565;">
+                <p>❌ Không thể tải hoạt động gần đây</p>
+                <button class="btn btn-primary" onclick="loadRecentActivities()" style="margin-top: 10px;">🔄 Thử lại</button>
+            </div>
+        `;
     }
 }
 
@@ -3419,6 +3487,16 @@ async function saveManualExam() {
         const examData = await examRes.json();
         console.log('✅ [Manual] Exam created:', examData);
         
+        // Hiển thị mã code bài thi
+        const examCode = examData.exam?.exam_code || examData.exam_code;
+        if (examCode) {
+            showNotification('✅ Tạo bài thi thành công!', 'success');
+            // Hiển thị modal mã code
+            setTimeout(() => {
+                showExamCodeModal(examCode, examData.exam?.title || examData.exam?.exam_name || name);
+            }, 500);
+        }
+        
         //  Lấy exam_id
         const examId = examData.exam?.exam_id || examData.exam_id;
         
@@ -3811,8 +3889,19 @@ async function createExamFromQuestionBank() {
         
         if (!examRes.ok) throw new Error('Lỗi tạo bài thi');
         
-        const { exam } = await examRes.json();
+        const examData = await examRes.json();
+        const { exam } = examData;
         const examId = exam.exam_id;
+        
+        // Hiển thị mã code bài thi
+        const examCode = exam.exam_code || examData.exam_code;
+        if (examCode) {
+            showNotification('✅ Tạo bài thi thành công!', 'success');
+            // Hiển thị modal mã code
+            setTimeout(() => {
+                showExamCodeModal(examCode, examName);
+            }, 500);
+        }
         for (const qId of selectedQuestionsFromBank) {
             await fetch(`http://localhost:3000/api/teacher/exams/${examId}/questions`, {
                 method: 'POST',
@@ -4308,6 +4397,269 @@ function closeExamDetailModal() {
     if (modal) modal.style.display = 'none';
 }
 
+// Hàm hiển thị chi tiết bài thi
+async function viewExamDetail(examId, context = 'class') {
+    const token = localStorage.getItem('token');
+    
+    try {
+        // Fetch chi tiết bài thi
+        const response = await fetch(`http://localhost:3000/api/teacher/exams/${examId}/detail`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Lỗi tải chi tiết bài thi');
+        }
+        
+        const exam = await response.json();
+        
+        // Xử lý theo context
+        if (context === 'exams') {
+            // Hiển thị trong modal
+            showExamDetailModal(exam);
+        } else {
+            // Hiển thị trong phần class detail
+            showExamDetailInClass(exam);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading exam detail:', error);
+        showNotification('❌ ' + error.message, 'error');
+    }
+}
+
+// Hiển thị chi tiết bài thi trong modal (từ section exams)
+function showExamDetailModal(exam) {
+    const modal = document.getElementById('examDetailModal');
+    const modalContent = document.getElementById('examDetailModalContent');
+    const modalTitle = document.getElementById('examDetailModalTitle');
+    
+    if (!modal || !modalContent) return;
+    
+    modalTitle.textContent = `📋 ${exam.exam_name}`;
+    
+    const statusText = {
+        'draft': '📝 Nháp',
+        'upcoming': '⏰ Sắp diễn ra',
+        'active': '🟢 Đang diễn ra',
+        'completed': '✅ Đã kết thúc',
+        'deleted': '🗑️ Đã xóa'
+    };
+    
+    const statusClass = {
+        'draft': 'status-draft',
+        'upcoming': 'status-upcoming',
+        'active': 'status-active',
+        'completed': 'status-completed'
+    };
+    
+    const startTime = new Date(exam.start_time);
+    const dateStr = startTime.toLocaleDateString('vi-VN');
+    const timeStr = startTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    
+    modalContent.innerHTML = `
+        <!-- Thông tin cơ bản -->
+        <div style="background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <div>
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">🏫 Lớp học</p>
+                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;">${exam.class_name || 'Chưa có lớp'}</p>
+                </div>
+                <div>
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">📅 Ngày thi</p>
+                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;">${dateStr} ${timeStr}</p>
+                </div>
+                <div>
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">⏱️ Thời lượng</p>
+                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;">${exam.duration} phút</p>
+                </div>
+                <div>
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">🔐 Mã code</p>
+                    <p style="font-size: 1.1rem; font-weight: 600; color: #667eea; font-family: 'Courier New', monospace; letter-spacing: 2px;">${exam.password || 'Chưa có'}</p>
+                </div>
+                <div>
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">📊 Trạng thái</p>
+                    <span class="exam-status ${statusClass[exam.current_status] || 'status-draft'}" style="padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                        ${statusText[exam.current_status] || exam.current_status}
+                    </span>
+                </div>
+                <div>
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">📝 Số câu hỏi</p>
+                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;">${exam.total_questions || 0} câu</p>
+                </div>
+                <div>
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">⭐ Tổng điểm</p>
+                    <p style="font-size: 1.1rem; font-weight: 600; color: #48bb78;">${parseFloat(exam.total_points || 0).toFixed(1)} điểm</p>
+                </div>
+                <div>
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">👥 Số bài nộp</p>
+                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748;">${exam.total_attempts || 0} bài</p>
+                </div>
+            </div>
+            ${exam.description ? `
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">📄 Mô tả</p>
+                    <p style="font-size: 1rem; color: #2d3748;">${exam.description}</p>
+                </div>
+            ` : ''}
+        </div>
+        
+        <h3 style="color: #2d3748; margin-bottom: 15px; font-size: 1.3rem;">📋 Danh sách câu hỏi</h3>
+        <div id="examDetailModalQuestions" class="question-list"></div>
+    `;
+    
+    // Render danh sách câu hỏi
+    if (exam.questions && exam.questions.length > 0) {
+        renderQuestionsList(document.getElementById('examDetailModalQuestions'), exam.questions, exam.exam_id);
+    } else {
+        document.getElementById('examDetailModalQuestions').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #718096;">
+                <p>📝 Chưa có câu hỏi nào trong bài thi này</p>
+            </div>
+        `;
+    }
+    
+    modal.style.display = 'flex';
+}
+
+// Hiển thị chi tiết bài thi trong phần class detail
+function showExamDetailInClass(exam) {
+    const examDetail = document.getElementById('examDetail');
+    const examListContainer = document.getElementById('examListContainer');
+    
+    if (!examDetail || !examListContainer) return;
+    
+    // Ẩn danh sách, hiển thị chi tiết
+    examListContainer.style.display = 'none';
+    examDetail.style.display = 'block';
+    
+    // Cập nhật thông tin
+    document.getElementById('examDetailTitle').textContent = exam.exam_name || 'Chi tiết bài thi';
+    document.getElementById('examDetailClass').textContent = exam.class_name || 'Chưa có lớp';
+    
+    const startTime = new Date(exam.start_time);
+    const dateStr = startTime.toLocaleDateString('vi-VN');
+    const timeStr = startTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('examDetailDate').textContent = `${dateStr} ${timeStr}`;
+    document.getElementById('examDetailDuration').textContent = `${exam.duration} phút`;
+    document.getElementById('examDetailCode').textContent = exam.password || 'Chưa có';
+    document.getElementById('examDetailQuestionCount').textContent = `${exam.total_questions || 0} câu`;
+    document.getElementById('examDetailTotalPoints').textContent = `${parseFloat(exam.total_points || 0).toFixed(1)} điểm`;
+    document.getElementById('examDetailSubmissions').textContent = `${exam.total_attempts || 0} bài`;
+    document.getElementById('examDetailDescription').textContent = exam.description || 'Không có mô tả';
+    
+    const statusText = {
+        'draft': '📝 Nháp',
+        'upcoming': '⏰ Sắp diễn ra',
+        'active': '🟢 Đang diễn ra',
+        'completed': '✅ Đã kết thúc',
+        'deleted': '🗑️ Đã xóa'
+    };
+    document.getElementById('examDetailStatus').innerHTML = `<span class="exam-status status-${exam.current_status || 'draft'}" style="padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">${statusText[exam.current_status] || exam.current_status}</span>`;
+    
+    // Render danh sách câu hỏi
+    const questionsContainer = document.getElementById('examDetailQuestions');
+    if (exam.questions && exam.questions.length > 0) {
+        renderQuestionsList(questionsContainer, exam.questions, exam.exam_id);
+    } else {
+        questionsContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #718096;">
+                <p>📝 Chưa có câu hỏi nào trong bài thi này</p>
+            </div>
+        `;
+    }
+    
+    // Lưu exam hiện tại để dùng cho các hàm khác
+    currentExam = exam;
+}
+
+// Hàm hiển thị modal mã code bài thi
+function showExamCodeModal(examCode, examName) {
+    const modal = document.getElementById('examCodeModal');
+    const codeDisplay = document.getElementById('examCodeDisplay');
+    const codeName = document.getElementById('examCodeName');
+    const copySuccessMsg = document.getElementById('copySuccessMsg');
+    
+    if (modal && codeDisplay) {
+        codeDisplay.textContent = examCode;
+        if (codeName) {
+            codeName.textContent = examName || '';
+        }
+        copySuccessMsg.style.display = 'none';
+        modal.style.display = 'flex';
+        
+        // Lưu mã code vào data attribute để dùng khi copy
+        modal.setAttribute('data-exam-code', examCode);
+    }
+}
+
+// Hàm đóng modal mã code
+function closeExamCodeModal() {
+    const modal = document.getElementById('examCodeModal');
+    if (modal) {
+        modal.style.display = 'none';
+        const copySuccessMsg = document.getElementById('copySuccessMsg');
+        if (copySuccessMsg) copySuccessMsg.style.display = 'none';
+    }
+}
+
+// Hàm copy mã code vào clipboard
+function copyExamCode() {
+    const modal = document.getElementById('examCodeModal');
+    const examCode = modal ? modal.getAttribute('data-exam-code') : '';
+    const copyBtn = document.getElementById('copyCodeBtn');
+    const copySuccessMsg = document.getElementById('copySuccessMsg');
+    
+    if (!examCode) {
+        showNotification('❌ Không tìm thấy mã code!', 'error');
+        return;
+    }
+    
+    // Copy vào clipboard
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(examCode).then(() => {
+            // Hiển thị thông báo thành công
+            if (copySuccessMsg) {
+                copySuccessMsg.style.display = 'block';
+                if (copyBtn) {
+                    copyBtn.textContent = '✅ Đã copy!';
+                    copyBtn.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+                }
+                setTimeout(() => {
+                    copySuccessMsg.style.display = 'none';
+                    if (copyBtn) {
+                        copyBtn.textContent = '📋 Copy mã code';
+                        copyBtn.style.background = '';
+                    }
+                }, 3000);
+            }
+        }).catch(err => {
+            console.error('Lỗi copy:', err);
+            showNotification('❌ Không thể copy mã code. Vui lòng copy thủ công!', 'error');
+        });
+    } else {
+        // Fallback cho trình duyệt cũ
+        const textArea = document.createElement('textarea');
+        textArea.value = examCode;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            if (copySuccessMsg) {
+                copySuccessMsg.style.display = 'block';
+                setTimeout(() => {
+                    copySuccessMsg.style.display = 'none';
+                }, 3000);
+            }
+        } catch (err) {
+            showNotification('❌ Không thể copy mã code. Vui lòng copy thủ công!', 'error');
+        }
+        document.body.removeChild(textArea);
+    }
+}
+
 function viewExamQuestions(examId) {
     closeExamDetailModal();
     if (window.showSection) {
@@ -4329,6 +4681,12 @@ document.addEventListener('click', function(event) {
     const examDetailModal = document.getElementById('examDetailModal');
     if (event.target === examDetailModal) {
         closeExamDetailModal();
+    }
+    
+    // Đóng modal mã code khi click bên ngoài
+    const examCodeModal = document.getElementById('examCodeModal');
+    if (event.target === examCodeModal) {
+        closeExamCodeModal();
     }
 });
 

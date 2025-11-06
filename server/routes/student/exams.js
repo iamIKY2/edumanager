@@ -153,6 +153,7 @@ router.get('/:examId', authMiddleware, roleMiddleware(['student']), async (req, 
 // ============================================
 router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async (req, res) => {
   const { examId } = req.params;
+  const { exam_code } = req.body;
   const studentId = req.user.id || req.user.user_id;
 
   try {
@@ -178,6 +179,15 @@ router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async
     }
 
     const exam = access[0];
+
+    // Kiểm tra mã code bài thi
+    if (!exam_code) {
+      return res.status(400).json({ error: 'Vui lòng nhập mã code bài thi', requires_code: true });
+    }
+
+    if (exam.password && exam.password !== exam_code) {
+      return res.status(403).json({ error: 'Mã code không đúng. Vui lòng kiểm tra lại!', requires_code: true });
+    }
 
     // Kiểm tra trạng thái
     if (exam.computed_status !== 'active') {
