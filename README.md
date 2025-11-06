@@ -40,11 +40,9 @@ cd edexis-web
 cd client
 npm install
 cd ../server
-npm install
-npm install express cors dotenv bcrypt jsonwebtoken express-rate-limit mysql2 sequelize multer express-fileupload exceljs pdfkit nodemailer socket.io uuid openai && npm install --save-dev nodemon
+npm install @google/genai openai bcrypt jsonwebtoken express cors express-fileupload express-rate-limit multer mysql2 sequelize csv-parse exceljs xlsx pdfkit nodemailer dotenv socket.io uuid
+npm install --save-dev nodemon
 
-
-npm install --save-dev nodemon@3.1.10
 
 ```
 
