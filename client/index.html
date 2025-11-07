@@ -10,500 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="/client/public/images/edu.png">
 
+    <link rel="stylesheet" href="/client/public/css/home.css">
+    
     <style>
-        :root {
-            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            --dark-gradient: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --text-light: rgba(255, 255, 255, 0.9);
-            --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.1);
-            --shadow-hover: 0 30px 60px rgba(0, 0, 0, 0.15);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            overflow-x: hidden;
-            background: #f8f9fa;
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary-gradient);
-            border-radius: 10px;
-        }
-
-        /* Header với Glass Effect */
-        .navbar {
-            backdrop-filter: blur(20px);
-            background: var(--glass-bg);
-            border-bottom: 1px solid var(--glass-border);
-            padding: 1rem 0;
-            transition: all 0.3s ease;
-        }
-
-        .navbar.scrolled {
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: var(--shadow-soft);
-        }
-
-        .navbar-brand {
-            font-weight: 800;
-            font-size: 2rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .nav-link {
-            font-weight: 500;
-            color: #333 !important;
-            margin: 0 0.5rem;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 50%;
-            width: 0;
-            height: 2px;
-            background: var(--primary-gradient);
-            transition: all 0.3s ease;
-            transform: translateX(-50%);
-        }
-
-        .nav-link:hover::after {
-            width: 100%;
-        }
-
-        /* Hero Section */
-        .hero {
-            min-height: 100vh;
-            background: var(--primary-gradient);
-            position: relative;
-            display: flex;
-            align-items: center;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-            animation: float 20s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-20px) rotate(1deg); }
-        }
-
-        .hero-content {
-            position: relative;
-            z-index: 2;
-        }
-
-        .hero h1 {
-            font-size: clamp(3rem, 8vw, 5rem);
-            font-weight: 800;
-            color: white;
-            margin-bottom: 1.5rem;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .hero p {
-            font-size: 1.25rem;
-            color: var(--text-light);
-            margin-bottom: 2rem;
-            line-height: 1.8;
-        }
-
-        .btn-gradient {
-            background: var(--secondary-gradient);
-            border: none;
-            color: white;
-            padding: 15px 40px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-radius: 50px;
-            transition: all 0.3s ease;
-            box-shadow: var(--shadow-soft);
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-gradient:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-hover);
-            color: white;
-        }
-
-        .btn-outline-glass {
-            background: transparent;
-            border: 2px solid var(--glass-border);
-            color: white;
-            padding: 15px 40px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-radius: 50px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-outline-glass:hover {
-            background: var(--glass-bg);
-            transform: translateY(-3px);
-            color: white;
-        }
-
-        /* Hero Animation Elements */
-        .floating-elements {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        .floating-element {
-            position: absolute;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            animation: floatUpDown 6s ease-in-out infinite;
-        }
-
-        .floating-element:nth-child(1) {
-            top: 20%;
-            right: 10%;
-            width: 80px;
-            height: 80px;
-            animation-delay: 0s;
-        }
-
-        .floating-element:nth-child(2) {
-            top: 60%;
-            right: 20%;
-            width: 60px;
-            height: 60px;
-            animation-delay: 2s;
-        }
-
-        .floating-element:nth-child(3) {
-            top: 40%;
-            left: 10%;
-            width: 100px;
-            height: 100px;
-            animation-delay: 4s;
-        }
-
-        @keyframes floatUpDown {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-30px) rotate(10deg); }
-        }
-
-        /* Features Section */
-        .features {
-            padding: 100px 0;
-            background: white;
-            position: relative;
-        }
-
-        .section-title {
-            font-size: clamp(2.5rem, 5vw, 3.5rem);
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 3rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .feature-card {
-            background: white;
-            border-radius: 20px;
-            padding: 3rem 2rem;
-            text-align: center;
-            box-shadow: var(--shadow-soft);
-            transition: all 0.3s ease;
-            border: 1px solid #f0f0f0;
-            height: 100%;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-10px);
-            box-shadow: var(--shadow-hover);
-        }
-
-        .feature-icon {
-            width: 80px;
-            height: 80px;
-            background: var(--primary-gradient);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 1.5rem;
-            font-size: 2rem;
-            color: white;
-        }
-
-        .feature-card h4 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: #333;
-        }
-
-        .feature-card p {
-            color: #666;
-            line-height: 1.8;
-            font-size: 1rem;
-        }
-
-        /* Stats Section */
-        .stats {
-            background: var(--dark-gradient);
-            padding: 80px 0;
-            color: white;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stats::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
-            opacity: 0.5;
-        }
-
-        .stat-item {
-            text-align: center;
-            position: relative;
-            z-index: 2;
-        }
-
-        .stat-number {
-            font-size: 4rem;
-            font-weight: 800;
-            background: var(--success-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-label {
-            font-size: 1.1rem;
-            color: var(--text-light);
-            font-weight: 500;
-        }
-
-        /* CTA Section */
-        .cta {
-            background: var(--secondary-gradient);
-            padding: 100px 0;
-            text-align: center;
-            color: white;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .cta::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 50px 50px;
-            animation: rotate 20s linear infinite;
-        }
-
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .cta h2 {
-            font-size: clamp(2.5rem, 5vw, 4rem);
-            font-weight: 800;
-            margin-bottom: 1.5rem;
-            position: relative;
-            z-index: 2;
-        }
-
-        .cta p {
-            font-size: 1.25rem;
-            margin-bottom: 2rem;
-            position: relative;
-            z-index: 2;
-            opacity: 0.9;
-        }
-
-        .cta .btn-gradient {
-            background: white;
-            color: #f5576c;
-            position: relative;
-            z-index: 2;
-        }
-
-        .cta .btn-gradient:hover {
-            color: #f5576c;
-        }
-
-        /* Footer */
-        .footer {
-            background: #1a1a1a;
-            padding: 60px 0 30px;
-            color: var(--text-light);
-        }
-
-        .footer h5 {
-            color: white;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        .footer a {
-            color: var(--text-light);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-
-        .footer a:hover {
-            color: white;
-            padding-left: 5px;
-        }
-
-        .social-links a {
-            display: inline-block;
-            margin: 0 0.5rem 0 0;
-            width: 40px;
-            height: 40px;
-            background: var(--primary-gradient);
-            border-radius: 50%;
-            text-align: center;
-            line-height: 40px;
-            color: white;
-            transition: all 0.3s ease;
-        }
-
-        .social-links a:hover {
-            transform: translateY(-3px);
-            padding-left: 0;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .hero {
-                padding: 2rem 0;
-                text-align: center;
-            }
-            
-            .floating-elements {
-                display: none;
-            }
-            
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-            
-            .btn-gradient, .btn-outline-glass {
-                display: block;
-                margin: 0.5rem 0;
-                width: 100%;
-            }
-            
-            .feature-card {
-                margin-bottom: 2rem;
-            }
-            
-            .stat-number {
-                font-size: 3rem;
-            }
-        }
-
-        /* Smooth Scrolling */
-        html {
-            scroll-behavior: smooth;
-        }
-
-        /* Loading Animation */
-        .loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--primary-gradient);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            transition: opacity 0.5s ease;
-        }
-
-        .loading.hide {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255,255,255,0.3);
-            border-top: 5px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1050;
-        }
+        /* Enhanced button hover effects */
         .btn-gradient {
             position: relative;
             overflow: hidden;
@@ -572,16 +82,22 @@
     </div>
 
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg fixed-top" id="navbar">
-        <div class="container">
+    <header class="main-nav">
+        <nav class="nav-content">
             <a class="navbar-brand" href="#home">
                 <i class="fas fa-graduation-cap me-2"></i>Edexis
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+            
+            <button class="navbar-toggler" type="button" id="navbarToggle" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+            
+            <div class="nav-menu" id="navMenu">
+                <ul class="nav-links">
                     <li class="nav-item">
                         <a class="nav-link" href="#home">Trang Chủ</a>
                     </li>
@@ -589,18 +105,18 @@
                         <a class="nav-link" href="#features">Tính Năng</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#about">Giới Thiệu</a>
+                        <a class="nav-link" href="/client/src/pages/">Giới Thiệu</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#contact">Liên Hệ</a>
                     </li>
-                    <li class="nav-item" id="authLink">
-                        <a class="nav-link btn btn-outline-primary rounded-pill px-3 ms-2" href="/client/src/pages/login.html">Đăng Nhập</a>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/client/src/pages/login.html">Đăng Nhập</a>
                     </li>
                 </ul>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </header>
 
     <!-- Hero Section -->
     <section class="hero" id="home">
@@ -613,14 +129,14 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-6 hero-content" data-aos="fade-right">
-                    <h1>Hệ Thống Thi Trực Tuyến <span class="text-warning">Thông Minh</span></h1>
+                    <h1>Hệ Thống Thi Trực Tuyến Thông Minh</h1>
                     <p class="lead">Nền tảng thi trực tuyến hiện đại với AI tự động sinh đề, chống gian lận thông minh và quản lý lớp học toàn diện. Trải nghiệm giáo dục số hoàn toàn mới!</p>
                     
                     <div class="hero-buttons">
-                        <a href="src/pages/register.html" class="btn-gradient me-3">
+                        <a href="/client/src/pages/register.html" class="btn-gradient me-3">
                             <i class="fas fa-rocket me-2"></i>Bắt Đầu Ngay
                         </a>
-                        <a href="#demo" class="btn-outline-glass">
+                        <a href="#demo" class="btn-gradient me-3">
                             <i class="fas fa-play me-2"></i>Xem Demo
                         </a>
                     </div>
@@ -910,11 +426,13 @@
 
         // Navbar scroll effect
         window.addEventListener('scroll', function() {
-            const navbar = document.getElementById('navbar');
-            if (window.scrollY > 50) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
+            const navbar = document.querySelector('.main-nav');
+            if (navbar) {
+                if (window.scrollY > 50) {
+                    navbar.classList.add('scrolled');
+                } else {
+                    navbar.classList.remove('scrolled');
+                }
             }
         });
 

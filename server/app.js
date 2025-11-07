@@ -80,9 +80,19 @@ io.on('connection', (socket) => {
   console.log(`✅ Client connected: ${socket.id}, User ID: ${userId}`);
   console.log(`🔵 [Socket] User object:`, socket.user);
 
-  socket.join(`user_${userId}`);
+  // Chỉ join room nếu userId hợp lệ
+  if (userId && userId !== null && userId !== undefined) {
+    socket.join(`user_${userId}`);
+    console.log(`Socket ${socket.id} auto-joined room: user_${userId}`);
+  } else {
+    console.warn(`⚠️ Cannot join room: userId is ${userId} for socket ${socket.id}`);
+  }
 
   socket.on('join-room', (roomId) => {
+    if (!roomId || roomId === 'user_null' || roomId === 'user_undefined') {
+      console.warn(`⚠️ Invalid roomId from ${socket.id}: ${roomId}`);
+      return;
+    }
     socket.join(roomId);
     console.log(`Socket ${socket.id} joined room: ${roomId}`);
   });

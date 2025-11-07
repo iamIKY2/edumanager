@@ -50,7 +50,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     socket.on('connect', () => {
         console.log('Connected to Socket.io');
-        socket.emit('join', `user_${localStorage.getItem('user_id')}`);
+        const userId = localStorage.getItem('user_id');
+        // Chỉ emit join nếu userId hợp lệ
+        if (userId && userId !== 'null' && userId !== 'undefined') {
+            socket.emit('join', `user_${userId}`);
+        } else {
+            console.warn('⚠️ [Socket] Cannot join room: userId is invalid');
+        }
     });
 
     socket.on('connect_error', (error) => {

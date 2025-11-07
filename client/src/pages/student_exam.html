@@ -432,7 +432,12 @@
 
         socket.on('connect', () => {
             console.log('✅ Socket connected');
-            socket.emit('join', `user_${userId}`);
+            // Chỉ emit join nếu userId hợp lệ
+            if (userId && userId !== 'null' && userId !== 'undefined') {
+                socket.emit('join', `user_${userId}`);
+            } else {
+                console.warn('⚠️ [Socket] Cannot join room: userId is invalid');
+            }
             socket.emit('join_exam', {
                 exam_id: examData.exam_id,
                 attempt_id: examData.attempt_id

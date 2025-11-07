@@ -383,9 +383,13 @@
                 console.log('🔵 [Socket] User ID from localStorage:', userId);
                 console.log('🔵 [Socket] Socket user from server:', socket.user);
                 // Socket đã tự động join room khi connect (theo app.js)
-                // Nhưng vẫn emit để đảm bảo
-                socket.emit('join-room', `user_${userId}`);
-                console.log('🔵 [Socket] Joined room:', `user_${userId}`);
+                // Chỉ emit join-room nếu userId hợp lệ
+                if (userId && userId !== 'null' && userId !== 'undefined') {
+                    socket.emit('join-room', `user_${userId}`);
+                    console.log('🔵 [Socket] Joined room:', `user_${userId}`);
+                } else {
+                    console.warn('⚠️ [Socket] Cannot join room: userId is invalid');
+                }
             });
 
             socket.on('connect_error', (error) => {
