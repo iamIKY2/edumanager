@@ -50,7 +50,8 @@ npm install --save-dev nodemon
 
 **Bước 4:** Khởi động server
 ```sh
-npm run dev
+cd vào server chạy 
+npm run dev or node app.js
 ```
 Server chạy tại `http://localhost:3000`
 
