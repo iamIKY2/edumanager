@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../../config/database'); 
 const authMiddleware = require('../../middleware/auth');
 
 console.log('✅ Cheating routes loaded');
 
-// ✅ Lấy tất cả log gian lận (có filter)
+//  Lấy tất cả log gian lận (có filter)
 router.get('/cheating-logs', authMiddleware, async (req, res) => {
     try {
         console.log('🔵 GET /cheating-logs called');
@@ -48,7 +47,7 @@ router.get('/cheating-logs', authMiddleware, async (req, res) => {
         query += ' ORDER BY acl.event_time DESC';
 
         console.log('📊 Executing query with params:', params);
-        const [logs] = await db.query(query, params);
+        const [logs] = await req.db.query(query, params);
         console.log('✅ Found logs:', logs.length);
         
         res.json(logs);
@@ -58,7 +57,7 @@ router.get('/cheating-logs', authMiddleware, async (req, res) => {
     }
 });
 
-// ✅ Lấy chi tiết log của 1 attempt
+//  Lấy chi tiết log của 1 attempt
 router.get('/cheating-logs/:attempt_id', authMiddleware, async (req, res) => {
     try {
         console.log('🔵 GET /cheating-logs/:attempt_id called');
@@ -66,7 +65,7 @@ router.get('/cheating-logs/:attempt_id', authMiddleware, async (req, res) => {
         const { attempt_id } = req.params;
         const teacher_id = req.user.id;
 
-        const [attempt] = await db.query(`
+        const [attempt] = await req.db.query(` 
             SELECT ea.*, e.exam_name, e.teacher_id, u.full_name as student_name
             FROM exam_attempts ea
             JOIN exams e ON ea.exam_id = e.exam_id
@@ -78,7 +77,7 @@ router.get('/cheating-logs/:attempt_id', authMiddleware, async (req, res) => {
             return res.status(403).json({ error: 'Không có quyền' });
         }
 
-        const [logs] = await db.query(`
+        const [logs] = await req.db.query(`
             SELECT * FROM anti_cheating_logs
             WHERE attempt_id = ?
             ORDER BY event_time DESC
@@ -94,7 +93,7 @@ router.get('/cheating-logs/:attempt_id', authMiddleware, async (req, res) => {
     }
 });
 
-// ✅ Cấm thi học sinh
+//  Cấm thi học sinh
 router.post('/ban-student', authMiddleware, async (req, res) => {
     try {
         console.log('🔵 POST /ban-student called');
@@ -102,7 +101,7 @@ router.post('/ban-student', authMiddleware, async (req, res) => {
         const { attempt_id, reason } = req.body;
         const teacher_id = req.user.id;
 
-        const [attempt] = await db.query(`
+        const [attempt] = await req.db.query(` //
             SELECT ea.*, e.teacher_id
             FROM exam_attempts ea
             JOIN exams e ON ea.exam_id = e.exam_id
@@ -113,13 +112,13 @@ router.post('/ban-student', authMiddleware, async (req, res) => {
             return res.status(403).json({ error: 'Không có quyền' });
         }
 
-        await db.query(`
+        await req.db.query(`
             UPDATE exam_attempts
             SET is_banned = 1, score = 0
             WHERE attempt_id = ?
         `, [attempt_id]);
 
-        await db.query(`
+        await req.db.query(`
             INSERT INTO teacher_actions (teacher_id, exam_id, student_id, action_type, details)
             VALUES (?, ?, ?, 'ban_student', ?)
         `, [teacher_id, attempt[0].exam_id, attempt[0].student_id, reason]);

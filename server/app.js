@@ -5,6 +5,13 @@ const mysql = require('mysql2/promise');
 const http = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+
+// Load environment variables FIRST
+dotenv.config();
+
+// Import email service
+const emailService = require('./services/emailService');
 
 // Shared routes
 const authRoutes = require('./routes/shared/auth');
@@ -20,18 +27,16 @@ const teacherCheatingRoutes = require('./routes/teacher/cheating');
 const gradingRoutes = require('./routes/teacher/grading');
 const teacherStatisticsRoutes = require('./routes/teacher/statistics');
 
-
-
 // Student routes
 const studentClassesRoutes = require('./routes/student/classes');
 const studentExamRoutes = require('./routes/student/exams'); 
 const submissionRoutes = require('./routes/student/submissions');
+const studentStatisticsRoutes = require('./routes/student/statistics');
 
 // Admin routes
 const adminRoutes = require('./routes/admin/admin');
 
-// Load environment variables
-dotenv.config();
+// App configuration
 const app = express();
 const port = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -75,7 +80,6 @@ io.use(async (socket, next) => {
 
 // Xử lý Socket.IO events
 io.on('connection', (socket) => {
-  // JWT token có field là 'id' chứa user_id
   const userId = socket.user.id || socket.user.user_id;
   console.log(`✅ Client connected: ${socket.id}, User ID: ${userId}`);
   console.log(`🔵 [Socket] User object:`, socket.user);
@@ -112,6 +116,7 @@ app.locals.io = io;
 // Cấu hình middleware
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Tạo MySQL connection pool
 const pool = mysql.createPool({
@@ -124,10 +129,10 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-//  Test connection
+// Test database connection
 pool.getConnection()
   .then(conn => {
-    console.log('✅ Database connected successfully');
+    console.log(' Database connected successfully');
     conn.release();
   })
   .catch(err => {
@@ -136,11 +141,18 @@ pool.getConnection()
 
 app.locals.pool = pool;
 
-// Middleware để truyền db 
+// Middleware để truyền db và io
 app.use((req, res, next) => {
   req.db = app.locals.pool;
   req.io = app.locals.io;
   next();
+});
+
+// Test email service khi khởi động
+emailService.testConnection().then(isReady => {
+  if (!isReady) {
+    console.warn('⚠️  Email service chưa sẵn sàng. Kiểm tra lại cấu hình EMAIL trong .env!');
+  }
 });
 
 // Route kiểm tra server và database
@@ -152,6 +164,11 @@ app.get('/api/test', async (req, res) => {
     console.error('Database connection error:', err);
     res.status(500).json({ error: 'Database connection failed', details: err.message });
   }
+});
+
+// Route để serve trang forgot-password
+app.get('/forgot-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
 });
 
 // Shared routes 
@@ -168,18 +185,16 @@ app.use('/api/teacher/cheating', teacherCheatingRoutes);
 app.use('/api/teacher/grading', gradingRoutes);
 app.use('/api/teacher/statistics', teacherStatisticsRoutes);
 
-
-//  Student routes
+// Student routes
 app.use('/api/student/classes', studentClassesRoutes);
 app.use('/api/student/exams', studentExamRoutes); 
 app.use('/api/student/submissions', submissionRoutes);
-const studentStatisticsRoutes = require('./routes/student/statistics');
 app.use('/api/student/statistics', studentStatisticsRoutes);
 
 // Admin routes
 app.use('/api/admin', adminRoutes);
 
-//  404 handler 
+// 404 handler 
 app.use((req, res, next) => {
   console.log(`❌ 404 - Route not found: ${req.method} ${req.path}`);
   res.status(404).json({ 
@@ -189,7 +204,7 @@ app.use((req, res, next) => {
   });
 });
 
-//  Error handling middleware
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error('❌ Error stack:', err.stack);
   res.status(500).json({
@@ -198,8 +213,22 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Cleanup OTP hết hạn mỗi giờ
+setInterval(async () => {
+  try {
+    const [result] = await pool.query('DELETE FROM otps WHERE expiresAt < NOW()');
+    if (result.affectedRows > 0) {
+      console.log(`🧹 Đã xóa ${result.affectedRows} OTP hết hạn`);
+    }
+  } catch (error) {
+    console.error('❌ Lỗi khi xóa OTP:', error.message);
+  }
+}, 60 * 60 * 1000); // Mỗi 1 giờ
+
+// Start server
 server.listen(port, '0.0.0.0', () => {
-  console.log(`✅ Backend running at http://0.0.0.0:${port}`);
-  console.log(`✅ Socket.IO ready`);
-  console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(` Backend running at http://0.0.0.0:${port}`);
+  console.log(` Socket.IO ready`);
+  console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(` Forgot password page: http://localhost:${port}/forgot-password`);
 });

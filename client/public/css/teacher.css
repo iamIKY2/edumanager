@@ -1478,6 +1478,7 @@ body.dark-mode .header-title {
 
 body.dark-mode #welcomeMessage {
     color: #cbd5e0 !important;
+    text-align: center;
 }
 
 body.dark-mode .card {

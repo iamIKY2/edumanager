@@ -28,7 +28,361 @@ const authenticateToken = (req, res, next) => {
 };
 const authMiddleware = authenticateToken;
 
-// API thống kê tổng quan - ĐÃ XÓA, sử dụng route bên dưới có đầy đủ dữ liệu
+const computeExamStatus = (exam) => {
+  if (!exam) return 'upcoming';
+
+  const rawStatus = exam.status || '';
+  const normalizedStatus = rawStatus.toLowerCase();
+  if (['deleted', 'draft', 'cancelled'].includes(normalizedStatus)) {
+    return rawStatus || normalizedStatus;
+  }
+
+  const startTime = exam.start_time ? new Date(exam.start_time) : null;
+  if (!startTime || Number.isNaN(startTime.getTime())) {
+    return rawStatus || 'upcoming';
+  }
+
+  const durationMinutes = Number(exam.duration);
+  const now = new Date();
+
+  if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return now < startTime ? 'upcoming' : 'completed';
+  }
+
+  const endTime = new Date(startTime.getTime() + durationMinutes * 60000);
+
+  if (now < startTime) return 'upcoming';
+  if (now >= startTime && now < endTime) return 'active';
+  return 'completed';
+};
+
+const formatDateTime = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toISOString().slice(0, 19).replace('T', ' ');
+};
+
+const parseReportFilters = (query) => {
+  const intervalMap = { week: 7, month: 30, quarter: 90, year: 365 };
+  const period = query.period && intervalMap[query.period] ? query.period : 'month';
+  const subjectId = query.subject_id ? parseInt(query.subject_id, 10) : null;
+
+  let startDate;
+  let endDate;
+  let days = intervalMap[period] || 30;
+
+  if (query.period === 'custom') {
+    const start = new Date(query.start_date);
+    const end = new Date(query.end_date || query.start_date);
+    if (!(start instanceof Date) || Number.isNaN(start.getTime()) || !(end instanceof Date) || Number.isNaN(end.getTime())) {
+      throw new Error('Invalid custom date range');
+    }
+    startDate = start;
+    endDate = new Date(end.getTime());
+    endDate.setHours(23, 59, 59, 999);
+    days = null;
+  } else {
+    endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    startDate = new Date(endDate.getTime());
+    startDate.setDate(startDate.getDate() - (days - 1));
+    startDate.setHours(0, 0, 0, 0);
+  }
+
+  return {
+    period: query.period || period,
+    subjectId: Number.isFinite(subjectId) ? subjectId : null,
+    days,
+    startDate,
+    endDate,
+    startDateStr: formatDateTime(startDate),
+    endDateStr: formatDateTime(endDate)
+  };
+};
+
+const buildSubjectClause = (alias, subjectId) => (subjectId ? ` AND ${alias}.subject_id = ?` : '');
+
+const buildReportData = async (db, filters) => {
+  const { startDateStr, endDateStr, subjectId, days } = filters;
+  const mainSubjectClause = buildSubjectClause('e', subjectId);
+  const subjectClauseForAttempts = buildSubjectClause('e2', subjectId);
+
+  const statsParams = [
+    startDateStr,
+    endDateStr,
+    ...(subjectId ? [subjectId] : []),
+    startDateStr,
+    endDateStr,
+    ...(subjectId ? [subjectId] : []),
+    startDateStr,
+    endDateStr,
+    ...(subjectId ? [subjectId] : [])
+  ];
+
+  const [statsRows] = await db.query(
+    `SELECT 
+       COUNT(DISTINCT ea.exam_id) AS total_exams,
+       COUNT(*) AS total_attempts,
+       COALESCE(AVG(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) AS average_score,
+       COALESCE(SUM(CASE WHEN ea.status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0) AS completion_rate,
+       (SELECT COUNT(*)
+          FROM anti_cheating_logs acl
+          JOIN exam_attempts ea2 ON acl.attempt_id = ea2.attempt_id
+          JOIN exams e2 ON ea2.exam_id = e2.exam_id
+         WHERE ea2.created_at BETWEEN ? AND ?
+           ${subjectClauseForAttempts}) AS cheating_warnings,
+       (SELECT COUNT(DISTINCT ea2.student_id)
+          FROM anti_cheating_logs acl2
+          JOIN exam_attempts ea2 ON acl2.attempt_id = ea2.attempt_id
+          JOIN exams e3 ON ea2.exam_id = e3.exam_id
+         WHERE ea2.created_at BETWEEN ? AND ?
+           ${buildSubjectClause('e3', subjectId)}) AS violating_students
+     FROM exam_attempts ea
+     JOIN exams e ON ea.exam_id = e.exam_id
+    WHERE ea.created_at BETWEEN ? AND ?
+      ${mainSubjectClause}`,
+    statsParams
+  );
+
+  const stats = statsRows[0] || {
+    total_exams: 0,
+    total_attempts: 0,
+    average_score: 0,
+    completion_rate: 0,
+    cheating_warnings: 0,
+    violating_students: 0
+  };
+
+  let scoreTrendDiff = 0;
+  let completionTrendDiff = 0;
+
+  if (days) {
+    const previousEnd = new Date(filters.startDate);
+    previousEnd.setSeconds(previousEnd.getSeconds() - 1);
+    const previousStart = new Date(previousEnd.getTime());
+    previousStart.setDate(previousStart.getDate() - (days - 1));
+    previousStart.setHours(0, 0, 0, 0);
+
+    const [prevRows] = await db.query(
+      `SELECT 
+         COALESCE(AVG(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) AS prev_average_score,
+         COALESCE(SUM(CASE WHEN ea.status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0) AS prev_completion_rate
+       FROM exam_attempts ea
+       JOIN exams e ON ea.exam_id = e.exam_id
+      WHERE ea.created_at BETWEEN ? AND ?
+        ${mainSubjectClause}`,
+      [
+        formatDateTime(previousStart),
+        formatDateTime(previousEnd),
+        ...(subjectId ? [subjectId] : [])
+      ]
+    );
+
+    const prevStats = prevRows[0] || {};
+    scoreTrendDiff = stats.average_score - (prevStats.prev_average_score || 0);
+    completionTrendDiff = stats.completion_rate - (prevStats.prev_completion_rate || 0);
+  }
+
+  stats.score_trend = scoreTrendDiff;
+  stats.completion_trend = completionTrendDiff;
+
+  const baseParams = [startDateStr, endDateStr, ...(subjectId ? [subjectId] : [])];
+
+  const [trend] = await db.query(
+  `SELECT 
+     DATE(ea.created_at) AS date,
+     DATE_FORMAT(DATE(ea.created_at), '%d/%m') AS label,
+     COALESCE(AVG(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) AS avg_score
+   FROM exam_attempts ea
+   JOIN exams e ON ea.exam_id = e.exam_id
+  WHERE ea.created_at BETWEEN ? AND ?
+    ${mainSubjectClause}
+    AND ea.status = 'Submitted'
+  GROUP BY DATE(ea.created_at), DATE_FORMAT(DATE(ea.created_at), '%d/%m')
+  ORDER BY date ASC`,
+  baseParams
+);
+
+  const [gradeDistribution] = await db.query(
+    `SELECT 
+       CASE 
+         WHEN ea.score >= 8 THEN 'Xuất sắc'
+         WHEN ea.score >= 6.5 THEN 'Khá'
+         WHEN ea.score >= 5 THEN 'Trung bình'
+         ELSE 'Yếu'
+       END AS grade,
+       COUNT(*) AS count
+     FROM exam_attempts ea
+     JOIN exams e ON ea.exam_id = e.exam_id
+    WHERE ea.created_at BETWEEN ? AND ?
+      ${mainSubjectClause}
+      AND ea.status = 'Submitted'
+      AND ea.score IS NOT NULL
+    GROUP BY grade`,
+    baseParams
+  );
+
+  const subjectComparisonQuery = subjectId
+    ? `SELECT 
+         s.subject_id,
+         s.subject_name,
+         COALESCE(AVG(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) AS avg_score,
+         COUNT(DISTINCT CASE WHEN ea.status = 'Submitted' THEN ea.student_id END) AS student_count
+       FROM subjects s
+       JOIN exams e ON s.subject_id = e.subject_id
+       JOIN exam_attempts ea ON e.exam_id = ea.exam_id
+      WHERE ea.created_at BETWEEN ? AND ?
+        AND s.subject_id = ?
+        AND ea.status = 'Submitted'
+      GROUP BY s.subject_id, s.subject_name
+      ORDER BY avg_score DESC`
+    : `SELECT 
+         s.subject_id,
+         s.subject_name,
+         COALESCE(AVG(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) AS avg_score,
+         COUNT(DISTINCT CASE WHEN ea.status = 'Submitted' THEN ea.student_id END) AS student_count
+       FROM subjects s
+       JOIN exams e ON s.subject_id = e.subject_id
+       JOIN exam_attempts ea ON e.exam_id = ea.exam_id
+      WHERE ea.created_at BETWEEN ? AND ?
+        AND ea.status = 'Submitted'
+      GROUP BY s.subject_id, s.subject_name
+      HAVING student_count > 0
+      ORDER BY avg_score DESC`;
+
+  const subjectComparisonParams = subjectId
+    ? [startDateStr, endDateStr, subjectId]
+    : [startDateStr, endDateStr];
+
+  const [subjectComparison] = await db.query(subjectComparisonQuery, subjectComparisonParams);
+
+  const [topStudents] = await db.query(
+    `SELECT 
+       u.user_id,
+       u.full_name,
+       COALESCE(AVG(ea.score), 0) AS avg_score,
+       COUNT(DISTINCT ea.exam_id) AS exam_count
+     FROM users u
+     JOIN exam_attempts ea ON u.user_id = ea.student_id
+     JOIN exams e ON ea.exam_id = e.exam_id
+    WHERE ea.created_at BETWEEN ? AND ?
+      ${mainSubjectClause}
+      AND ea.status = 'Submitted'
+      AND u.role = 'Student'
+    GROUP BY u.user_id, u.full_name
+    HAVING exam_count >= 2
+    ORDER BY avg_score DESC
+    LIMIT 10`,
+    baseParams
+  );
+
+  const [warningStudents] = await db.query(
+    `SELECT 
+       u.user_id,
+       u.full_name,
+       COALESCE(AVG(ea.score), 0) AS avg_score,
+       COUNT(DISTINCT acl.log_id) AS warning_count
+     FROM users u
+     JOIN exam_attempts ea ON u.user_id = ea.student_id
+     JOIN exams e ON ea.exam_id = e.exam_id
+     LEFT JOIN anti_cheating_logs acl ON ea.attempt_id = acl.attempt_id
+    WHERE ea.created_at BETWEEN ? AND ?
+      ${mainSubjectClause}
+      AND ea.status = 'Submitted'
+      AND u.role = 'Student'
+    GROUP BY u.user_id, u.full_name
+    HAVING avg_score < 5 OR warning_count > 0
+    ORDER BY avg_score ASC, warning_count DESC
+    LIMIT 10`,
+    baseParams
+  );
+
+  const [details] = await db.query(
+    `SELECT 
+       e.exam_id,
+       e.exam_name,
+       s.subject_name,
+       COUNT(DISTINCT ea.student_id) AS student_count,
+       COALESCE(AVG(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) AS average_score,
+       COALESCE(MAX(ea.score), 0) AS highest_score,
+       COALESCE(MIN(ea.score), 0) AS lowest_score,
+       COALESCE(SUM(CASE WHEN ea.status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(ea.attempt_id), 0) * 100, 0) AS completion_rate,
+       (SELECT COUNT(*)
+          FROM anti_cheating_logs acl
+          JOIN exam_attempts ea2 ON acl.attempt_id = ea2.attempt_id
+         WHERE ea2.exam_id = e.exam_id
+           AND ea2.created_at BETWEEN ? AND ?) AS cheating_warnings
+     FROM exams e
+     LEFT JOIN subjects s ON e.subject_id = s.subject_id
+     LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id
+       AND ea.created_at BETWEEN ? AND ?
+    WHERE e.created_at <= ?
+      ${subjectId ? ' AND e.subject_id = ?' : ''}
+    GROUP BY e.exam_id, e.exam_name, s.subject_name
+    HAVING student_count > 0
+    ORDER BY e.created_at DESC`,
+    [
+      startDateStr,
+      endDateStr,
+      startDateStr,
+      endDateStr,
+      endDateStr,
+      ...(subjectId ? [subjectId] : [])
+    ]
+  );
+
+  return {
+    stats,
+    trend,
+    gradeDistribution,
+    subjectComparison,
+    topStudents,
+    warningStudents,
+    details
+  };
+};
+
+// API thống kê tổng quan
+router.get('/stats', authenticateToken, async (req, res) => {
+  try {
+    const db = req.db;
+    
+    // Đếm số lượng sinh viên
+    const [studentsResult] = await db.query(
+      "SELECT COUNT(*) as count FROM users WHERE role = 'Student'"
+    );
+    const students = studentsResult[0]?.count || 0;
+    
+    // Đếm số lượng giáo viên
+    const [teachersResult] = await db.query(
+      "SELECT COUNT(*) as count FROM users WHERE role = 'Teacher'"
+    );
+    const teachers = teachersResult[0]?.count || 0;
+    
+    // Đếm số lượng kỳ thi đang hoạt động
+    const [examsResult] = await db.query(
+      "SELECT COUNT(*) as count FROM exams WHERE status IN ('upcoming', 'active', 'in_progress')"
+    );
+    const activeExams = examsResult[0]?.count || 0;
+    
+    // Đếm số lượng câu hỏi
+    const [questionsResult] = await db.query(
+      "SELECT COUNT(*) as count FROM question_bank"
+    );
+    const questions = questionsResult[0]?.count || 0;
+    
+    res.json({
+      students,
+      teachers,
+      activeExams,
+      questions
+    });
+  } catch (err) {
+    console.error('Lỗi lấy thống kê:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
 
 // API danh sách người dùng
 router.get('/users', authenticateToken, async (req, res) => {
@@ -290,15 +644,19 @@ router.get('/exams', authenticateToken, async (req, res) => {
   try {
     const db = req.db;
     const [exams] = await db.query(`
-      SELECT e.exam_id, e.exam_name, s.subject_name, u.full_name as teacher_name, 
-             e.duration, e.status, 
-             (SELECT COUNT(*) FROM exam_classes ec WHERE ec.exam_id = e.exam_id) as student_count
+      SELECT e.exam_id, e.exam_name, e.start_time, e.duration, e.status,
+             s.subject_name, u.full_name as teacher_name,
+             COALESCE((SELECT COUNT(DISTINCT ea.student_id) FROM exam_attempts ea WHERE ea.exam_id = e.exam_id), 0) as student_count
       FROM exams e
       LEFT JOIN subjects s ON e.subject_id = s.subject_id
       LEFT JOIN users u ON e.teacher_id = u.user_id
       ORDER BY e.created_at DESC
     `);
-    res.json(exams);
+    const normalizedExams = exams.map(exam => ({
+      ...exam,
+      status: computeExamStatus(exam)
+    }));
+    res.json(normalizedExams);
   } catch (err) {
     console.error('Lỗi lấy kỳ thi:', err);
     res.status(500).json({ error: 'Lỗi server', details: err.message });
@@ -344,7 +702,7 @@ router.get('/exams/:id', authenticateToken, async (req, res) => {
     const [examInfo] = await db.query(`
       SELECT e.*, s.subject_name, u.full_name as teacher_name, 
              c.class_name, c.class_id,
-             (SELECT COUNT(*) FROM exam_classes ec WHERE ec.exam_id = e.exam_id) as total_students
+             (SELECT COUNT(DISTINCT ea.student_id) FROM exam_attempts ea WHERE ea.exam_id = e.exam_id) as total_students
       FROM exams e
       LEFT JOIN subjects s ON e.subject_id = s.subject_id
       LEFT JOIN users u ON e.teacher_id = u.user_id
@@ -355,6 +713,11 @@ router.get('/exams/:id', authenticateToken, async (req, res) => {
     if (!examInfo.length) {
       return res.status(404).json({ error: 'Không tìm thấy kỳ thi' });
     }
+    
+    const examData = {
+      ...examInfo[0],
+      status: computeExamStatus(examInfo[0])
+    };
     
     // Lấy danh sách học sinh tham gia và điểm số
     const [attempts] = await db.query(`
@@ -391,7 +754,7 @@ router.get('/exams/:id', authenticateToken, async (req, res) => {
       : 0;
     
     res.json({
-      exam: examInfo[0],
+      exam: examData,
       attempts: attempts,
       stats: {
         total_students: examInfo[0].total_students || 0,
@@ -562,134 +925,202 @@ router.delete('/subjects/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// API báo cáo - FIXED (Sửa SQL Injection và GROUP BY)
+// ============================================
+// 📊 API BÁO CÁO & THỐNG KÊ - HOÀN CHỈNH
+// ============================================
+
+// API lấy báo cáo tổng hợp
 router.get('/reports', authenticateToken, async (req, res) => {
   try {
     const db = req.db;
-    const period = req.query.period || 'month';
+    const filters = parseReportFilters(req.query);
+    const data = await buildReportData(db, filters);
     
-    // Sử dụng mapping an toàn thay vì ghép string
-    const intervalMap = {
-      'week': 7,
-      'month': 30,
-      'quarter': 90,
-      'year': 365
-    };
-    
-    const days = intervalMap[period] || 30;
-    
-    const [examStats] = await db.query(`
-      SELECT COALESCE(COUNT(*), 0) as total_exams, 
-             COALESCE(AVG(score), 0) as average_score,
-             COALESCE(SUM(CASE WHEN status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0) as completion_rate,
-             COALESCE((SELECT COUNT(*) FROM anti_cheating_logs acl 
-                       WHERE acl.event_time >= DATE_SUB(CURDATE(), INTERVAL ? DAY)), 0) as cheating_warnings
-      FROM exam_attempts 
-      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-    `, [days, days]);
-    
-    const [examDetails] = await db.query(`
-      SELECT e.exam_name, 
-             COALESCE(COUNT(ea.attempt_id), 0) as student_count, 
-             COALESCE(AVG(ea.score), 0) as average_score,
-             COALESCE(MAX(ea.score), 0) as highest_score,
-             COALESCE(MIN(ea.score), 0) as lowest_score,
-             (SELECT COUNT(*) FROM anti_cheating_logs acl 
-              INNER JOIN exam_attempts ea2 ON acl.attempt_id = ea2.attempt_id
-              WHERE ea2.exam_id = e.exam_id 
-              AND ea2.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)) as cheating_warnings,
-             COALESCE(SUM(CASE WHEN ea.status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(ea.attempt_id), 0) * 100, 0) as completion_rate
-      FROM exams e
-      LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id 
-        AND ea.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-      GROUP BY e.exam_id, e.exam_name
-      HAVING student_count > 0
-    `, [days, days]);
-    
-    res.json({
-      stats: examStats[0],
-      details: examDetails
-    });
+    res.json(data);
   } catch (err) {
-    console.error('Lỗi lấy báo cáo:', err);
+    console.error('❌ Lỗi lấy báo cáo:', err);
     res.status(500).json({ error: 'Lỗi server', details: err.message });
   }
 });
 
-// API xuất báo cáo Excel
+// API xuất báo cáo Excel - HOÀN CHỈNH
 router.get('/reports/export/excel', authenticateToken, async (req, res) => {
   try {
     const db = req.db;
-    const period = req.query.period || 'month';
-    
-    const intervalMap = {
-      'week': 7,
-      'month': 30,
-      'quarter': 90,
-      'year': 365
-    };
-    
-    const days = intervalMap[period] || 30;
-    
-    // Lấy dữ liệu báo cáo
-    const [examStats] = await db.query(`
-      SELECT COALESCE(COUNT(*), 0) as total_exams, 
-             COALESCE(AVG(score), 0) as average_score,
-             COALESCE(SUM(CASE WHEN status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0) as completion_rate,
-             COALESCE((SELECT COUNT(*) FROM anti_cheating_logs acl 
-                       WHERE acl.event_time >= DATE_SUB(CURDATE(), INTERVAL ? DAY)), 0) as cheating_warnings
-      FROM exam_attempts 
-      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-    `, [days, days]);
-    
-    const [examDetails] = await db.query(`
-      SELECT e.exam_name, 
-             COALESCE(COUNT(ea.attempt_id), 0) as student_count, 
-             COALESCE(AVG(ea.score), 0) as average_score,
-             COALESCE(MAX(ea.score), 0) as highest_score,
-             COALESCE(MIN(ea.score), 0) as lowest_score,
-             (SELECT COUNT(*) FROM anti_cheating_logs acl 
-              INNER JOIN exam_attempts ea2 ON acl.attempt_id = ea2.attempt_id
-              WHERE ea2.exam_id = e.exam_id 
-              AND ea2.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)) as cheating_warnings,
-             COALESCE(SUM(CASE WHEN ea.status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(ea.attempt_id), 0) * 100, 0) as completion_rate
-      FROM exams e
-      LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id 
-        AND ea.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-      GROUP BY e.exam_id, e.exam_name
-      HAVING student_count > 0
-      ORDER BY e.exam_name
-    `, [days, days]);
+    const filters = parseReportFilters(req.query);
+    const data = await buildReportData(db, filters);
     
     // Tạo workbook Excel
     const workbook = xlsx.utils.book_new();
     
-    // Sheet 1: Thống kê tổng quan
+    // ============================================
+    // SHEET 1: THỐNG KÊ TỔNG QUAN
+    // ============================================
     const summaryData = [
-      ['Thống kê tổng quan'],
-      ['Tổng số bài thi', examStats[0].total_exams],
-      ['Tỷ lệ hoàn thành (%)', examStats[0].completion_rate.toFixed(2)],
-      ['Điểm trung bình', examStats[0].average_score.toFixed(2)],
-      ['Cảnh báo gian lận', examStats[0].cheating_warnings],
+      ['BÁO CÁO THỐNG KÊ HỆ THỐNG THI TRỰC TUYẾN'],
+      ['Thời gian báo cáo:', `${new Date(filters.startDate).toLocaleDateString('vi-VN')} - ${new Date(filters.endDate).toLocaleDateString('vi-VN')}`],
       [],
-      ['Chi tiết theo kỳ thi'],
-      ['Kỳ thi', 'Số SV tham gia', 'Tỷ lệ hoàn thành (%)', 'Điểm TB', 'Điểm cao nhất', 'Điểm thấp nhất', 'Cảnh báo']
+      ['CHỈ TIÊU', 'GIÁ TRỊ', 'XU HƯỚNG'],
+      ['Tổng số bài thi', data.stats.total_exams, ''],
+      ['Tổng số lượt thi', data.stats.total_attempts, ''],
+      ['Điểm trung bình', parseFloat(data.stats.average_score).toFixed(2), `${data.stats.score_trend >= 0 ? '+' : ''}${data.stats.score_trend.toFixed(2)}`],
+      ['Tỷ lệ hoàn thành (%)', parseFloat(data.stats.completion_rate).toFixed(2), `${data.stats.completion_trend >= 0 ? '+' : ''}${data.stats.completion_trend.toFixed(2)}%`],
+      ['Cảnh báo gian lận', data.stats.cheating_warnings, ''],
+      ['Học sinh vi phạm', data.stats.violating_students, ''],
+      []
     ];
     
-    examDetails.forEach(detail => {
-      summaryData.push([
-        detail.exam_name,
-        detail.student_count,
-        detail.completion_rate.toFixed(2),
-        detail.average_score.toFixed(2),
-        detail.highest_score.toFixed(2),
-        detail.lowest_score.toFixed(2),
-        detail.cheating_warnings
-      ]);
-    });
-    
     const summarySheet = xlsx.utils.aoa_to_sheet(summaryData);
-    xlsx.utils.book_append_sheet(workbook, summarySheet, 'Báo cáo');
+    
+    // Định dạng độ rộng cột
+    summarySheet['!cols'] = [
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 20 }
+    ];
+    
+    xlsx.utils.book_append_sheet(workbook, summarySheet, 'Tổng quan');
+    
+    // ============================================
+    // SHEET 2: XU HƯỚNG ĐIỂM THEO THỜI GIAN
+    // ============================================
+    if (data.trend && data.trend.length > 0) {
+      const trendData = [
+        ['XU HƯỚNG ĐIỂM THEO THỜI GIAN'],
+        [],
+        ['Ngày', 'Điểm trung bình'],
+        ...data.trend.map(t => [
+          t.label || t.date,
+          parseFloat(t.avg_score).toFixed(2)
+        ])
+      ];
+      
+      const trendSheet = xlsx.utils.aoa_to_sheet(trendData);
+      trendSheet['!cols'] = [{ wch: 15 }, { wch: 20 }];
+      xlsx.utils.book_append_sheet(workbook, trendSheet, 'Xu hướng điểm');
+    }
+    
+    // ============================================
+    // SHEET 3: PHÂN BỐ XẾNG LOẠI
+    // ============================================
+    if (data.gradeDistribution && data.gradeDistribution.length > 0) {
+      const gradeData = [
+        ['PHÂN BỐ XẾP LOẠI'],
+        [],
+        ['Xếp loại', 'Số lượng', 'Tỷ lệ (%)'],
+      ];
+      
+      const totalCount = data.gradeDistribution.reduce((sum, g) => sum + parseInt(g.count), 0);
+      
+      data.gradeDistribution.forEach(g => {
+        const percentage = totalCount > 0 ? ((g.count / totalCount) * 100).toFixed(2) : 0;
+        gradeData.push([
+          g.grade,
+          g.count,
+          percentage
+        ]);
+      });
+      
+      const gradeSheet = xlsx.utils.aoa_to_sheet(gradeData);
+      gradeSheet['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 15 }];
+      xlsx.utils.book_append_sheet(workbook, gradeSheet, 'Phân bố xếp loại');
+    }
+    
+    // ============================================
+    // SHEET 4: SO SÁNH MÔN HỌC
+    // ============================================
+    if (data.subjectComparison && data.subjectComparison.length > 0) {
+      const subjectData = [
+        ['SO SÁNH ĐIỂM THEO MÔN HỌC'],
+        [],
+        ['Môn học', 'Điểm trung bình', 'Số học sinh'],
+        ...data.subjectComparison.map(s => [
+          s.subject_name,
+          parseFloat(s.avg_score).toFixed(2),
+          s.student_count
+        ])
+      ];
+      
+      const subjectSheet = xlsx.utils.aoa_to_sheet(subjectData);
+      subjectSheet['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }];
+      xlsx.utils.book_append_sheet(workbook, subjectSheet, 'So sánh môn học');
+    }
+    
+    // ============================================
+    // SHEET 5: TOP 10 HỌC SINH XUẤT SẮC
+    // ============================================
+    if (data.topStudents && data.topStudents.length > 0) {
+      const topData = [
+        ['TOP 10 HỌC SINH XUẤT SẮC'],
+        [],
+        ['STT', 'Họ tên', 'Điểm TB', 'Số bài thi'],
+        ...data.topStudents.map((s, index) => [
+          index + 1,
+          s.full_name,
+          parseFloat(s.avg_score).toFixed(2),
+          s.exam_count
+        ])
+      ];
+      
+      const topSheet = xlsx.utils.aoa_to_sheet(topData);
+      topSheet['!cols'] = [{ wch: 10 }, { wch: 30 }, { wch: 15 }, { wch: 15 }];
+      xlsx.utils.book_append_sheet(workbook, topSheet, 'Top học sinh');
+    }
+    
+    // ============================================
+    // SHEET 6: HỌC SINH CẦN HỖ TRỢ
+    // ============================================
+    if (data.warningStudents && data.warningStudents.length > 0) {
+      const warningData = [
+        ['HỌC SINH CẦN HỖ TRỢ'],
+        [],
+        ['STT', 'Họ tên', 'Điểm TB', 'Cảnh báo vi phạm'],
+        ...data.warningStudents.map((s, index) => [
+          index + 1,
+          s.full_name,
+          parseFloat(s.avg_score).toFixed(2),
+          s.warning_count
+        ])
+      ];
+      
+      const warningSheet = xlsx.utils.aoa_to_sheet(warningData);
+      warningSheet['!cols'] = [{ wch: 10 }, { wch: 30 }, { wch: 15 }, { wch: 20 }];
+      xlsx.utils.book_append_sheet(workbook, warningSheet, 'Cần hỗ trợ');
+    }
+    
+    // ============================================
+    // SHEET 7: CHI TIẾT TỪNG KỲ THI
+    // ============================================
+    if (data.details && data.details.length > 0) {
+      const detailData = [
+        ['CHI TIẾT TỪNG KỲ THI'],
+        [],
+        ['Tên kỳ thi', 'Môn học', 'Số SV', 'Tỷ lệ hoàn thành (%)', 'Điểm TB', 'Cao nhất', 'Thấp nhất', 'Cảnh báo'],
+        ...data.details.map(d => [
+          d.exam_name,
+          d.subject_name || 'N/A',
+          d.student_count,
+          parseFloat(d.completion_rate).toFixed(2),
+          parseFloat(d.average_score).toFixed(2),
+          parseFloat(d.highest_score).toFixed(2),
+          parseFloat(d.lowest_score).toFixed(2),
+          d.cheating_warnings
+        ])
+      ];
+      
+      const detailSheet = xlsx.utils.aoa_to_sheet(detailData);
+      detailSheet['!cols'] = [
+        { wch: 40 },
+        { wch: 20 },
+        { wch: 10 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 }
+      ];
+      xlsx.utils.book_append_sheet(workbook, detailSheet, 'Chi tiết kỳ thi');
+    }
     
     // Tạo buffer và gửi file
     const excelBuffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
@@ -698,82 +1129,38 @@ router.get('/reports/export/excel', authenticateToken, async (req, res) => {
       'week': '7_ngay',
       'month': '30_ngay',
       'quarter': '3_thang',
-      'year': '1_nam'
+      'year': '1_nam',
+      'custom': 'tuy_chinh'
     };
     
-    const fileName = `bao_cao_${periodNames[period]}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `bao_cao_${periodNames[filters.period] || 'tuy_chinh'}_${new Date().toISOString().split('T')[0]}.xlsx`;
     
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
     res.send(excelBuffer);
+    
   } catch (err) {
-    console.error('Lỗi xuất Excel:', err);
+    console.error('❌ Lỗi xuất Excel:', err);
     res.status(500).json({ error: 'Lỗi server', details: err.message });
   }
 });
 
-// Trong server/routes/admin.js
-router.get('/subjects/:id/details', authenticateToken, async (req, res) => {
+// API xuất báo cáo PDF
+router.get('/reports/export/pdf', authenticateToken, async (req, res) => {
   try {
     const db = req.db;
-    const subjectId = req.params.id;
-
-    // Lấy thông tin môn học
-    const [subject] = await db.query('SELECT subject_name FROM subjects WHERE subject_id = ?', [subjectId]);
-    if (!subject[0]) return res.status(404).json({ error: 'Không tìm thấy môn học' });
-
-    // Lấy giáo viên chủ nhiệm
-    const [teacher] = await db.query(`
-      SELECT u.full_name, u.user_id
-      FROM users u
-      JOIN classes c ON c.teacher_id = u.user_id
-      WHERE c.subject_id = ? AND u.role = 'Teacher'
-      LIMIT 1
-    `, [subjectId]);
-
-    // Lấy danh sách sinh viên và điểm trung bình
-    const [students] = await db.query(`
-      SELECT u.user_id, u.full_name, u.email, 
-             COALESCE(AVG(ea.score), 0) as avg_score
-      FROM users u
-      JOIN class_students cs ON cs.student_id = u.user_id
-      JOIN classes c ON cs.class_id = c.class_id
-      LEFT JOIN exam_attempts ea ON ea.student_id = u.user_id
-      LEFT JOIN exams e ON ea.exam_id = e.exam_id AND e.subject_id = c.subject_id
-      WHERE c.subject_id = ? AND u.role = 'Student'
-      GROUP BY u.user_id, u.full_name, u.email
-    `, [subjectId]);
-
-    // Ép kiểu avg_score thành số
-    const formattedStudents = students.map(student => ({
-      ...student,
-      avg_score: Number(student.avg_score) || 0
-    }));
-
-    // Tính thống kê điểm
-    const [stats] = await db.query(`
-      SELECT 
-        COALESCE(AVG(ea.score), 0) as avg_score, 
-        COALESCE(MAX(ea.score), 0) as max_score, 
-        COALESCE(MIN(ea.score), 0) as min_score
-      FROM exams e
-      LEFT JOIN exam_attempts ea ON ea.exam_id = e.exam_id
-      WHERE e.subject_id = ?
-    `, [subjectId]);
-
+    const filters = parseReportFilters(req.query);
+    const data = await buildReportData(db, filters);
+    
+    // Tạo HTML để convert sang PDF (sử dụng thư viện như puppeteer nếu cần)
+    // Hiện tại trả về JSON với thông báo
     res.json({
-      subject_name: subject[0].subject_name,
-      teacher: teacher[0] || { full_name: 'Chưa có giáo viên', user_id: null },
-      students: formattedStudents,
-      stats: {
-        avg_score: Number(stats[0].avg_score) || 0,
-        max_score: Number(stats[0].max_score) || 0,
-        min_score: Number(stats[0].min_score) || 0
-      },
-      student_count: formattedStudents.length
+      message: 'Tính năng xuất PDF đang được phát triển',
+      suggestion: 'Vui lòng sử dụng tính năng In báo cáo (Print) từ trình duyệt'
     });
+    
   } catch (err) {
-    console.error('Lỗi lấy chi tiết môn học:', err);
+    console.error('❌ Lỗi xuất PDF:', err);
     res.status(500).json({ error: 'Lỗi server', details: err.message });
   }
 });
@@ -1398,180 +1785,141 @@ router.post('/questions/import', authMiddleware, upload.single('file'), async (r
   }
 });
 
-// API báo cáo nâng cao
-router.get('/reports', authenticateToken, async (req, res) => {
+// API lấy chi tiết môn học
+router.get('/subjects/:id/details', authenticateToken, async (req, res) => {
   try {
     const db = req.db;
-    const { period, subject_id, start_date, end_date } = req.query;
+    const subjectId = req.params.id;
     
-    // Xác định khoảng thời gian
-    let dateFilter = '';
-    let days = 30;
-    
-    if (period === 'custom' && start_date && end_date) {
-      dateFilter = `ea.created_at BETWEEN '${start_date}' AND '${end_date}'`;
-    } else {
-      const intervalMap = { week: 7, month: 30, quarter: 90, year: 365 };
-      days = intervalMap[period] || 30;
-      dateFilter = `ea.created_at >= DATE_SUB(CURDATE(), INTERVAL ${days} DAY)`;
+    // Kiểm tra subjectId hợp lệ
+    if (!subjectId || isNaN(subjectId)) {
+      return res.status(400).json({ error: 'ID môn học không hợp lệ' });
     }
     
-    const subjectFilter = subject_id ? `AND e.subject_id = ${subject_id}` : '';
-    
-    // Thống kê tổng quan
-    const [stats] = await db.query(`
-      SELECT 
-        COUNT(DISTINCT ea.exam_id) as total_exams,
-        COUNT(DISTINCT ea.attempt_id) as total_attempts,
-        COALESCE(AVG(ea.score), 0) as average_score,
-        COALESCE(SUM(CASE WHEN ea.status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0) as completion_rate,
-        (SELECT COUNT(*) FROM anti_cheating_logs acl 
-         WHERE acl.event_time >= DATE_SUB(CURDATE(), INTERVAL ? DAY)) as cheating_warnings,
-        (SELECT COUNT(DISTINCT ea2.student_id) FROM exam_attempts ea2
-         JOIN anti_cheating_logs acl2 ON ea2.attempt_id = acl2.attempt_id
-         WHERE ${dateFilter}) as violating_students
-      FROM exam_attempts ea
-      JOIN exams e ON ea.exam_id = e.exam_id
-      WHERE ${dateFilter} ${subjectFilter}
-    `, [days]);
-    
-    // So sánh với kỳ trước để tính trend
-    const [prevStats] = await db.query(`
-      SELECT 
-        COALESCE(AVG(ea.score), 0) as prev_average_score,
-        COALESCE(SUM(CASE WHEN ea.status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0) as prev_completion_rate
-      FROM exam_attempts ea
-      JOIN exams e ON ea.exam_id = e.exam_id
-      WHERE ea.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-        AND ea.created_at < DATE_SUB(CURDATE(), INTERVAL ? DAY)
-        ${subjectFilter}
-    `, [days * 2, days]);
-    
-    stats[0].score_trend = stats[0].average_score - (prevStats[0]?.prev_average_score || 0);
-    stats[0].completion_trend = stats[0].completion_rate - (prevStats[0]?.prev_completion_rate || 0);
-    
-    // Xu hướng điểm theo thời gian
-    const [trend] = await db.query(`
-      SELECT 
-        DATE_FORMAT(ea.created_at, '%Y-%m-%d') as date,
-        DATE_FORMAT(ea.created_at, '%d/%m') as label,
-        COALESCE(AVG(ea.score), 0) as avg_score
-      FROM exam_attempts ea
-      JOIN exams e ON ea.exam_id = e.exam_id
-      WHERE ${dateFilter} ${subjectFilter}
-        AND ea.status = 'Submitted'
-      GROUP BY DATE_FORMAT(ea.created_at, '%Y-%m-%d')
-      ORDER BY date ASC
-    `);
-    
-    // Phân bố xếp loại
-    const [gradeDistribution] = await db.query(`
-      SELECT 
-        CASE 
-          WHEN ea.score >= 8 THEN 'Xuất sắc'
-          WHEN ea.score >= 6.5 THEN 'Khá'
-          WHEN ea.score >= 5 THEN 'Trung bình'
-          ELSE 'Yếu'
-        END as grade,
-        COUNT(*) as count
-      FROM exam_attempts ea
-      JOIN exams e ON ea.exam_id = e.exam_id
-      WHERE ${dateFilter} ${subjectFilter}
-        AND ea.status = 'Submitted'
-        AND ea.score IS NOT NULL
-      GROUP BY grade
-    `);
-    
-    // So sánh môn học
-    const [subjectComparison] = await db.query(`
-      SELECT 
-        s.subject_name,
-        COALESCE(AVG(ea.score), 0) as avg_score,
-        COUNT(DISTINCT ea.student_id) as student_count
+    // Lấy thông tin môn học
+    const [subject] = await db.query(`
+      SELECT s.subject_id, s.subject_name, s.created_at,
+             COALESCE(u.full_name, 'Hệ thống') as created_by_name
       FROM subjects s
-      LEFT JOIN exams e ON s.subject_id = e.subject_id
-      LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id AND ${dateFilter}
-      WHERE ea.status = 'Submitted'
-      GROUP BY s.subject_id, s.subject_name
-      HAVING student_count > 0
-      ORDER BY avg_score DESC
-    `);
+      LEFT JOIN users u ON s.created_by = u.user_id
+      WHERE s.subject_id = ?
+    `, [subjectId]);
     
-    // Top 10 học sinh xuất sắc
-    const [topStudents] = await db.query(`
-      SELECT 
-        u.user_id,
-        u.full_name,
-        COALESCE(AVG(ea.score), 0) as avg_score,
-        COUNT(DISTINCT ea.exam_id) as exam_count
-      FROM users u
-      JOIN exam_attempts ea ON u.user_id = ea.student_id
-      JOIN exams e ON ea.exam_id = e.exam_id
-      WHERE ${dateFilter} ${subjectFilter}
-        AND ea.status = 'Submitted'
-        AND u.role = 'Student'
-      GROUP BY u.user_id, u.full_name
-      HAVING exam_count >= 2
-      ORDER BY avg_score DESC
-      LIMIT 10
-    `);
+    if (!subject.length) {
+      return res.status(404).json({ error: 'Không tìm thấy môn học' });
+    }
     
-    // Học sinh cần hỗ trợ
-    const [warningStudents] = await db.query(`
-      SELECT 
-        u.user_id,
-        u.full_name,
-        COALESCE(AVG(ea.score), 0) as avg_score,
-        COUNT(DISTINCT acl.log_id) as warning_count
-      FROM users u
-      JOIN exam_attempts ea ON u.user_id = ea.student_id
-      JOIN exams e ON ea.exam_id = e.exam_id
-      LEFT JOIN anti_cheating_logs acl ON ea.attempt_id = acl.attempt_id
-      WHERE ${dateFilter} ${subjectFilter}
-        AND ea.status = 'Submitted'
-        AND u.role = 'Student'
-      GROUP BY u.user_id, u.full_name
-      HAVING avg_score < 5 OR warning_count > 0
-      ORDER BY avg_score ASC, warning_count DESC
-      LIMIT 10
-    `);
-    
-    // Báo cáo chi tiết theo kỳ thi
-    const [details] = await db.query(`
-      SELECT 
-        e.exam_id,
-        e.exam_name,
-        s.subject_name,
-        COUNT(DISTINCT ea.student_id) as student_count,
-        COALESCE(AVG(ea.score), 0) as average_score,
-        COALESCE(MAX(ea.score), 0) as highest_score,
-        COALESCE(MIN(ea.score), 0) as lowest_score,
-        COALESCE(SUM(CASE WHEN ea.status = 'Submitted' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0) as completion_rate,
-        (SELECT COUNT(*) FROM anti_cheating_logs acl
-         JOIN exam_attempts ea2 ON acl.attempt_id = ea2.attempt_id
-         WHERE ea2.exam_id = e.exam_id) as cheating_warnings
+    // Lấy danh sách kỳ thi thuộc môn học
+    const [exams] = await db.query(`
+      SELECT e.exam_id, e.exam_name, e.start_time, e.duration, e.status,
+             COALESCE(u.full_name, 'Không rõ') as teacher_name,
+             COALESCE((SELECT COUNT(DISTINCT ea.student_id) 
+                       FROM exam_attempts ea 
+                       WHERE ea.exam_id = e.exam_id), 0) as student_count,
+             COALESCE((SELECT AVG(ea.score) 
+                       FROM exam_attempts ea 
+                       WHERE ea.exam_id = e.exam_id AND ea.status = 'Submitted'), 0) as avg_score
       FROM exams e
-      LEFT JOIN subjects s ON e.subject_id = s.subject_id
-      LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id AND ${dateFilter}
-      WHERE 1=1 ${subjectFilter}
-      GROUP BY e.exam_id, e.exam_name, s.subject_name
-      HAVING student_count > 0
+      LEFT JOIN users u ON e.teacher_id = u.user_id
+      WHERE e.subject_id = ?
       ORDER BY e.created_at DESC
-    `);
+    `, [subjectId]);
     
+    // Normalize exam status
+    const normalizedExams = exams.map(exam => ({
+      ...exam,
+      status: computeExamStatus(exam),
+      avg_score: parseFloat(exam.avg_score || 0).toFixed(2)
+    }));
+    
+    // Lấy số lượng câu hỏi
+    const [questionCount] = await db.query(`
+      SELECT COUNT(*) as count
+      FROM question_bank
+      WHERE subject_id = ?
+    `, [subjectId]);
+    
+    // Lấy danh sách giáo viên dạy môn này
+    const [teachers] = await db.query(`
+      SELECT DISTINCT u.user_id, u.full_name, u.email,
+             (SELECT COUNT(*) FROM exams e2 WHERE e2.teacher_id = u.user_id AND e2.subject_id = ?) as exam_count
+      FROM users u
+      JOIN exams e ON u.user_id = e.teacher_id
+      WHERE e.subject_id = ? AND u.role = 'Teacher'
+      ORDER BY exam_count DESC
+    `, [subjectId, subjectId]);
+    
+    //  LẤY TẤT CẢ HỌC SINH TRONG CÁC LỚP CỦA MÔN HỌC NÀY
+    const [students] = await db.query(`
+      SELECT DISTINCT 
+        u.user_id, 
+        u.full_name, 
+        u.email,
+        COUNT(DISTINCT CASE WHEN ea.status = 'Submitted' THEN ea.exam_id END) as exam_count,
+        COALESCE(AVG(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) as avg_score,
+        COALESCE(MAX(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) as highest_score
+      FROM users u
+      INNER JOIN class_students cs ON u.user_id = cs.student_id
+      INNER JOIN classes c ON cs.class_id = c.class_id
+      LEFT JOIN exams e ON c.class_id = e.class_id AND e.subject_id = ?
+      LEFT JOIN exam_attempts ea ON ea.exam_id = e.exam_id AND ea.student_id = u.user_id
+      WHERE c.subject_id = ? 
+        AND u.role = 'Student'
+        AND c.status = 'active'
+      GROUP BY u.user_id, u.full_name, u.email
+      ORDER BY avg_score DESC
+    `, [subjectId, subjectId]);
+    
+    // Tính thống kê tổng hợp
+    const totalExams = exams.length;
+    const totalStudents = students.length;
+    const totalQuestions = questionCount[0]?.count || 0;
+    
+    // Tính điểm trung bình, cao nhất, thấp nhất (chỉ từ students đã có điểm)
+    const studentsWithScores = students.filter(s => parseFloat(s.avg_score || 0) > 0);
+    
+    const avgScore = studentsWithScores.length > 0 
+      ? studentsWithScores.reduce((sum, s) => sum + parseFloat(s.avg_score || 0), 0) / studentsWithScores.length 
+      : 0;
+    
+    const maxScore = studentsWithScores.length > 0
+      ? Math.max(...studentsWithScores.map(s => parseFloat(s.avg_score || 0)))
+      : 0;
+    
+    const minScore = studentsWithScores.length > 0
+      ? Math.min(...studentsWithScores.map(s => parseFloat(s.avg_score || 0)))
+      : 0;
+    
+    // Trả về response
     res.json({
-      stats: stats[0],
-      trend,
-      gradeDistribution,
-      subjectComparison,
-      topStudents,
-      warningStudents,
-      details
+      subject_name: subject[0].subject_name,
+      student_count: totalStudents,
+      teacher: teachers.length > 0 ? teachers[0] : { full_name: 'Chưa có' },
+      teachers: teachers || [],
+      students: students.map(s => ({
+        ...s,
+        avg_score: parseFloat(s.avg_score || 0).toFixed(2),
+        highest_score: parseFloat(s.highest_score || 0).toFixed(2)
+      })),
+      stats: {
+        total_exams: totalExams,
+        total_students: totalStudents,
+        total_questions: totalQuestions,
+        total_teachers: teachers.length,
+        avg_score: avgScore.toFixed(2),
+        max_score: maxScore.toFixed(2),
+        min_score: minScore.toFixed(2),
+        active_exams: normalizedExams.filter(e => e.status === 'active').length,
+        completed_exams: normalizedExams.filter(e => e.status === 'completed').length,
+        upcoming_exams: normalizedExams.filter(e => e.status === 'upcoming').length
+      },
+      exams: normalizedExams
     });
   } catch (err) {
-    console.error('Lỗi lấy báo cáo:', err);
+    console.error('Lỗi lấy chi tiết môn học:', err);
     res.status(500).json({ error: 'Lỗi server', details: err.message });
   }
 });
+
 
 module.exports = router;

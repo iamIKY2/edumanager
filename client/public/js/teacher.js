@@ -29,6 +29,8 @@ let appData = {
 };
 
 let unreadCount = 0;
+let examDetailContext = 'class';
+let currentExam = null;
 function formatScore(score) {
     if (!score || isNaN(score)) return '0';
     return parseFloat(score).toFixed(1);
@@ -112,7 +114,7 @@ async function handleAddExam(event) {
     console.log('🔵 Creating exam...');
 
     try {
-        const response = await fetch(`http://localhost:3000/api/classes/${appData.currentClassId}/exams`, {
+        const response = await fetch(`http://localhost:3000/api/teacher/classes/${appData.currentClassId}/exams`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -148,7 +150,7 @@ async function handleAddExam(event) {
         }
         
         // Fetch lại exams từ server
-        const examsResponse = await fetch(`http://localhost:3000/api/classes/${appData.currentClassId}/exams`, {
+        const examsResponse = await fetch(`http://localhost:3000/api/teacher/classes/${appData.currentClassId}/exams`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -221,7 +223,7 @@ async function renderExams() {
                     <span class="exam-status status-${exam.status}">${statusText[exam.status]}</span>
                 </div>
                 <div class="exam-actions">
-                    <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.exam_id})">Xem chi tiết</button>
+                    <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.exam_id}, 'class')">Xem chi tiết</button>
                     <button class="btn btn-small btn-secondary" onclick="editExam(${exam.exam_id})">Chỉnh sửa</button>
                     <button class="btn btn-small btn-danger" onclick="deleteExam(${exam.exam_id}, event)">Xóa</button>
                 </div>
@@ -930,6 +932,36 @@ function hideAddStudent() {
     document.getElementById('classDetail').classList.add('active');
 }
 
+function showAddExam() {
+    if (!appData.currentClassId) {
+        showNotification('❗ Vui lòng chọn một lớp trước khi thêm bài thi', 'error');
+        return;
+    }
+
+    const formWrapper = document.getElementById('addExamForm');
+    if (!formWrapper) return;
+
+    const form = formWrapper.querySelector('form');
+    if (form) {
+        form.reset();
+        const timeInput = form.querySelector('input[type="time"]');
+        if (timeInput && !timeInput.value) {
+            timeInput.value = '08:00';
+        }
+    }
+
+    document.getElementById('classDetail').classList.remove('active');
+    formWrapper.style.display = 'block';
+}
+
+function hideAddExam() {
+    const formWrapper = document.getElementById('addExamForm');
+    if (formWrapper) {
+        formWrapper.style.display = 'none';
+    }
+    document.getElementById('classDetail').classList.add('active');
+}
+
 async function handleAddStudent(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
@@ -1200,30 +1232,24 @@ function getDifficultyColor(difficulty) {
     return colors[difficulty] || '#718096';
 }
 
-// hàm back to exam list fix lỗi 
 function backToExamList() {
-    if (examDetailContext === 'exams') {
-        const modal = document.getElementById('examDetailModal');
-        if (modal) modal.style.display = 'none';
-    } else {
+    console.log('🔵 [Back] Context:', examDetailContext);
+    
+    if (examDetailContext === 'class') {
+        // Quay lại danh sách bài thi trong lớp
         const examDetail = document.getElementById('examDetail');
-        const editExamForm = document.getElementById('editExamForm');
         const examListContainer = document.getElementById('examListContainer');
         
         if (examDetail) examDetail.style.display = 'none';
-        if (editExamForm) editExamForm.style.display = 'none';
         if (examListContainer) examListContainer.style.display = 'block';
+    } else {
+        // Đóng modal (từ exams hoặc schedule)
+        const modal = document.getElementById('examDetailModal');
+        if (modal) modal.style.display = 'none';
     }
     
     currentExam = null;
-    examDetailContext = 'class';
-}
-
-function closeExamDetailModal() {
-    const modal = document.getElementById('examDetailModal');
-    if (modal) modal.style.display = 'none';
-    currentExam = null;
-    examDetailContext = 'class';
+    examDetailContext = 'class'; // Reset về mặc định
 }
 
 // Hàm hiển thị form chỉnh sửa bài thi
@@ -4373,7 +4399,7 @@ async function loadExamSchedule(filter = 'all') {
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-end;">
                             <span class="exam-status ${statusClass}">${statusText}</span>
-                            <button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.exam_id})">📋 Chi tiết</button>
+<button class="btn btn-small btn-primary" onclick="viewExamDetail(${exam.exam_id}, 'schedule')">📋 Chi tiết</button>
                         </div>
                     </div>
                 </div>
@@ -4401,7 +4427,12 @@ function closeExamDetailModal() {
 async function viewExamDetail(examId, context = 'class') {
     const token = localStorage.getItem('token');
     
+    // Lưu context để dùng cho backToExamList()
+    examDetailContext = context;
+    
     try {
+        console.log('🔵 [ExamDetail] Loading exam:', examId, 'Context:', context);
+        
         // Fetch chi tiết bài thi
         const response = await fetch(`http://localhost:3000/api/teacher/exams/${examId}/detail`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -4412,18 +4443,22 @@ async function viewExamDetail(examId, context = 'class') {
         }
         
         const exam = await response.json();
+        console.log('✅ [ExamDetail] Exam loaded:', exam);
+        
+        // Lưu exam hiện tại
+        currentExam = exam;
         
         // Xử lý theo context
-        if (context === 'exams') {
-            // Hiển thị trong modal
-            showExamDetailModal(exam);
-        } else {
-            // Hiển thị trong phần class detail
+        if (context === 'class') {
+            // Hiển thị trong phần class detail (đang ở trong 1 lớp)
             showExamDetailInClass(exam);
+        } else {
+            // Hiển thị trong modal (từ section exams hoặc schedule)
+            showExamDetailModal(exam);
         }
         
     } catch (error) {
-        console.error('❌ Error loading exam detail:', error);
+        console.error('❌ [ExamDetail] Error:', error);
         showNotification('❌ ' + error.message, 'error');
     }
 }
