@@ -3007,6 +3007,26 @@ function showGradingModal(data) {
                     </div>
                 ` : ''}
                 
+                ${ungraded.length > 0 ? `
+                    <div class="card" style="background: #fff5f5; border-left: 4px solid #f56565; margin-top: 20px;">
+                        <h4 style="margin-bottom: 10px; color: #2d3748;">📝 Lý do chỉnh sửa điểm <span style="color: #f56565;">*</span></h4>
+                        <p style="color: #718096; font-size: 14px; margin-bottom: 15px;">
+                            Vui lòng nhập lý do khi chỉnh sửa điểm. Lý do này sẽ được ghi lại trong lịch sử và học sinh có thể xem.
+                        </p>
+                        <div class="form-group">
+                            <textarea 
+                                id="gradingReason" 
+                                name="reason" 
+                                rows="3" 
+                                class="input-field"
+                                placeholder="VD: Điều chỉnh điểm do học sinh trình bày tốt hơn mong đợi..."
+                                required
+                                style="width: 100%;"
+                            ></textarea>
+                        </div>
+                    </div>
+                ` : ''}
+                
                 <div style="margin-top: 30px; display: flex; gap: 15px; justify-content: flex-end;">
                     <button type="button" class="btn btn-secondary" onclick="closeGradingModal()">
                         Hủy
@@ -3032,6 +3052,13 @@ async function submitGrading(event, attemptId) {
     const grades = [];
     const inputs = form.querySelectorAll('input[name^="score_"]');
     
+    // Lấy lý do chỉnh sửa
+    const reason = document.getElementById('gradingReason')?.value.trim() || '';
+    if (!reason) {
+        showNotification('❌ Vui lòng nhập lý do chỉnh sửa điểm!', 'error');
+        return;
+    }
+    
     inputs.forEach(input => {
         const questionId = input.name.replace('score_', '');
         const score = parseFloat(input.value);
@@ -3053,7 +3080,7 @@ async function submitGrading(event, attemptId) {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ grades })
+            body: JSON.stringify({ grades, reason })
         });
         
         if (!response.ok) {

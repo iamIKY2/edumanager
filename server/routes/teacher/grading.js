@@ -186,15 +186,20 @@ router.get('/:attemptId', authMiddleware, roleMiddleware(['teacher']), async (re
 // ============================================
 router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
   const { attemptId } = req.params;
-  const { grades } = req.body;
+  const { grades, reason } = req.body; // Thêm reason vào request body
   const teacherId = req.user.id || req.user.user_id;
 
   try {
     console.log('🔵 Submitting grades:', attemptId, grades);
 
+    // Kiểm tra lý do chỉnh sửa (bắt buộc nếu có thay đổi điểm)
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({ error: 'Vui lòng nhập lý do chỉnh sửa điểm' });
+    }
+
     // Kiểm tra quyền - Lấy thêm thông tin exam_name và student_id
     const [attempt] = await req.db.query(
-      `SELECT ea.*, e.teacher_id, e.exam_id, e.exam_name, ea.student_id
+      `SELECT ea.*, e.teacher_id, e.exam_id, e.exam_name, ea.student_id, ea.score as old_total_score
        FROM exam_attempts ea
        JOIN exams e ON ea.exam_id = e.exam_id
        WHERE ea.attempt_id = ? AND e.teacher_id = ?`,
@@ -208,12 +213,28 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
     const examId = attempt[0].exam_id;
     const examName = attempt[0].exam_name;
     const studentId = attempt[0].student_id;
+    const oldTotalScore = parseFloat(attempt[0].old_total_score || 0);
     
     // ✅ QUAN TRỌNG: Lấy giá trị is_fully_graded TRƯỚC KHI cập nhật điểm
     const wasFullyGraded = attempt[0].is_fully_graded === 1;
 
+    // Lấy điểm cũ của từng câu hỏi trước khi cập nhật
+    const [oldScores] = await req.db.query(
+      `SELECT question_id, teacher_score as old_score
+       FROM exam_attempt_answers
+       WHERE attempt_id = ?`,
+      [attemptId]
+    );
+    const oldScoreMap = {};
+    oldScores.forEach(s => {
+      oldScoreMap[s.question_id] = parseFloat(s.old_score || 0);
+    });
+
     // Cập nhật điểm cho từng câu
     for (const grade of grades) {
+      const oldScore = oldScoreMap[grade.question_id] || 0;
+      const newScore = parseFloat(grade.teacher_score || 0);
+      
       await req.db.query(
         `UPDATE exam_attempt_answers
          SET teacher_score = ?,
@@ -224,6 +245,16 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
          WHERE attempt_id = ? AND question_id = ?`,
         [grade.teacher_score, grade.teacher_comment, teacherId, attemptId, grade.question_id]
       );
+      
+      // Ghi audit log nếu điểm thay đổi
+      if (oldScore !== newScore) {
+        await req.db.query(
+          `INSERT INTO score_audit_logs 
+           (attempt_id, question_id, old_score, new_score, reason, edited_by)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [attemptId, grade.question_id, oldScore, newScore, reason.trim(), teacherId]
+        );
+      }
     }
 
     // Tính lại tổng điểm
@@ -255,6 +286,16 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
     );
 
     const isFullyGraded = pending[0].count === 0 ? 1 : 0;
+
+    // Ghi audit log cho tổng điểm nếu có thay đổi
+    if (oldTotalScore !== parseFloat(totalScore)) {
+      await req.db.query(
+        `INSERT INTO score_audit_logs 
+         (attempt_id, question_id, old_total_score, new_total_score, reason, edited_by)
+         VALUES (?, NULL, ?, ?, ?, ?)`,
+        [attemptId, oldTotalScore, totalScore, reason.trim(), teacherId]
+      );
+    }
 
     // Cập nhật điểm tổng
     await req.db.query(
@@ -329,6 +370,51 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
   } catch (err) {
     console.error('❌ Error:', err);
     res.status(500).json({ error: 'Lỗi khi lưu điểm', details: err.message });
+  }
+});
+
+// ============================================
+// 📋 XEM AUDIT LOG CHỈNH SỬA ĐIỂM
+// ============================================
+router.get('/:attemptId/audit-log', authMiddleware, roleMiddleware(['teacher', 'admin']), async (req, res) => {
+  const { attemptId } = req.params;
+  const userId = req.user.id || req.user.user_id;
+  const userRole = req.user.role;
+
+  try {
+    // Kiểm tra quyền
+    if (userRole === 'teacher') {
+      const [attempt] = await req.db.query(
+        `SELECT e.teacher_id 
+         FROM exam_attempts ea
+         JOIN exams e ON ea.exam_id = e.exam_id
+         WHERE ea.attempt_id = ? AND e.teacher_id = ?`,
+        [attemptId, userId]
+      );
+
+      if (!attempt.length) {
+        return res.status(403).json({ error: 'Bạn không có quyền xem audit log này' });
+      }
+    }
+
+    // Lấy audit log
+    const [logs] = await req.db.query(
+      `SELECT 
+        sal.*,
+        u.full_name as editor_name,
+        qb.question_content
+       FROM score_audit_logs sal
+       LEFT JOIN users u ON sal.edited_by = u.user_id
+       LEFT JOIN question_bank qb ON sal.question_id = qb.question_id
+       WHERE sal.attempt_id = ?
+       ORDER BY sal.edited_at DESC`,
+      [attemptId]
+    );
+
+    res.json({ logs });
+  } catch (err) {
+    console.error('❌ Error:', err);
+    res.status(500).json({ error: 'Lỗi khi lấy audit log', details: err.message });
   }
 });
 

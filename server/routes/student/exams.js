@@ -548,6 +548,46 @@ router.post('/:examId/submit', authMiddleware, roleMiddleware(['student']), asyn
       );
     }
 
+    // ⭐ KIỂM TRA VÀ TRỪ ĐIỂM NẾU CHUYỂN TAB QUÁ 3 LẦN
+    let penaltyAmount = 0;
+    let penaltyReason = null;
+    
+    // Đếm số lần chuyển tab
+    const [tabSwitchLogs] = await req.db.query(
+      `SELECT COUNT(*) as count 
+       FROM anti_cheating_logs 
+       WHERE attempt_id = ? AND event_type = 'TabSwitch'`,
+      [attempt_id]
+    );
+    
+    const tabSwitchCount = tabSwitchLogs[0]?.count || 0;
+    
+    if (tabSwitchCount > 3) {
+      // Tính điểm trắc nghiệm (chỉ trừ điểm trắc nghiệm)
+      const [mcScore] = await req.db.query(
+        `SELECT 
+          SUM(CASE 
+            WHEN eaa.is_correct = 1 AND qb.question_type IN ('SingleChoice', 'MultipleChoice') 
+            THEN eq.points 
+            ELSE 0 
+          END) as mc_score
+         FROM exam_attempt_answers eaa
+         JOIN exam_questions eq ON eaa.question_id = eq.question_id
+         JOIN question_bank qb ON eq.question_id = qb.question_id
+         WHERE eaa.attempt_id = ?`,
+        [attempt_id]
+      );
+      
+      const mcScoreValue = parseFloat(mcScore[0]?.mc_score || 0);
+      
+      // Trừ 10% điểm trắc nghiệm
+      penaltyAmount = Math.round((mcScoreValue * 0.1) * 10) / 10;
+      penaltyReason = `Bị trừ ${penaltyAmount} điểm (10% điểm trắc nghiệm) do chuyển tab ${tabSwitchCount} lần (vượt quá giới hạn 3 lần)`;
+      
+      totalScore = Math.max(0, totalScore - penaltyAmount);
+      console.log(`⚠️ Penalty applied: -${penaltyAmount} điểm (${tabSwitchCount} lần chuyển tab)`);
+    }
+
     // ⭐ LÀM TRÒN ĐIỂM (1 chữ số thập phân)
     totalScore = Math.round(totalScore * 10) / 10;
 
@@ -566,12 +606,17 @@ router.post('/:examId/submit', authMiddleware, roleMiddleware(['student']), asyn
     // ⭐ is_fully_graded chỉ = 1 nếu KHÔNG có câu hỏi tự luận nào chưa chấm
     const isFullyGraded = pendingManual[0].count === 0 ? 1 : 0;
 
-    // ⭐ CẬP NHẬT ĐIỂM VÀ TRẠNG THÁI
+    // ⭐ CẬP NHẬT ĐIỂM VÀ TRẠNG THÁI (bao gồm penalty nếu có)
     await req.db.query(
       `UPDATE exam_attempts 
-       SET status = 'Submitted', score = ?, end_time = NOW(), is_fully_graded = ?
+       SET status = 'Submitted', 
+           score = ?, 
+           end_time = NOW(), 
+           is_fully_graded = ?,
+           penalty_amount = ?,
+           penalty_reason = ?
        WHERE attempt_id = ?`,
-      [totalScore, isFullyGraded, attempt_id]
+      [totalScore, isFullyGraded, penaltyAmount, penaltyReason, attempt_id]
     );
 
     console.log('✅ Đã nộp bài:', { attempt_id, totalScore, isFullyGraded });
@@ -585,14 +630,23 @@ router.post('/:examId/submit', authMiddleware, roleMiddleware(['student']), asyn
       [examId]
     );
 
+    // Tạo message với thông tin penalty nếu có
+    let message = 'Nộp bài thành công';
+    if (isFullyGraded === 0 && (hasEssayQuestions[0].count || 0) > 0) {
+      message = 'Nộp bài thành công. Bài thi có câu tự luận cần giáo viên chấm điểm.';
+    }
+    if (penaltyAmount > 0) {
+      message += ` ${penaltyReason}`;
+    }
+
     res.json({
       success: true,
       score: totalScore,
       is_fully_graded: isFullyGraded,
       has_essay_questions: (hasEssayQuestions[0].count || 0) > 0,
-      message: isFullyGraded === 0 && (hasEssayQuestions[0].count || 0) > 0 
-        ? 'Nộp bài thành công. Bài thi có câu tự luận cần giáo viên chấm điểm.'
-        : 'Nộp bài thành công'
+      penalty_amount: penaltyAmount,
+      penalty_reason: penaltyReason,
+      message: message
     });
   } catch (err) {
     console.error('❌ Error in submit:', err);
@@ -610,11 +664,13 @@ router.get('/:examId/result/:attemptId', authMiddleware, roleMiddleware(['studen
   try {
     console.log('🔍 Result request:', { examId, attemptId });
 
-    // Lấy thông tin attempt
+    // Lấy thông tin attempt (bao gồm penalty)
     const [attempt] = await req.db.query(
       `SELECT 
         ea.*,
         e.exam_name,
+        ea.penalty_amount,
+        ea.penalty_reason,
         (SELECT SUM(points) FROM exam_questions WHERE exam_id = ea.exam_id) AS total_points
        FROM exam_attempts ea
        JOIN exams e ON ea.exam_id = e.exam_id
@@ -725,7 +781,9 @@ router.get('/:examId/result/:attemptId', authMiddleware, roleMiddleware(['studen
         end_time: attempt[0].end_time,
         exam_name: attempt[0].exam_name,
         is_fully_graded: attempt[0].is_fully_graded || 0,
-        has_pending_grading: (hasPendingEssay[0].count || 0) > 0
+        has_pending_grading: (hasPendingEssay[0].count || 0) > 0,
+        penalty_amount: attempt[0].penalty_amount || 0,
+        penalty_reason: attempt[0].penalty_reason || null
       },
       results: formattedResults
     });
