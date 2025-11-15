@@ -36,6 +36,9 @@ const studentStatisticsRoutes = require('./routes/student/statistics');
 // Admin routes
 const adminRoutes = require('./routes/admin/admin');
 
+const aiRoutes = require('./routes/aiRoutes');
+
+
 // App configuration
 const app = express();
 const port = process.env.PORT || 3000;
@@ -194,9 +197,13 @@ app.use('/api/student/statistics', studentStatisticsRoutes);
 // Admin routes
 app.use('/api/admin', adminRoutes);
 
+// AI routes
+app.use('/api/ai', aiRoutes);
+
 // 404 handler 
 app.use((req, res, next) => {
   console.log(`❌ 404 - Route not found: ${req.method} ${req.path}`);
+  // Trả về JSON thay vì HTML
   res.status(404).json({ 
     error: 'Route not found',
     path: req.path,

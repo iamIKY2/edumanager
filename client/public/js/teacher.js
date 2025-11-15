@@ -17,6 +17,10 @@ console.warn = function(...args) {
     }
 };
 
+// API Base URL
+const API_BASE_URL = window.location.origin.includes('localhost') 
+    ? 'http://localhost:3000' 
+    : window.location.origin;
 
 // Data storage
 
@@ -1249,7 +1253,7 @@ function backToExamList() {
     }
     
     currentExam = null;
-    examDetailContext = 'class'; // Reset về mặc định
+    examDetailContext = 'class'; 
 }
 
 // Hàm hiển thị form chỉnh sửa bài thi
@@ -2642,7 +2646,7 @@ async function banStudent() {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch('/api/anti-cheating/ban-student', {
+        const response = await fetch('http://localhost:3000/api/anti-cheating/ban-student', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -4777,4 +4781,518 @@ function updateThemeIcon(isDark) {
     if (icon) {
         icon.textContent = isDark ? '☀️' : '🌙';
     }
+}
+
+// ==================== AI EXAM MODAL FUNCTIONS ====================
+let aiGeneratedQuestions = [];
+let selectedClassForAI = null;
+
+// Mở modal
+function openAIModal() {
+    document.getElementById('aiExamModal').classList.add('active');
+    loadClassesForAI();
+    
+    // Set giá trị mặc định cho ngày thi (ngày mai)
+    const examDate = document.getElementById('aiExamDate');
+    if (examDate && !examDate.value) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        examDate.value = tomorrow.toISOString().split('T')[0];
+    }
+}
+
+// Đóng modal
+function closeAIModal() {
+    document.getElementById('aiExamModal').classList.remove('active');
+    resetAIModal();
+}
+
+// Load danh sách lớp
+async function loadClassesForAI() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.error('No token found');
+            return;
+        }
+
+        // Sử dụng URL tuyệt đối giống như hàm fetchClasses
+        const response = await fetch('http://localhost:3000/api/teacher/classes', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Lỗi khi tải danh sách lớp');
+            } else {
+                const text = await response.text();
+                console.error('Response is not JSON:', text.substring(0, 200));
+                throw new Error('Server trả về dữ liệu không hợp lệ');
+            }
+        }
+
+        const classes = await response.json();
+        const select = document.getElementById('aiClassSelect');
+        
+        if (!select) {
+            console.error('aiClassSelect element not found');
+            return;
+        }
+        
+        select.innerHTML = '<option value="">-- Không gắn lớp --</option>';
+        if (Array.isArray(classes) && classes.length > 0) {
+            classes.forEach(cls => {
+                const option = document.createElement('option');
+                option.value = cls.class_id;
+                option.textContent = cls.class_name || cls.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading classes:', error);
+        showAIAlert(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Xử lý submit form
+document.addEventListener('DOMContentLoaded', function() {
+    const aiExamForm = document.getElementById('aiExamForm');
+    if (aiExamForm) {
+        aiExamForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await generateAIExam();
+        });
+    }
+
+    // Đóng modal khi click bên ngoài
+    const aiModal = document.getElementById('aiExamModal');
+    if (aiModal) {
+        aiModal.addEventListener('click', (e) => {
+            if (e.target.id === 'aiExamModal') {
+                closeAIModal();
+            }
+        });
+    }
+});
+
+// Tạo đề thi với AI
+async function generateAIExam() {
+    const subject = document.getElementById('aiSubject').value.trim();
+    const topic = document.getElementById('aiTopic').value.trim();
+    const numQuestions = parseInt(document.getElementById('aiNumQuestions').value);
+    const difficulty = document.getElementById('aiDifficulty').value;
+    const additional = document.getElementById('aiAdditional').value.trim();
+    selectedClassForAI = document.getElementById('aiClassSelect').value;
+
+    // Lấy loại câu hỏi
+    const types = Array.from(document.querySelectorAll('input[name="aiQuestionType"]:checked'))
+        .map(cb => cb.value);
+
+    if (types.length === 0) {
+        showAIAlert('Vui lòng chọn ít nhất một loại câu hỏi!', 'error');
+        return;
+    }
+
+    // Hiện loading
+    document.getElementById('aiExamForm').style.display = 'none';
+    document.getElementById('aiLoading').classList.add('active');
+    document.getElementById('aiResult').classList.remove('active');
+
+    try {
+        // Sử dụng URL tuyệt đối giống như các hàm khác
+        const response = await fetch('http://localhost:3000/api/ai/generate-exam', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                subject,
+                topic,
+                numQuestions,
+                difficulty,
+                questionTypes: types,
+                additionalRequirements: additional
+            })
+        });
+
+        if (!response.ok) {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const error = await response.json();
+                throw new Error(error.message || 'Có lỗi xảy ra');
+            } else {
+                const text = await response.text();
+                console.error('Response is not JSON:', text.substring(0, 200));
+                throw new Error('Server trả về dữ liệu không hợp lệ');
+            }
+        }
+
+        const data = await response.json();
+        aiGeneratedQuestions = data.questions || [];
+
+        if (aiGeneratedQuestions.length === 0) {
+            throw new Error('Không có câu hỏi nào được tạo');
+        }
+
+        displayAIResults(aiGeneratedQuestions);
+        showAIAlert(`✅ Đã tạo thành công ${aiGeneratedQuestions.length} câu hỏi!`, 'success');
+
+    } catch (error) {
+        console.error('Error:', error);
+        showAIAlert(`❌ ${error.message}`, 'error');
+        document.getElementById('aiExamForm').style.display = 'block';
+    } finally {
+        document.getElementById('aiLoading').classList.remove('active');
+    }
+}
+
+// Hiển thị kết quả
+function displayAIResults(questions) {
+    const choiceCount = questions.filter(q => 
+        q.type === 'SingleChoice' || q.type === 'MultipleChoice'
+    ).length;
+    const otherCount = questions.filter(q => 
+        q.type === 'Essay' || q.type === 'FillInBlank'
+    ).length;
+    const totalPoints = questions.reduce((sum, q) => sum + (q.points || 10), 0);
+
+    document.getElementById('aiStatTotal').textContent = questions.length;
+    document.getElementById('aiStatPoints').textContent = totalPoints;
+    document.getElementById('aiStatChoice').textContent = choiceCount;
+    document.getElementById('aiStatOther').textContent = otherCount;
+
+    const previewHTML = questions.map((q, index) => {
+        const typeText = {
+            'SingleChoice': '1 đáp án',
+            'MultipleChoice': 'Nhiều đáp án',
+            'FillInBlank': 'Điền khẩu',
+            'Essay': 'Tự luận'
+        }[q.type];
+
+        let optionsHTML = '';
+        if (q.options && q.options.length > 0) {
+            const correctAnswers = q.correctAnswer.split(',').map(a => a.trim());
+            optionsHTML = `
+                <div class="ai-options">
+                    ${q.options.map((opt, i) => {
+                        const letter = String.fromCharCode(65 + i);
+                        const isCorrect = correctAnswers.includes(letter);
+                        return `<div class="ai-option ${isCorrect ? 'correct' : ''}">${opt} ${isCorrect ? '✓' : ''}</div>`;
+                    }).join('')}
+                </div>
+            `;
+        } else {
+            optionsHTML = `
+                <div style="background: #edf2f7; padding: 8px; border-radius: 6px; margin-top: 8px; font-size: 13px;">
+                    <strong>Đáp án:</strong> ${q.correctAnswer}
+                </div>
+            `;
+        }
+
+        return `
+            <div class="ai-question-preview">
+                <div class="ai-question-header">
+                    <span class="ai-question-number">Câu ${index + 1}</span>
+                    <div>
+                        <span class="difficulty-badge difficulty-${q.difficulty}">${q.difficulty}</span>
+                        <span style="margin-left: 8px; color: #667eea; font-weight: 600; font-size: 13px;">${q.points || 10}đ</span>
+                    </div>
+                </div>
+                <div class="ai-question-text">${q.questionText}</div>
+                <div style="font-size: 12px; color: #718096; margin-bottom: 8px;">
+                    <strong>Loại:</strong> ${typeText}
+                </div>
+                ${optionsHTML}
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById('aiPreviewList').innerHTML = previewHTML;
+    document.getElementById('aiResult').classList.add('active');
+}
+
+// Lưu đề thi
+async function saveAIExam() {
+    if (aiGeneratedQuestions.length === 0) {
+        showAIAlert('Không có câu hỏi nào để lưu!', 'error');
+        return;
+    }
+
+    const subject = document.getElementById('aiSubject').value.trim();
+    const topic = document.getElementById('aiTopic').value.trim();
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+        showAIAlert('❌ Vui lòng đăng nhập lại!', 'error');
+        return;
+    }
+
+    // Kiểm tra classId
+    if (!selectedClassForAI) {
+        showAIAlert('❌ Vui lòng chọn lớp học để gắn bài thi!', 'error');
+        return;
+    }
+
+    try {
+        // Bước 1: Tạo exam - lấy thông tin từ form
+        const examName = `${subject} - ${topic}`;
+        const examDate = document.getElementById('aiExamDate').value;
+        const examTime = document.getElementById('aiExamTime').value;
+        const duration = parseInt(document.getElementById('aiExamDuration').value) || 60;
+        const description = document.getElementById('aiExamDescription').value.trim() || 
+                           `Đề thi được tạo tự động bằng AI - ${subject}: ${topic}`;
+
+        // Validate ngày giờ
+        if (!examDate || !examTime) {
+            showAIAlert('❌ Vui lòng chọn ngày và giờ thi!', 'error');
+            return;
+        }
+
+        // Kiểm tra ngày thi phải trong tương lai hoặc hôm nay nhưng giờ chưa qua
+        const examDateTime = new Date(`${examDate}T${examTime}`);
+        const now = new Date();
+        if (examDateTime <= now) {
+            showAIAlert('❌ Ngày và giờ thi phải trong tương lai!', 'error');
+            return;
+        }
+        
+        const examResponse = await fetch(`http://localhost:3000/api/teacher/classes/${selectedClassForAI}/exams`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                examName: examName,
+                examDate: examDate,
+                examTime: examTime,
+                duration: duration,
+                description: description
+            })
+        });
+
+        if (!examResponse.ok) {
+            const errorData = await examResponse.json();
+            throw new Error(errorData.error || 'Không thể tạo bài thi');
+        }
+
+        const examData = await examResponse.json();
+        const examId = examData.exam?.exam_id || examData.exam_id;
+        const examCode = examData.exam?.exam_code || examData.exam_code;
+
+        if (!examId) {
+            throw new Error('Không nhận được ID bài thi từ server');
+        }
+
+        // Bước 2: Thêm các câu hỏi vào exam
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const q of aiGeneratedQuestions) {
+            try {
+                // Chuẩn hóa dữ liệu câu hỏi
+                const questionData = {
+                    question_content: q.questionText,
+                    question_type: q.type,
+                    difficulty: q.difficulty || 'Medium',
+                    correct_answer_text: q.correctAnswer,
+                    options: []
+                };
+
+                // Thêm options cho trắc nghiệm
+                if ((q.type === 'SingleChoice' || q.type === 'MultipleChoice') && q.options && q.options.length > 0) {
+                    const correctAnswers = q.correctAnswer.toUpperCase().split(',').map(a => a.trim());
+                    questionData.options = q.options.map((opt, idx) => {
+                        const letter = String.fromCharCode(65 + idx);
+                        return {
+                            text: opt.replace(/^[A-Z]\.\s*/, ''), // Loại bỏ "A. " nếu có
+                            is_correct: correctAnswers.includes(letter)
+                        };
+                    });
+                }
+
+                // Thêm câu hỏi vào ngân hàng câu hỏi
+                const questionResponse = await fetch('http://localhost:3000/api/teacher/exams/question-bank', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(questionData)
+                });
+
+                if (!questionResponse.ok) {
+                    const questionErrorText = await questionResponse.text();
+                    let questionErrorMsg = 'Không thể thêm câu hỏi vào ngân hàng';
+                    try {
+                        const questionErrorData = JSON.parse(questionErrorText);
+                        questionErrorMsg = questionErrorData.error || questionErrorData.message || questionErrorMsg;
+                    } catch {
+                        questionErrorMsg = questionErrorText.substring(0, 100) || questionErrorMsg;
+                    }
+                    throw new Error(questionErrorMsg);
+                }
+
+                const questionResult = await questionResponse.json();
+                const questionId = questionResult.question_id || questionResult.question?.question_id;
+
+                if (!questionId) {
+                    throw new Error('Không nhận được ID câu hỏi');
+                }
+
+                // Gắn câu hỏi vào exam - sử dụng endpoint đúng với questionId trong URL
+                const attachResponse = await fetch(`http://localhost:3000/api/teacher/exams/${examId}/questions/${questionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        points: q.points || 10
+                    })
+                });
+
+                if (!attachResponse.ok) {
+                    const attachErrorText = await attachResponse.text();
+                    let attachErrorMsg = 'Không thể gắn câu hỏi vào bài thi';
+                    try {
+                        const attachErrorData = JSON.parse(attachErrorText);
+                        attachErrorMsg = attachErrorData.error || attachErrorData.message || attachErrorMsg;
+                    } catch {
+                        attachErrorMsg = attachErrorText.substring(0, 100) || attachErrorMsg;
+                    }
+                    throw new Error(attachErrorMsg);
+                }
+
+                successCount++;
+            } catch (error) {
+                console.error('Error adding question:', error);
+                errorCount++;
+            }
+        }
+
+        if (successCount > 0) {
+            showAIAlert(`✅ Đã lưu thành công ${successCount}/${aiGeneratedQuestions.length} câu hỏi!${errorCount > 0 ? ` (${errorCount} lỗi)` : ''}`, 'success');
+            
+            // Hiển thị mã code nếu có
+            if (examCode) {
+                setTimeout(() => {
+                    if (typeof showExamCodeModal === 'function') {
+                        showExamCodeModal(examCode, examName);
+                    }
+                }, 500);
+            }
+            
+            setTimeout(() => {
+                closeAIModal();
+                if (typeof loadExams === 'function') {
+                    loadExams();
+                }
+                if (typeof loadAllExams === 'function') {
+                    loadAllExams();
+                }
+            }, 2000);
+        } else {
+            throw new Error('Không thể lưu bất kỳ câu hỏi nào');
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+        showAIAlert(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Tải JSON
+function downloadAIJSON() {
+    if (aiGeneratedQuestions.length === 0) {
+        showAIAlert('Không có câu hỏi nào để tải!', 'error');
+        return;
+    }
+
+    const dataStr = JSON.stringify(aiGeneratedQuestions, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `exam_ai_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showAIAlert('✅ Đã tải xuống file JSON!', 'success');
+}
+
+// Hiển thị thông báo
+function showAIAlert(message, type) {
+    const container = document.getElementById('aiAlertContainer');
+    if (!container) return;
+    
+    const alertHTML = `
+        <div class="ai-alert ai-alert-${type}">
+            ${message}
+        </div>
+    `;
+    container.innerHTML = alertHTML;
+    
+    setTimeout(() => {
+        container.innerHTML = '';
+    }, 5000);
+}
+
+// Reset form
+function resetAIForm() {
+    const form = document.getElementById('aiExamForm');
+    if (form) {
+        form.reset();
+    }
+    const numQuestions = document.getElementById('aiNumQuestions');
+    if (numQuestions) {
+        numQuestions.value = 10;
+    }
+    const firstCheckbox = document.querySelector('input[name="aiQuestionType"]');
+    if (firstCheckbox) {
+        firstCheckbox.checked = true;
+    }
+    
+    // Set giá trị mặc định cho ngày thi (ngày mai)
+    const examDate = document.getElementById('aiExamDate');
+    if (examDate) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        examDate.value = tomorrow.toISOString().split('T')[0];
+    }
+    
+    // Set giá trị mặc định cho giờ và thời lượng
+    const examTime = document.getElementById('aiExamTime');
+    if (examTime) {
+        examTime.value = '08:00';
+    }
+    
+    const examDuration = document.getElementById('aiExamDuration');
+    if (examDuration) {
+        examDuration.value = 60;
+    }
+}
+
+// Reset modal
+function resetAIModal() {
+    aiGeneratedQuestions = [];
+    selectedClassForAI = null;
+    const form = document.getElementById('aiExamForm');
+    if (form) {
+        form.style.display = 'block';
+    }
+    const result = document.getElementById('aiResult');
+    if (result) {
+        result.classList.remove('active');
+    }
+    const alertContainer = document.getElementById('aiAlertContainer');
+    if (alertContainer) {
+        alertContainer.innerHTML = '';
+    }
+    resetAIForm();
 }

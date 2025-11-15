@@ -224,7 +224,9 @@ function getTimeAgo(dateTime) {
 
 // Lấy danh sách lớp học của giáo viên
 router.get('/', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
+  console.log('📋 [GET /api/teacher/classes] Request received');
   const teacherId = req.user.id || req.user.user_id;
+  console.log('📋 Teacher ID:', teacherId);
 
   try {
     const [classes] = await req.db.query(
