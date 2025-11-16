@@ -865,8 +865,17 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
-    event.target.classList.add('active');
-    document.getElementById(tabName + '-tab').classList.add('active');
+    const tabElement = document.querySelector(`[data-tab="${tabName}"]`);
+    if (tabElement) {
+        tabElement.classList.add('active');
+    }
+    
+    const contentElement = document.getElementById(tabName + '-tab');
+    if (contentElement) {
+        contentElement.classList.add('active');
+    } else {
+        console.warn(`Tab content not found: ${tabName}-tab`);
+    }
 }
 
 function renderStudents() {
@@ -2756,15 +2765,15 @@ async function loadGradingSection() {
         return;
     }
     
-    const examListContainer = document.getElementById('gradingExamList');
+    const classListContainer = document.getElementById('gradingClassList');
     
-    if (!examListContainer) {
-        console.error('❌ [Grading] #gradingExamList not found!');
+    if (!classListContainer) {
+        console.error('❌ [Grading] #gradingClassList not found!');
         return;
     }
     
     // Show loading
-    examListContainer.innerHTML = `
+    classListContainer.innerHTML = `
         <div style="text-align: center; padding: 60px 20px; color: #666;">
             <div style="font-size: 4rem; margin-bottom: 20px; animation: spin 2s linear infinite;">⏳</div>
             <div style="font-size: 1.1rem; font-weight: 500;">Đang tải danh sách bài cần chấm...</div>
@@ -2812,9 +2821,40 @@ async function loadGradingSection() {
             fill: data.pendingFillInBlank
         });
         
-        // Render exam list
-        if (!data.attempts || data.attempts.length === 0) {
-            examListContainer.innerHTML = `
+        // Nhóm bài thi theo lớp học
+        const classGroups = {};
+        if (data.attempts && data.attempts.length > 0) {
+            data.attempts.forEach(attempt => {
+                // Chuẩn hóa class_id thành string để so sánh dễ dàng
+                const classId = attempt.class_id === null || attempt.class_id === undefined ? 'no-class' : String(attempt.class_id);
+                const className = attempt.class_name || 'Không có lớp';
+                
+                if (!classGroups[classId]) {
+                    classGroups[classId] = {
+                        class_id: classId,
+                        class_name: className,
+                        attempts: []
+                    };
+                }
+                classGroups[classId].attempts.push(attempt);
+            });
+        }
+        
+        console.log('🔵 [Grading] Class groups:', Object.keys(classGroups).map(k => ({
+            id: k,
+            name: classGroups[k].class_name,
+            count: classGroups[k].attempts.length
+        })));
+        
+        // Render danh sách lớp học
+        const classListContainer = document.getElementById('gradingClassList');
+        if (!classListContainer) {
+            console.error('❌ [Grading] #gradingClassList not found!');
+            return;
+        }
+        
+        if (Object.keys(classGroups).length === 0) {
+            classListContainer.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">✅</div>
                     <div class="empty-state-text">Không có bài thi nào cần chấm</div>
@@ -2825,35 +2865,31 @@ async function loadGradingSection() {
             return;
         }
         
-        console.log('🔵 [Grading] Rendering', data.attempts.length, 'attempts...');
+        console.log('🔵 [Grading] Rendering', Object.keys(classGroups).length, 'classes...');
         
-        examListContainer.innerHTML = data.attempts.map(attempt => {
-            console.log('🔵 [Grading] Rendering attempt:', attempt);
+        classListContainer.innerHTML = Object.values(classGroups).map(classGroup => {
+            const totalPending = classGroup.attempts.reduce((sum, a) => sum + parseInt(a.pending_questions || 0), 0);
             
             return `
-                <div class="exam-item" style="border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 15px; background: #f7fafc; transition: all 0.3s;">
-                    <div class="exam-header" style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                <div class="class-card" style="border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; background: #f7fafc; transition: all 0.3s; cursor: pointer;" onclick="showClassGradingDetails('${classGroup.class_id}', '${classGroup.class_name.replace(/'/g, "\\'")}')">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
                         <div style="flex: 1;">
-                            <div class="exam-title" style="font-size: 1.2rem; font-weight: 600; color: #2d3748; margin-bottom: 8px;">
-                                ${attempt.exam_name}
-                            </div>
-                            <div class="exam-meta" style="display: flex; flex-wrap: wrap; gap: 15px; color: #718096; font-size: 0.9rem;">
-                                <span>👤 ${attempt.student_name}</span>
-                                <span>📅 ${new Date(attempt.end_time).toLocaleString('vi-VN')}</span>
-                                <span>⏱️ ${attempt.duration} phút</span>
+                            <h3 style="font-size: 1.3rem; font-weight: 600; color: #2d3748; margin-bottom: 8px;">
+                                🏫 ${classGroup.class_name}
+                            </h3>
+                            <div style="display: flex; flex-wrap: wrap; gap: 15px; color: #718096; font-size: 0.9rem;">
                                 <span style="color: #ffa502; font-weight: 600;">
-                                    ⚠️ ${attempt.pending_questions} câu chưa chấm
+                                    ⚠️ ${totalPending} câu cần chấm
                                 </span>
+                                <span>📝 ${classGroup.attempts.length} bài thi</span>
                             </div>
                         </div>
-                        <span class="exam-status" style="background: #ffa502; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                        <span style="background: #ffa502; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
                             Chờ chấm
                         </span>
                     </div>
-                    <div class="exam-actions" style="display: flex; gap: 10px;">
-                        <button class="btn btn-primary" onclick="startGrading(${attempt.attempt_id}, ${attempt.exam_id})" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-                            ✍️ Chấm bài
-                        </button>
+                    <div style="color: #667eea; font-weight: 600; margin-top: 10px;">
+                        👆 Click để xem chi tiết →
                     </div>
                 </div>
             `;
@@ -2863,16 +2899,19 @@ async function loadGradingSection() {
         
     } catch (error) {
         console.error('❌ [Grading] Error:', error);
-        examListContainer.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">❌</div>
-                <div class="empty-state-text">Lỗi tải danh sách bài cần chấm</div>
-                <div class="empty-state-subtext">${error.message}</div>
-                <button class="btn btn-primary" onclick="loadGradingSection()" style="margin-top: 15px;">
-                    🔄 Thử lại
-                </button>
-            </div>
-        `;
+        const classListContainer = document.getElementById('gradingClassList');
+        if (classListContainer) {
+            classListContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">❌</div>
+                    <div class="empty-state-text">Lỗi tải danh sách bài cần chấm</div>
+                    <div class="empty-state-subtext">${error.message}</div>
+                    <button class="btn btn-primary" onclick="loadGradingSection()" style="margin-top: 15px;">
+                        🔄 Thử lại
+                    </button>
+                </div>
+            `;
+        }
         showNotification('❌ ' + error.message, 'error');
     }
 }
@@ -2905,140 +2944,208 @@ async function startGrading(attemptId, examId) {
 
 // 🎨 HIỂN THỊ MODAL CHẤM BÀI
 function showGradingModal(data) {
-    let modal = document.getElementById('gradingModal');
+    const modal = document.getElementById('gradingModal');
     if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'gradingModal';
-        modal.className = 'modal';
-        document.body.appendChild(modal);
+        console.error('❌ Modal không tồn tại!');
+        return;
     }
+    
+    const modalContent = modal.querySelector('.modal-content');
+    if (!modalContent) {
+        console.error('❌ Modal content không tồn tại!');
+        return;
+    }
+    
     const ungraded = data.answers.filter(a => 
         !a.is_graded && (a.question_type === 'Essay' || a.question_type === 'FillInBlank')
     );
     
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header">
-                <h3>✍️ Chấm bài: ${data.exam_name}</h3>
-                <span class="close" onclick="closeGradingModal()">&times;</span>
-            </div>
-            
-            <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                    <div>
-                        <strong>👤 Học sinh:</strong> ${data.student_name}
-                    </div>
-                    <div>
-                        <strong>📅 Nộp lúc:</strong> ${new Date(data.end_time).toLocaleString('vi-VN')}
-                    </div>
-                    <div>
-                        <strong>📊 Điểm hiện tại:</strong> 
-                        <span style="color: #667eea; font-weight: 600;">${data.current_score}/${data.total_points}</span>
-                    </div>
-                    <div>
-                        <strong>⚠️ Chưa chấm:</strong> 
-                        <span style="color: #ffa502; font-weight: 600;">${ungraded.length} câu</span>
-                    </div>
-                </div>
-            </div>
-            
-            <form id="gradingForm" onsubmit="submitGrading(event, ${data.attempt_id})">
-                ${ungraded.map((answer, index) => `
-                    <div class="card" style="margin-bottom: 20px; border-left: 4px solid #667eea;">
-                        <h4 style="margin-bottom: 15px; color: #2d3748;">
-                            Câu ${index + 1}: ${answer.question_content}
-                        </h4>
-                        
-                        <div style="margin-bottom: 15px;">
-                            <strong>Loại:</strong> 
-                            <span class="tag">${answer.question_type === 'Essay' ? 'Tự luận' : 'Điền khẩu'}</span>
-                            <span class="tag" style="background: #4299e1;">Độ khó: ${answer.difficulty}</span>
-                            <span class="tag" style="background: #48bb78;">Điểm tối đa: ${answer.points}</span>
-                        </div>
-                        
-                        ${answer.correct_answer_text ? `
-                            <div style="background: #e6fffa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #26de81;">
-                                <strong style="color: #2d3748;">✅ Đáp án gợi ý:</strong>
-                                <div style="margin-top: 8px; color: #2d3748;">${answer.correct_answer_text}</div>
-                            </div>
-                        ` : ''}
-                        
-                        <div style="background: #fff5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #667eea;">
-                            <strong style="color: #2d3748;">📝 Câu trả lời của học sinh:</strong>
-                            <div style="margin-top: 8px; color: #2d3748; white-space: pre-wrap;">
-                                ${answer.answer_text || '<em style="color: #cbd5e0;">Học sinh chưa trả lời</em>'}
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>
-                                <strong>Điểm:</strong> (0 - ${answer.points})
-                                <span style="color: #f56565;">*</span>
-                            </label>
-                            <input 
-                                type="number" 
-                                name="score_${answer.question_id}" 
-                                min="0" 
-                                max="${answer.points}" 
-                                step="0.5"
-                                class="input-field"
-                                placeholder="VD: 0, 0.5, 1, 1.5..."
-                                required
-                                style="max-width: 150px;"
-                            >
-                        </div>
-                        
-                        <div class="form-group">
-                            <label><strong>Nhận xét:</strong> (Không bắt buộc)</label>
-                            <textarea 
-                                name="comment_${answer.question_id}" 
-                                rows="3" 
-                                class="input-field"
-                                placeholder="Nhập nhận xét cho học sinh..."
-                            ></textarea>
-                        </div>
-                    </div>
-                `).join('')}
-                
-                ${ungraded.length === 0 ? `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">✅</div>
-                        <div class="empty-state-text">Tất cả câu hỏi đã được chấm</div>
-                    </div>
-                ` : ''}
-                
-                ${ungraded.length > 0 ? `
-                    <div class="card" style="background: #fff5f5; border-left: 4px solid #f56565; margin-top: 20px;">
-                        <h4 style="margin-bottom: 10px; color: #2d3748;">📝 Lý do chỉnh sửa điểm <span style="color: #f56565;">*</span></h4>
-                        <p style="color: #718096; font-size: 14px; margin-bottom: 15px;">
-                            Vui lòng nhập lý do khi chỉnh sửa điểm. Lý do này sẽ được ghi lại trong lịch sử và học sinh có thể xem.
-                        </p>
-                        <div class="form-group">
-                            <textarea 
-                                id="gradingReason" 
-                                name="reason" 
-                                rows="3" 
-                                class="input-field"
-                                placeholder="VD: Điều chỉnh điểm do học sinh trình bày tốt hơn mong đợi..."
-                                required
-                                style="width: 100%;"
-                            ></textarea>
-                        </div>
-                    </div>
-                ` : ''}
-                
-                <div style="margin-top: 30px; display: flex; gap: 15px; justify-content: flex-end;">
-                    <button type="button" class="btn btn-secondary" onclick="closeGradingModal()">
-                        Hủy
-                    </button>
-                    <button type="submit" class="btn btn-success" ${ungraded.length === 0 ? 'disabled' : ''}>
-                        💾 Lưu điểm
-                    </button>
-                </div>
-            </form>
-        </div>
-    `;
+    // Cập nhật title
+    const modalTitle = modal.querySelector('#gradingModalTitle');
+    if (modalTitle) {
+        modalTitle.textContent = `✍️ Chấm bài: ${data.exam_name}`;
+    }
     
+    // Cập nhật thông tin học sinh và bài thi
+    const modalInfo = document.getElementById('gradingModalInfo');
+    if (modalInfo) {
+        modalInfo.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div>
+                    <strong>👤 Học sinh:</strong> ${data.student_name}
+                </div>
+                <div>
+                    <strong>🏫 Lớp:</strong> ${data.class_name || 'Không có lớp'}
+                </div>
+                <div>
+                    <strong>📅 Nộp lúc:</strong> ${new Date(data.end_time).toLocaleString('vi-VN')}
+                </div>
+                <div>
+                    <strong>📊 Điểm hiện tại:</strong> 
+                    <span style="color: #667eea; font-weight: 600;">${data.current_score}/${data.total_points}</span>
+                </div>
+                <div>
+                    <strong>⚠️ Chưa chấm:</strong> 
+                    <span style="color: #ffa502; font-weight: 600;">${ungraded.length} câu</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Cập nhật thông tin vi phạm gian lận
+    const violationInfo = document.getElementById('gradingViolationInfo');
+    if (violationInfo) {
+        if (data.violation_count > 0) {
+            violationInfo.style.display = 'block';
+            const violationDetails = document.getElementById('violationDetails');
+            if (violationDetails) {
+                violationDetails.innerHTML = `
+                    <div>
+                        <strong>Tổng vi phạm:</strong> 
+                        <span style="color: #c53030; font-weight: 600; font-size: 1.1rem;">${data.violation_count} lần</span>
+                    </div>
+                    ${data.tab_switch_count > 0 ? `
+                        <div>
+                            <strong>🚫 Chuyển tab:</strong> 
+                            <span style="color: #c53030; font-weight: 600;">${data.tab_switch_count} lần</span>
+                        </div>
+                    ` : ''}
+                    ${data.copy_paste_count > 0 ? `
+                        <div>
+                            <strong>📋 Copy/Paste:</strong> 
+                            <span style="color: #c53030; font-weight: 600;">${data.copy_paste_count} lần</span>
+                        </div>
+                    ` : ''}
+                    ${data.webcam_suspicious_count > 0 ? `
+                        <div>
+                            <strong>📷 Lỗi webcam:</strong> 
+                            <span style="color: #c53030; font-weight: 600;">${data.webcam_suspicious_count} lần</span>
+                        </div>
+                    ` : ''}
+                    ${data.devtools_count > 0 ? `
+                        <div>
+                            <strong>🔧 Mở DevTools:</strong> 
+                            <span style="color: #c53030; font-weight: 600;">${data.devtools_count} lần</span>
+                        </div>
+                    ` : ''}
+                    ${data.penalty_amount > 0 ? `
+                        <div style="grid-column: 1 / -1; margin-top: 10px; padding-top: 10px; border-top: 1px solid #fc8181;">
+                            <strong>💰 Đã bị trừ điểm:</strong> 
+                            <span style="color: #c53030; font-weight: 600; font-size: 1.1rem;">-${data.penalty_amount} điểm</span>
+                            ${data.penalty_reason ? `
+                                <div style="margin-top: 5px; font-size: 0.9rem; color: #742a2a;">
+                                    Lý do: ${data.penalty_reason}
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                    <div style="grid-column: 1 / -1; margin-top: 10px; color: #742a2a; font-size: 0.9rem; font-style: italic;">
+                        💡 Giáo viên có thể căn cứ vào thông tin vi phạm này để chấm điểm công bằng và chính xác hơn.
+                    </div>
+                `;
+            }
+        } else {
+            violationInfo.style.display = 'none';
+        }
+    }
+    
+    // Cập nhật form chấm bài
+    const questionsList = document.getElementById('gradingQuestionsList');
+    const gradingForm = document.getElementById('gradingForm');
+    
+    if (questionsList && gradingForm) {
+        // Cập nhật onsubmit của form
+        gradingForm.onsubmit = (e) => submitGrading(e, data.attempt_id);
+        
+        // Cập nhật danh sách câu hỏi
+        questionsList.innerHTML = `
+            ${ungraded.map((answer, index) => `
+                <div class="card" style="margin-bottom: 20px; border-left: 4px solid #667eea;">
+                    <h4 style="margin-bottom: 15px; color: #2d3748;">
+                        Câu ${index + 1}: ${answer.question_content}
+                    </h4>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <strong>Loại:</strong> 
+                        <span class="tag">${answer.question_type === 'Essay' ? 'Tự luận' : 'Điền khẩu'}</span>
+                        <span class="tag" style="background: #4299e1;">Độ khó: ${answer.difficulty}</span>
+                        <span class="tag" style="background: #48bb78;">Điểm tối đa: ${answer.points}</span>
+                    </div>
+                    
+                    ${answer.correct_answer_text ? `
+                        <div style="background: #e6fffa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #26de81;">
+                            <strong style="color: #2d3748;">✅ Đáp án gợi ý:</strong>
+                            <div style="margin-top: 8px; color: #2d3748;">${answer.correct_answer_text}</div>
+                        </div>
+                    ` : ''}
+                    
+                    <div style="background: #fff5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #667eea;">
+                        <strong style="color: #2d3748;">📝 Câu trả lời của học sinh:</strong>
+                        <div style="margin-top: 8px; color: #2d3748; white-space: pre-wrap;">
+                            ${answer.answer_text || '<em style="color: #cbd5e0;">Học sinh chưa trả lời</em>'}
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <strong>Điểm:</strong> (0 - ${answer.points})
+                            <span style="color: #f56565;">*</span>
+                        </label>
+                        <input 
+                            type="number" 
+                            name="score_${answer.question_id}" 
+                            min="0" 
+                            max="${answer.points}" 
+                            step="0.5"
+                            class="input-field"
+                            placeholder="VD: 0, 0.5, 1, 1.5..."
+                            required
+                            style="max-width: 150px;"
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><strong>Nhận xét:</strong> (Không bắt buộc)</label>
+                        <textarea 
+                            name="comment_${answer.question_id}" 
+                            rows="3" 
+                            class="input-field"
+                            placeholder="Nhập nhận xét cho học sinh..."
+                        ></textarea>
+                    </div>
+                </div>
+            `).join('')}
+            
+            ${ungraded.length === 0 ? `
+                <div class="empty-state">
+                    <div class="empty-state-icon">✅</div>
+                    <div class="empty-state-text">Tất cả câu hỏi đã được chấm</div>
+                </div>
+            ` : ''}
+            
+            ${ungraded.length > 0 ? `
+                <div class="card" style="background: #fff5f5; border-left: 4px solid #f56565; margin-top: 20px;">
+                    <h4 style="margin-bottom: 10px; color: #2d3748;">📝 Lý do chỉnh sửa điểm <span style="color: #f56565;">*</span></h4>
+                    <p style="color: #718096; font-size: 14px; margin-bottom: 15px;">
+                        Vui lòng nhập lý do khi chỉnh sửa điểm. Lý do này sẽ được ghi lại trong lịch sử và học sinh có thể xem.
+                    </p>
+                    <div class="form-group">
+                        <textarea 
+                            id="gradingReason" 
+                            name="reason" 
+                            rows="3" 
+                            class="input-field"
+                            placeholder="VD: Điều chỉnh điểm do học sinh trình bày tốt hơn mong đợi..."
+                            required
+                            style="width: 100%;"
+                        ></textarea>
+                    </div>
+                </div>
+            ` : ''}
+        `;
+    }
+    
+    // Hiển thị modal
     modal.style.display = 'flex';
 }
 
@@ -3107,6 +3214,210 @@ function closeGradingModal() {
     const modal = document.getElementById('gradingModal');
     if (modal) {
         modal.style.display = 'none';
+    }
+}
+
+// Lưu trữ dữ liệu lớp học để hiển thị chi tiết
+let gradingClassData = {};
+
+// 📋 HIỂN THỊ CHI TIẾT BÀI THI CẦN CHẤM CỦA MỘT LỚP
+function showClassGradingDetails(classId, className) {
+    const token = localStorage.getItem('token');
+    
+    // Lấy dữ liệu từ API
+    fetch('http://localhost:3000/api/teacher/grading/pending', {
+        headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log('🔵 [Class Grading] All attempts:', data.attempts);
+        console.log('🔵 [Class Grading] Looking for classId:', classId, 'Type:', typeof classId);
+        
+        // Lọc bài thi theo lớp - so sánh cả số và string
+        const classAttempts = data.attempts.filter(a => {
+            const attemptClassId = a.class_id === null || a.class_id === undefined ? 'no-class' : String(a.class_id);
+            const searchClassId = classId === 'no-class' ? 'no-class' : String(classId);
+            console.log('🔵 [Class Grading] Comparing:', attemptClassId, '===', searchClassId);
+            return attemptClassId === searchClassId;
+        });
+        
+        console.log('🔵 [Class Grading] Filtered attempts:', classAttempts.length);
+        
+        if (classAttempts.length === 0) {
+            showNotification('Không có bài thi nào cần chấm trong lớp này', 'info');
+            return;
+        }
+        
+        // Tạo modal để hiển thị danh sách bài thi
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h3>📋 Danh sách bài cần chấm - ${className}</h3>
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="color: #718096; margin-bottom: 20px;">
+                        Tổng cộng: <strong>${classAttempts.length}</strong> bài thi cần chấm
+                    </p>
+                    <div class="exam-list">
+                        ${classAttempts.map(attempt => `
+                            <div class="exam-item" style="border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 15px; background: #f7fafc;">
+                                <div class="exam-header" style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                                    <div style="flex: 1;">
+                                        <div class="exam-title" style="font-size: 1.2rem; font-weight: 600; color: #2d3748; margin-bottom: 8px;">
+                                            ${attempt.exam_name}
+                                        </div>
+                                        <div class="exam-meta" style="display: flex; flex-wrap: wrap; gap: 15px; color: #718096; font-size: 0.9rem;">
+                                            <span>👤 ${attempt.student_name}</span>
+                                            <span>📅 ${new Date(attempt.end_time).toLocaleString('vi-VN')}</span>
+                                            <span>⏱️ ${attempt.duration} phút</span>
+                                            <span style="color: #ffa502; font-weight: 600;">
+                                                ⚠️ ${attempt.pending_questions} câu chưa chấm
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <span class="exam-status" style="background: #ffa502; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                                        Chờ chấm
+                                    </span>
+                                </div>
+                                <div class="exam-actions" style="display: flex; gap: 10px;">
+                                    <button class="btn btn-primary" onclick="startGrading(${attempt.attempt_id}, ${attempt.exam_id}); this.closest('.modal').remove();" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                                        ✍️ Chấm bài
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    })
+    .catch(error => {
+        console.error('❌ [Class Grading] Error:', error);
+        showNotification('❌ Lỗi khi tải danh sách bài thi: ' + error.message, 'error');
+    });
+}
+
+// 🔄 CHUYỂN TAB GIỮA "CẦN CHẤM" VÀ "LỊCH SỬ"
+function switchGradingTab(tab) {
+    const pendingTab = document.getElementById('pendingGradingTab');
+    const historyTab = document.getElementById('gradedHistoryTab');
+    const pendingBtn = document.querySelector('[data-tab="pending-grading"]');
+    const historyBtn = document.querySelector('[data-tab="graded-history"]');
+    
+    if (tab === 'pending') {
+        pendingTab.style.display = 'block';
+        historyTab.style.display = 'none';
+        if (pendingBtn) pendingBtn.classList.add('active');
+        if (historyBtn) historyBtn.classList.remove('active');
+    } else {
+        pendingTab.style.display = 'none';
+        historyTab.style.display = 'block';
+        if (pendingBtn) pendingBtn.classList.remove('active');
+        if (historyBtn) historyBtn.classList.add('active');
+        
+        // Load lịch sử khi chuyển sang tab này
+        loadGradedHistory();
+    }
+}
+
+// 📜 LOAD LỊCH SỬ BÀI ĐÃ CHẤM
+async function loadGradedHistory() {
+    const token = localStorage.getItem('token');
+    const historyList = document.getElementById('gradedHistoryList');
+    
+    if (!historyList) {
+        console.error('❌ [Grading History] #gradedHistoryList not found!');
+        return;
+    }
+    
+    historyList.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; color: #666;">
+            <div style="font-size: 4rem; margin-bottom: 20px; animation: spin 2s linear infinite;">⏳</div>
+            <div style="font-size: 1.1rem; font-weight: 500;">Đang tải lịch sử...</div>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch('http://localhost:3000/api/teacher/grading/graded', {
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Lỗi không xác định' }));
+            throw new Error(errorData.error || 'Lỗi tải lịch sử');
+        }
+        
+        const data = await response.json();
+        
+        if (!data.attempts || data.attempts.length === 0) {
+            historyList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📜</div>
+                    <div class="empty-state-text">Chưa có bài thi nào đã chấm</div>
+                </div>
+            `;
+            return;
+        }
+        
+        historyList.innerHTML = data.attempts.map(attempt => `
+            <div class="exam-item" style="border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 15px; background: #f7fafc;">
+                <div class="exam-header" style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                    <div style="flex: 1;">
+                        <div class="exam-title" style="font-size: 1.2rem; font-weight: 600; color: #2d3748; margin-bottom: 8px;">
+                            ${attempt.exam_name}
+                        </div>
+                        <div class="exam-meta" style="display: flex; flex-wrap: wrap; gap: 15px; color: #718096; font-size: 0.9rem;">
+                            <span>👤 ${attempt.student_name}</span>
+                            <span>🏫 ${attempt.class_name || 'Không có lớp'}</span>
+                            <span>📅 ${new Date(attempt.end_time).toLocaleString('vi-VN')}</span>
+                            <span>⏱️ ${attempt.duration} phút</span>
+                            ${attempt.violation_count > 0 ? `
+                                <span style="color: #f56565; font-weight: 600;">
+                                    ⚠️ ${attempt.violation_count} vi phạm
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                        <span style="background: #48bb78; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                            Đã chấm
+                        </span>
+                        <span style="color: #667eea; font-weight: 600; font-size: 1.1rem;">
+                            ${parseFloat(attempt.score || 0).toFixed(1)} điểm
+                        </span>
+                    </div>
+                </div>
+                <div class="exam-actions" style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="startGrading(${attempt.attempt_id}, ${attempt.exam_id})" style="padding: 10px 20px; background: #718096; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        👁️ Xem lại
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('❌ [Grading History] Error:', error);
+        historyList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">❌</div>
+                <div class="empty-state-text">Lỗi tải lịch sử</div>
+                <div class="empty-state-subtext">${error.message}</div>
+                <button class="btn btn-primary" onclick="loadGradedHistory()" style="margin-top: 15px;">
+                    🔄 Thử lại
+                </button>
+            </div>
+        `;
     }
 }
 

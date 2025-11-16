@@ -13,7 +13,7 @@ router.get('/pending', authMiddleware, roleMiddleware(['teacher']), async (req, 
   try {
     console.log('🔍 Loading pending grading for teacher:', teacherId);
 
-    // Lấy danh sách bài thi chưa chấm hoàn toàn
+    // Lấy danh sách bài thi chưa chấm hoàn toàn (có thêm thông tin lớp học)
     const [attempts] = await req.db.query(
       `SELECT 
         ea.attempt_id,
@@ -25,6 +25,8 @@ router.get('/pending', authMiddleware, roleMiddleware(['teacher']), async (req, 
         ea.is_fully_graded,
         e.exam_name,
         e.duration,
+        e.class_id,
+        c.class_name,
         u.full_name as student_name,
         u.user_id as student_code,
         (SELECT COUNT(*) 
@@ -38,9 +40,10 @@ router.get('/pending', authMiddleware, roleMiddleware(['teacher']), async (req, 
        FROM exam_attempts ea
        JOIN exams e ON ea.exam_id = e.exam_id
        JOIN users u ON ea.student_id = u.user_id
+       LEFT JOIN classes c ON e.class_id = c.class_id
        WHERE e.teacher_id = ?
          AND ea.status IN ('Submitted', 'AutoSubmitted')
-       ORDER BY ea.end_time DESC`,
+       ORDER BY c.class_name, e.exam_name, ea.end_time DESC`,
       [teacherId]
     );
 
@@ -108,6 +111,62 @@ router.get('/pending', authMiddleware, roleMiddleware(['teacher']), async (req, 
 });
 
 // ============================================
+// 📋 LẤY DANH SÁCH BÀI THI ĐÃ CHẤM
+// ============================================
+// QUAN TRỌNG: Route này phải đứng TRƯỚC route /:attemptId để tránh conflict
+router.get('/graded', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
+  const teacherId = req.user.id || req.user.user_id;
+
+  try {
+    console.log('🔍 Loading graded exams for teacher:', teacherId);
+
+    // Lấy danh sách bài thi đã chấm hoàn toàn
+    const [attempts] = await req.db.query(
+      `SELECT 
+        ea.attempt_id,
+        ea.exam_id,
+        ea.student_id,
+        ea.start_time,
+        ea.end_time,
+        ea.score,
+        ea.is_fully_graded,
+        e.exam_name,
+        e.duration,
+        e.class_id,
+        c.class_name,
+        u.full_name as student_name,
+        u.user_id as student_code,
+        (SELECT COUNT(*) FROM anti_cheating_logs WHERE attempt_id = ea.attempt_id) as violation_count,
+        ea.penalty_amount,
+        ea.penalty_reason
+       FROM exam_attempts ea
+       JOIN exams e ON ea.exam_id = e.exam_id
+       JOIN users u ON ea.student_id = u.user_id
+       LEFT JOIN classes c ON e.class_id = c.class_id
+       WHERE e.teacher_id = ?
+         AND ea.status IN ('Submitted', 'AutoSubmitted')
+         AND ea.is_fully_graded = 1
+       ORDER BY ea.end_time DESC
+       LIMIT 100`,
+      [teacherId]
+    );
+
+    console.log('✅ Found graded attempts:', attempts.length);
+
+    res.json({
+      attempts: attempts
+    });
+
+  } catch (err) {
+    console.error('❌ Error:', err);
+    res.status(500).json({ 
+      error: 'Lỗi khi tải danh sách bài đã chấm', 
+      details: err.message
+    });
+  }
+});
+
+// ============================================
 // 📄 LẤY CHI TIẾT BÀI LÀM CỦA HỌC SINH
 // ============================================
 router.get('/:attemptId', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
@@ -117,17 +176,27 @@ router.get('/:attemptId', authMiddleware, roleMiddleware(['teacher']), async (re
   try {
     console.log('🔍 Loading grading detail:', attemptId);
 
-    // Kiểm tra quyền truy cập
+    // Kiểm tra quyền truy cập (có thêm thông tin lớp học và vi phạm gian lận)
     const [attempt] = await req.db.query(
       `SELECT 
         ea.*,
         e.exam_name,
         e.teacher_id,
+        e.class_id,
+        c.class_name,
         u.full_name as student_name,
-        (SELECT SUM(points) FROM exam_questions WHERE exam_id = ea.exam_id) AS total_points
+        (SELECT SUM(points) FROM exam_questions WHERE exam_id = ea.exam_id) AS total_points,
+        (SELECT COUNT(*) FROM anti_cheating_logs WHERE attempt_id = ea.attempt_id) as violation_count,
+        (SELECT COUNT(*) FROM anti_cheating_logs WHERE attempt_id = ea.attempt_id AND event_type = 'TabSwitch') as tab_switch_count,
+        (SELECT COUNT(*) FROM anti_cheating_logs WHERE attempt_id = ea.attempt_id AND event_type = 'CopyPaste') as copy_paste_count,
+        (SELECT COUNT(*) FROM anti_cheating_logs WHERE attempt_id = ea.attempt_id AND event_type = 'WebcamSuspicious') as webcam_suspicious_count,
+        (SELECT COUNT(*) FROM anti_cheating_logs WHERE attempt_id = ea.attempt_id AND event_type = 'DevTools') as devtools_count,
+        ea.penalty_amount,
+        ea.penalty_reason
        FROM exam_attempts ea
        JOIN exams e ON ea.exam_id = e.exam_id
        JOIN users u ON ea.student_id = u.user_id
+       LEFT JOIN classes c ON e.class_id = c.class_id
        WHERE ea.attempt_id = ? AND e.teacher_id = ?`,
       [attemptId, teacherId]
     );
@@ -167,11 +236,20 @@ router.get('/:attemptId', authMiddleware, roleMiddleware(['teacher']), async (re
       attempt_id: attemptData.attempt_id,
       exam_name: attemptData.exam_name,
       student_name: attemptData.student_name,
+      class_id: attemptData.class_id,
+      class_name: attemptData.class_name || 'Không có lớp',
       start_time: attemptData.start_time,
       end_time: attemptData.end_time,
       current_score: attemptData.score || 0,
       total_points: attemptData.total_points || 0,
       is_fully_graded: attemptData.is_fully_graded,
+      violation_count: parseInt(attemptData.violation_count) || 0,
+      tab_switch_count: parseInt(attemptData.tab_switch_count) || 0,
+      copy_paste_count: parseInt(attemptData.copy_paste_count) || 0,
+      webcam_suspicious_count: parseInt(attemptData.webcam_suspicious_count) || 0,
+      devtools_count: parseInt(attemptData.devtools_count) || 0,
+      penalty_amount: parseFloat(attemptData.penalty_amount) || 0,
+      penalty_reason: attemptData.penalty_reason || null,
       answers: answers
     });
 
@@ -250,8 +328,8 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
       if (oldScore !== newScore) {
         await req.db.query(
           `INSERT INTO score_audit_logs 
-           (attempt_id, question_id, old_score, new_score, reason, edited_by)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+           (attempt_id, question_id, old_score, new_score, old_total_score, new_total_score, reason, edited_by)
+           VALUES (?, ?, ?, ?, NULL, NULL, ?, ?)`,
           [attemptId, grade.question_id, oldScore, newScore, reason.trim(), teacherId]
         );
       }
@@ -291,8 +369,8 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
     if (oldTotalScore !== parseFloat(totalScore)) {
       await req.db.query(
         `INSERT INTO score_audit_logs 
-         (attempt_id, question_id, old_total_score, new_total_score, reason, edited_by)
-         VALUES (?, NULL, ?, ?, ?, ?)`,
+         (attempt_id, question_id, old_score, new_score, old_total_score, new_total_score, reason, edited_by)
+         VALUES (?, NULL, NULL, NULL, ?, ?, ?, ?)`,
         [attemptId, oldTotalScore, totalScore, reason.trim(), teacherId]
       );
     }

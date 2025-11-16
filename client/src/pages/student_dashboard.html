@@ -1285,12 +1285,19 @@ async function loadTestHistory() {
                                     </div>
                                 </div>
                                 <div style="text-align: right;">
-                                    ${attempt.status === 'Submitted' && (!attempt.is_fully_graded || attempt.has_pending_grading) ? `
+                                    ${attempt.status === 'Submitted' && !attempt.is_fully_graded ? `
                                         <div style="font-size: 20px; font-weight: 600; color: #667eea; margin-bottom: 5px;">
                                             ✅ Đã hoàn thành
                                         </div>
                                         <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
                                             Đang chờ chấm điểm
+                                        </div>
+                                    ` : attempt.status === 'Submitted' && attempt.is_fully_graded ? `
+                                        <div style="font-size: 20px; font-weight: 600; color: #48bb78; margin-bottom: 5px;">
+                                            ✅ Đã chấm
+                                        </div>
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                            Giáo viên đã chấm xong
                                         </div>
                                     ` : attempt.score !== null && attempt.score !== undefined ? `
                                         <div style="font-size: 24px; font-weight: bold; color: #667eea; margin-bottom: 5px;">

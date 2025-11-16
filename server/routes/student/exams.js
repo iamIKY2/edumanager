@@ -692,7 +692,10 @@ router.get('/:examId/result/:attemptId', authMiddleware, roleMiddleware(['studen
         eq.points,
         eaa.answer_text AS student_answer,
         eaa.option_id,
-        eaa.is_correct as db_is_correct
+        eaa.is_correct as db_is_correct,
+        eaa.teacher_score,
+        eaa.teacher_comment,
+        eaa.is_graded
        FROM exam_questions eq
        JOIN question_bank qb ON eq.question_id = qb.question_id
        LEFT JOIN exam_attempt_answers eaa ON eq.question_id = eaa.question_id AND eaa.attempt_id = ?

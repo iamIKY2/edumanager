@@ -525,10 +525,35 @@
         </div>
     </div>
 
-    <div class="card">
-        <h2 class="card-title" style="margin-bottom: 20px;">📋 Danh sách bài cần chấm</h2>
-        <div id="gradingExamList" class="exam-list">
-            <!-- Bài thi sẽ được render ở đây -->
+    <!-- Tabs để chuyển giữa "Cần chấm" và "Lịch sử" -->
+    <div class="card" style="margin-bottom: 20px;">
+        <div class="class-tabs" style="border-bottom: 2px solid #e2e8f0; margin-bottom: 0;">
+            <button class="tab active" data-tab="pending-grading" onclick="switchGradingTab('pending')">
+                ⏳ Cần chấm
+            </button>
+            <button class="tab" data-tab="graded-history" onclick="switchGradingTab('graded')">
+                ✅ Lịch sử đã chấm
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab: Cần chấm (theo lớp học) -->
+    <div id="pendingGradingTab" class="grading-tab-content active">
+        <div class="card">
+            <h2 class="card-title" style="margin-bottom: 20px;">📋 Danh sách bài cần chấm (theo lớp học)</h2>
+            <div id="gradingClassList" class="class-grid">
+                <!-- Danh sách lớp học sẽ được render ở đây -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Lịch sử đã chấm -->
+    <div id="gradedHistoryTab" class="grading-tab-content" style="display: none;">
+        <div class="card">
+            <h2 class="card-title" style="margin-bottom: 20px;">📜 Lịch sử bài đã chấm</h2>
+            <div id="gradedHistoryList" class="exam-list">
+                <!-- Lịch sử bài đã chấm sẽ được render ở đây -->
+            </div>
         </div>
     </div>
 </div>
@@ -542,6 +567,16 @@
         
         <div id="gradingModalInfo" style="background: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <!-- Thông tin học sinh và bài thi -->
+        </div>
+        
+        <!-- Thông tin vi phạm gian lận -->
+        <div id="gradingViolationInfo" style="background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f56565; display: none;">
+            <h4 style="color: #c53030; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                ⚠️ Thông tin vi phạm gian lận
+            </h4>
+            <div id="violationDetails" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; color: #742a2a;">
+                <!-- Chi tiết vi phạm sẽ được render ở đây -->
+            </div>
         </div>
         
         <form id="gradingForm">

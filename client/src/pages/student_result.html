@@ -304,7 +304,7 @@
                 </div>
                 <div class="summary-card">
                     <div class="summary-number" style="color: #4299e1;" id="pendingCount">0</div>
-                    <div class="summary-label">Đang chấm</div>
+                    <div class="summary-label" id="pendingLabel">Đang chấm</div>
                 </div>
             </div>
 
@@ -418,7 +418,8 @@
         console.log('📊 Stats:', { correctCount, incorrectCount, unansweredCount, pendingCount });
 
         // Cập nhật header dựa trên trạng thái
-        if (hasPendingQuestions) {
+        // QUAN TRỌNG: Chỉ hiển thị "đang chấm" nếu chưa được chấm hoàn toàn
+        if (hasPendingQuestions && !attempt.is_fully_graded) {
             document.getElementById('resultHeader').classList.add('pending');
             document.getElementById('headerTitle').innerHTML = '✅ Đã Nộp Bài!';
             document.getElementById('headerSubtitle').textContent = 'Bài thi của bạn đang chờ giáo viên chấm điểm';
@@ -436,11 +437,19 @@
                     Điểm cuối cùng sẽ được cập nhật sau khi giáo viên chấm xong phần tự luận.
                 </div>
             `;
+        } else if (attempt.is_fully_graded) {
+            // Đã chấm xong
+            document.getElementById('resultHeader').classList.remove('pending');
+            document.getElementById('headerTitle').innerHTML = '✅ Kết Quả Bài Thi';
+            document.getElementById('headerSubtitle').textContent = 'Bài thi của bạn đã được giáo viên chấm điểm';
+            
+            document.getElementById('pendingMessageContainer').innerHTML = '';
+            document.getElementById('infoBoxContainer').innerHTML = '';
         }
 
         // Hiển thị điểm
-        // Nếu có câu tự luận chưa chấm, không hiển thị điểm số
-        const hasPendingGrading = attempt.has_pending_grading || hasPendingQuestions || !attempt.is_fully_graded;
+        // QUAN TRỌNG: Chỉ coi là "đang chấm" nếu is_fully_graded = 0
+        const hasPendingGrading = !attempt.is_fully_graded && (attempt.has_pending_grading || hasPendingQuestions);
         
         if (hasPendingGrading) {
             document.getElementById('scoreDisplay').innerHTML = `
@@ -473,6 +482,16 @@
         document.getElementById('incorrectCount').textContent = incorrectCount;
         document.getElementById('unansweredCount').textContent = unansweredCount;
         document.getElementById('pendingCount').textContent = pendingCount;
+        
+        // Cập nhật label "Đang chấm" thành "Đã chấm" nếu đã chấm xong
+        const pendingLabel = document.getElementById('pendingLabel');
+        if (pendingLabel) {
+            if (attempt.is_fully_graded) {
+                pendingLabel.textContent = 'Đã chấm';
+            } else {
+                pendingLabel.textContent = 'Đang chấm';
+            }
+        }
 
         // Hiển thị phần trăm (chỉ tính câu đã có kết quả)
         const gradedQuestions = results.length - pendingCount;
@@ -500,10 +519,17 @@
             let statusIcon = '⚠️';
             let statusText = 'Chưa trả lời';
             
-            if (isPendingGrade) {
+            // QUAN TRỌNG: Chỉ hiển thị "Đang chờ chấm" nếu chưa được chấm hoàn toàn
+            if (isPendingGrade && !attempt.is_fully_graded) {
                 statusClass = 'pending';
                 statusIcon = '⏳';
                 statusText = 'Đang chờ chấm';
+            } else if (isPendingGrade && attempt.is_fully_graded) {
+                // Đã được chấm nhưng cần kiểm tra xem có điểm không
+                // Nếu có teacher_score thì hiển thị đã chấm
+                statusClass = 'correct';
+                statusIcon = '✅';
+                statusText = 'Đã chấm';
             } else if (hasAnswer) {
                 if (r.is_correct === 1) {
                     statusClass = 'correct';
@@ -567,9 +593,25 @@
                         <div class="essay-answer">
                             ${r.student_answer || '<em style="color: #cbd5e0;">Chưa trả lời</em>'}
                         </div>
-                        ${isPendingGrade ? `
+                        ${isPendingGrade && !attempt.is_fully_graded ? `
                             <div style="margin-top: 15px; padding: 12px; background: #e3f2fd; border-radius: 8px; color: #1976d2;">
                                 <strong>⏳ Đang chờ giáo viên chấm điểm</strong>
+                            </div>
+                        ` : ''}
+                        ${r.teacher_score !== null && r.teacher_score !== undefined ? `
+                            <div style="margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%); border-radius: 8px; border-left: 4px solid #26de81;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <strong style="color: #2d3748;">✅ Điểm giáo viên chấm:</strong>
+                                    <span style="font-size: 20px; font-weight: 600; color: #26de81;">
+                                        ${parseFloat(r.teacher_score).toFixed(1)}/${parseFloat(r.points).toFixed(1)} điểm
+                                    </span>
+                                </div>
+                                ${r.teacher_comment ? `
+                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #26de81;">
+                                        <strong style="color: #2d3748;">💬 Nhận xét:</strong>
+                                        <div style="margin-top: 5px; color: #2d3748;">${r.teacher_comment}</div>
+                                    </div>
+                                ` : ''}
                             </div>
                         ` : ''}
                         ${r.correct_answer_text && !isPendingGrade ? `
@@ -590,7 +632,13 @@
                         <span class="status-icon">${statusIcon}</span>
                         <span>Câu ${index + 1}: ${r.question_content}</span>
                         <span style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
-                            <span style="color: #667eea; font-weight: 600;">${parseFloat(r.points).toFixed(1)} điểm</span>
+                            ${r.teacher_score !== null && r.teacher_score !== undefined ? `
+                                <span style="color: #26de81; font-weight: 600;">
+                                    ${parseFloat(r.teacher_score).toFixed(1)}/${parseFloat(r.points).toFixed(1)} điểm
+                                </span>
+                            ` : `
+                                <span style="color: #667eea; font-weight: 600;">${parseFloat(r.points).toFixed(1)} điểm</span>
+                            `}
                             <span style="color: ${statusClass === 'correct' ? '#26de81' : statusClass === 'incorrect' ? '#ff4757' : statusClass === 'pending' ? '#4299e1' : '#ffa502'}; font-size: 14px;">
                                 ${statusText}
                             </span>
