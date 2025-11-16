@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: localhost
--- Thời gian đã tạo: Th10 06, 2025 lúc 05:39 AM
+-- Thời gian đã tạo: Th10 16, 2025 lúc 02:48 PM
 -- Phiên bản máy phục vụ: 8.0.40
 -- Phiên bản PHP: 8.3.16
 
@@ -56,7 +56,26 @@ CREATE TABLE `anti_cheating_logs` (
 INSERT INTO `anti_cheating_logs` (`log_id`, `attempt_id`, `event_type`, `event_description`, `event_time`) VALUES
 (1, 25, 'TabSwitch', 'Chuyển tab lần 1', '2025-10-31 18:15:16'),
 (2, 25, 'TabSwitch', 'Chuyển tab lần 2', '2025-10-31 18:15:17'),
-(3, 25, 'TabSwitch', 'Chuyển tab lần 3', '2025-10-31 18:15:18');
+(3, 25, 'TabSwitch', 'Chuyển tab lần 3', '2025-10-31 18:15:18'),
+(4, 35, 'TabSwitch', 'Chuyển tab lần 1', '2025-11-07 16:11:06'),
+(5, 35, 'WebcamSuspicious', 'Không thể truy cập webcam', '2025-11-07 16:11:13'),
+(6, 37, 'WebcamSuspicious', 'Không thể truy cập webcam', '2025-11-14 15:05:21'),
+(7, 37, 'TabSwitch', 'Chuyển tab lần 1', '2025-11-14 15:05:27'),
+(8, 38, 'TabSwitch', 'Chuyển tab lần 1', '2025-11-14 15:13:20'),
+(9, 38, 'TabSwitch', 'Chuyển tab lần 2', '2025-11-14 15:13:20'),
+(10, 39, 'TabSwitch', 'Chuyển tab lần 1', '2025-11-15 10:35:30'),
+(11, 39, 'TabSwitch', 'Chuyển tab lần 2', '2025-11-15 10:35:31'),
+(12, 39, 'TabSwitch', 'Chuyển tab lần 3', '2025-11-15 10:35:32'),
+(13, 39, 'TabSwitch', 'Chuyển tab lần 4', '2025-11-15 10:35:33'),
+(14, 39, 'CopyPaste', 'Cố gắng copy', '2025-11-15 10:35:47'),
+(15, 39, 'TabSwitch', 'Chuyển tab lần 5', '2025-11-15 10:35:49'),
+(16, 39, 'TabSwitch', 'Chuyển tab lần 6', '2025-11-15 10:36:04'),
+(17, 39, 'TabSwitch', 'Chuyển tab lần 7', '2025-11-15 10:36:05'),
+(18, 39, 'TabSwitch', 'Chuyển tab lần 8', '2025-11-15 10:36:06'),
+(19, 39, 'TabSwitch', 'Chuyển tab lần 1', '2025-11-15 10:39:23'),
+(20, 39, 'TabSwitch', 'Chuyển tab lần 2', '2025-11-15 10:39:24'),
+(21, 39, 'TabSwitch', 'Chuyển tab lần 3', '2025-11-15 10:39:25'),
+(22, 39, 'TabSwitch', 'Chuyển tab lần 4', '2025-11-15 10:39:26');
 
 -- --------------------------------------------------------
 
@@ -155,7 +174,13 @@ INSERT INTO `exams` (`exam_id`, `exam_name`, `subject_id`, `teacher_id`, `durati
 (38, 'giữa kỳ', 2, 7, 25, '2025-10-26 11:12:00', NULL, NULL, 0, 0, 0, '2025-10-26 11:07:22', 6, '', 'upcoming'),
 (49, 'kiem tra', 2, 7, 10, '2025-10-27 09:15:00', NULL, NULL, 0, 0, 0, '2025-10-27 09:14:03', 6, 'Đề thi tạo thủ công', 'upcoming'),
 (54, 'test4', 2, 7, 9, '2025-10-31 18:15:00', NULL, NULL, 0, 0, 0, '2025-10-31 18:13:54', 6, 'Đề thi tạo thủ công', 'upcoming'),
-(60, 'tets10', 2, 7, 10, '2025-11-01 09:08:00', NULL, NULL, 0, 0, 0, '2025-11-01 09:06:30', 6, 'Đề thi tạo thủ công', 'upcoming');
+(60, 'tets10', 2, 7, 10, '2025-11-01 09:08:00', NULL, NULL, 0, 0, 0, '2025-11-01 09:06:30', 6, 'Đề thi tạo thủ công', 'upcoming'),
+(63, 'test mã pin lần 3', 2, 7, 10, '2025-11-06 12:55:00', NULL, '426341', 0, 0, 0, '2025-11-06 12:54:08', 6, 'Đề thi tạo thủ công', 'upcoming'),
+(65, 'test 10', 2, 7, 15, '2025-11-07 16:07:00', NULL, '776598', 0, 0, 0, '2025-11-07 16:08:01', 6, '', 'upcoming'),
+(68, 'cho thằng nhân ', 2, 7, 13, '2025-11-14 15:05:00', NULL, '771244', 0, 0, 0, '2025-11-14 15:02:41', 6, '', 'upcoming'),
+(69, 'test 3.6', 2, 7, 10, '2025-11-14 15:11:00', NULL, '878020', 0, 0, 0, '2025-11-14 15:10:44', 6, 'Đề thi tạo thủ công', 'upcoming'),
+(74, 'điện toán đám mây - rds', 3, 7, 10, '2025-11-15 10:35:00', NULL, '133906', 0, 0, 0, '2025-11-15 10:34:49', 7, 'Đề thi được tạo tự động bằng AI - điện toán đám mây: rds', 'upcoming'),
+(76, 'test lần 3', 3, 7, 3, '2025-11-16 09:22:00', NULL, '312666', 0, 0, 0, '2025-11-16 09:20:53', 7, 'Đề thi tạo thủ công', 'upcoming');
 
 -- --------------------------------------------------------
 
@@ -175,19 +200,27 @@ CREATE TABLE `exam_attempts` (
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `is_banned` tinyint(1) DEFAULT '0',
   `penalty_points` decimal(5,2) DEFAULT '0.00',
-  `cheating_detected` tinyint(1) DEFAULT '0'
+  `cheating_detected` tinyint(1) DEFAULT '0',
+  `penalty_reason` text COMMENT 'Lý do trừ điểm (ví dụ: chuyển tab quá 3 lần)',
+  `penalty_amount` decimal(10,2) DEFAULT '0.00' COMMENT 'Số điểm bị trừ'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `exam_attempts`
 --
 
-INSERT INTO `exam_attempts` (`attempt_id`, `exam_id`, `student_id`, `start_time`, `end_time`, `score`, `status`, `is_fully_graded`, `created_at`, `is_banned`, `penalty_points`, `cheating_detected`) VALUES
-(17, 37, 4, '2025-10-20 21:29:08', '2025-10-20 21:40:37', 3.00, 'Submitted', 0, '2025-10-20 21:29:08', 0, 0.00, 0),
-(18, 38, 4, '2025-10-26 11:16:11', '2025-10-26 11:17:42', 8.00, 'Submitted', 0, '2025-10-26 11:16:11', 0, 0.00, 0),
-(19, 49, 4, '2025-10-27 09:15:15', '2025-10-27 09:15:25', 9.50, 'Submitted', 1, '2025-10-27 09:15:15', 0, 0.00, 0),
-(25, 54, 4, '2025-10-31 18:15:15', '2025-10-31 18:15:28', 10.00, 'Submitted', 1, '2025-10-31 18:15:15', 0, 0.00, 1),
-(33, 60, 4, '2025-11-01 09:08:14', '2025-11-01 09:08:18', 1.00, 'Submitted', 1, '2025-11-01 09:08:14', 0, 0.00, 0);
+INSERT INTO `exam_attempts` (`attempt_id`, `exam_id`, `student_id`, `start_time`, `end_time`, `score`, `status`, `is_fully_graded`, `created_at`, `is_banned`, `penalty_points`, `cheating_detected`, `penalty_reason`, `penalty_amount`) VALUES
+(17, 37, 4, '2025-10-20 21:29:08', '2025-10-20 21:40:37', 3.00, 'Submitted', 0, '2025-10-20 21:29:08', 0, 0.00, 0, NULL, 0.00),
+(18, 38, 4, '2025-10-26 11:16:11', '2025-10-26 11:17:42', 8.00, 'Submitted', 0, '2025-10-26 11:16:11', 0, 0.00, 0, NULL, 0.00),
+(19, 49, 4, '2025-10-27 09:15:15', '2025-10-27 09:15:25', 9.50, 'Submitted', 1, '2025-10-27 09:15:15', 0, 0.00, 0, NULL, 0.00),
+(25, 54, 4, '2025-10-31 18:15:15', '2025-10-31 18:15:28', 10.00, 'Submitted', 1, '2025-10-31 18:15:15', 0, 0.00, 1, NULL, 0.00),
+(33, 60, 4, '2025-11-01 09:08:14', '2025-11-01 09:08:18', 1.00, 'Submitted', 1, '2025-11-01 09:08:14', 0, 0.00, 0, NULL, 0.00),
+(34, 63, 4, '2025-11-06 12:55:24', '2025-11-06 12:55:36', 10.00, 'Submitted', 1, '2025-11-06 12:55:24', 0, 0.00, 0, NULL, 0.00),
+(35, 65, 4, '2025-11-07 16:10:57', '2025-11-07 16:11:19', 0.00, 'Submitted', 1, '2025-11-07 16:10:57', 0, 0.00, 1, NULL, 0.00),
+(37, 68, 4, '2025-11-14 15:05:08', '2025-11-14 15:07:58', 3.00, 'Submitted', 1, '2025-11-14 15:05:08', 0, 0.00, 1, NULL, 0.00),
+(38, 69, 4, '2025-11-14 15:11:19', '2025-11-14 15:13:08', 4.00, 'Submitted', 1, '2025-11-14 15:11:19', 0, 0.00, 1, NULL, 0.00),
+(39, 74, 4, '2025-11-15 10:35:23', '2025-11-15 10:39:30', 9.00, 'Submitted', 1, '2025-11-15 10:35:23', 0, 0.00, 1, 'Bị trừ 1 điểm (10% điểm trắc nghiệm) do chuyển tab 12 lần (vượt quá giới hạn 3 lần)', 1.00),
+(41, 76, 4, '2025-11-16 09:22:18', '2025-11-16 09:22:25', 10.00, 'Submitted', 1, '2025-11-16 09:22:18', 0, 0.00, 0, NULL, 0.00);
 
 -- --------------------------------------------------------
 
@@ -254,7 +287,14 @@ INSERT INTO `exam_attempt_answers` (`attempt_id`, `question_id`, `option_id`, `a
 (18, 256, 537, NULL, NULL, NULL, NULL, 0, '2025-10-26 11:17:42', NULL, NULL),
 (18, 257, 541, NULL, NULL, NULL, NULL, 0, '2025-10-26 11:17:42', NULL, NULL),
 (19, 258, NULL, 'bùi đức thuần', 0, 9.50, 'tốt', 1, '2025-10-27 09:15:25', 7, '2025-10-31 14:11:41'),
-(33, 326, NULL, 'qqqq', 0, 1.00, '1', 1, '2025-11-01 09:08:18', 7, '2025-11-01 09:08:46');
+(33, 326, NULL, 'qqqq', 0, 1.00, '1', 1, '2025-11-01 09:08:18', 7, '2025-11-01 09:08:46'),
+(34, 329, NULL, 'hello', 0, 10.00, 'tốt', 1, '2025-11-06 12:55:36', 7, '2025-11-06 12:55:51'),
+(39, 437, 1125, NULL, 0, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
+(39, 438, 1130, NULL, 1, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
+(39, 439, 1133, NULL, 0, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
+(39, 440, 1137, NULL, 0, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
+(39, 441, 1141, NULL, 0, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
+(41, 443, NULL, 'oke', 0, 10.00, 'tốt', 1, '2025-11-16 09:22:25', 7, '2025-11-16 09:22:47');
 
 -- --------------------------------------------------------
 
@@ -327,7 +367,55 @@ INSERT INTO `exam_questions` (`exam_id`, `question_id`, `question_order`, `point
 (38, 257, 20, 0.50),
 (49, 258, 1, 10.00),
 (54, 320, 1, 10.00),
-(60, 326, 1, 10.00);
+(60, 326, 1, 10.00),
+(63, 329, 1, 10.00),
+(65, 350, 1, 0.50),
+(65, 351, 2, 0.50),
+(65, 352, 3, 0.50),
+(65, 353, 4, 0.50),
+(65, 354, 5, 0.50),
+(65, 355, 6, 0.50),
+(65, 356, 7, 0.50),
+(65, 357, 8, 0.50),
+(65, 358, 9, 0.50),
+(65, 359, 10, 0.50),
+(65, 360, 11, 0.50),
+(65, 361, 12, 0.50),
+(65, 362, 13, 0.50),
+(65, 363, 14, 0.50),
+(65, 364, 15, 0.50),
+(65, 365, 16, 0.50),
+(65, 366, 17, 0.50),
+(65, 367, 18, 0.50),
+(65, 368, 19, 0.50),
+(65, 369, 20, 0.50),
+(68, 390, 1, 0.50),
+(68, 391, 2, 0.50),
+(68, 392, 3, 0.50),
+(68, 393, 4, 0.50),
+(68, 394, 5, 0.50),
+(68, 395, 6, 0.50),
+(68, 396, 7, 0.50),
+(68, 397, 8, 0.50),
+(68, 398, 9, 0.50),
+(68, 399, 10, 0.50),
+(68, 400, 11, 0.50),
+(68, 401, 12, 0.50),
+(68, 402, 13, 0.50),
+(68, 403, 14, 0.50),
+(68, 404, 15, 0.50),
+(68, 405, 16, 0.50),
+(68, 406, 17, 0.50),
+(68, 407, 18, 0.50),
+(68, 408, 19, 0.50),
+(68, 409, 20, 0.50),
+(69, 410, 1, 10.00),
+(74, 437, 1, 10.00),
+(74, 438, 2, 10.00),
+(74, 439, 3, 10.00),
+(74, 440, 4, 10.00),
+(74, 441, 5, 10.00),
+(76, 443, 1, 10.00);
 
 -- --------------------------------------------------------
 
@@ -462,7 +550,84 @@ INSERT INTO `notifications` (`notification_id`, `user_id`, `content`, `type`, `i
 (92, 7, 'Đã thêm câu hỏi mới: \"qqqq...\"', 'Info', 0, '2025-11-01 08:53:53', 325, 'Question'),
 (93, 7, 'Bài thi \"tets10\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-01 09:06:30', 60, 'Exam'),
 (94, 7, 'Đã thêm câu hỏi mới: \"1111...\"', 'Info', 0, '2025-11-01 09:06:30', 326, 'Question'),
-(95, 4, 'Bài thi \"tets10\" của bạn đã được chấm điểm. Điểm số: 1.0 điểm', 'Info', 1, '2025-11-01 09:08:46', 60, 'Exam');
+(95, 4, 'Bài thi \"tets10\" của bạn đã được chấm điểm. Điểm số: 1.0 điểm', 'Info', 1, '2025-11-01 09:08:46', 60, 'Exam'),
+(96, 7, 'Bài thi \"test mã pin\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-06 12:47:26', 61, 'Exam'),
+(97, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 0, '2025-11-06 12:47:26', 327, 'Question'),
+(98, 7, 'Bài thi \"test mã pin lần 2\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-06 12:49:11', 62, 'Exam'),
+(99, 7, 'Đã thêm câu hỏi mới: \"heloo...\"', 'Info', 0, '2025-11-06 12:49:11', 328, 'Question'),
+(100, 7, 'Bài thi \"test mã pin lần 3\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-06 12:54:08', 63, 'Exam'),
+(101, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 0, '2025-11-06 12:54:08', 329, 'Question'),
+(102, 4, 'Bài thi \"test mã pin lần 3\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-06 12:55:51', 63, 'Exam'),
+(103, 7, 'Bài thi \"Bài thi từ Excel - 15:59:52 7/11/2025\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-07 15:59:52', 64, 'Exam'),
+(104, 7, 'Đã nhập 20 câu hỏi vào bài thi \"Bài thi từ Excel - 15:59:52 7/11/2025\"', 'Info', 0, '2025-11-07 15:59:52', 64, 'Exam'),
+(105, 7, 'Bài thi \"test 10\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-07 16:08:01', 65, 'Exam'),
+(106, 7, 'Đã nhập 20 câu hỏi vào bài thi \"test 10\"', 'Info', 0, '2025-11-07 16:08:17', 65, 'Exam'),
+(107, 7, 'Bài thi \"test 36\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-11 09:20:56', 66, 'Exam'),
+(108, 7, 'Đã nhập 20 câu hỏi vào bài thi \"test 36\"', 'Info', 0, '2025-11-11 09:21:12', 66, 'Exam'),
+(109, 7, 'Bài thi \"đasa\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-13 18:37:48', 67, 'Exam'),
+(110, 7, 'Bài thi \"cho thằng nhân \" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-14 15:02:41', 68, 'Exam'),
+(111, 7, 'Đã nhập 20 câu hỏi vào bài thi \"cho thằng nhân \"', 'Info', 0, '2025-11-14 15:03:01', 68, 'Exam'),
+(112, 7, 'Bài thi \"test 3.6\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-14 15:10:44', 69, 'Exam'),
+(113, 7, 'Đã thêm câu hỏi mới: \"thầy nhân dạy tiếng nhật ở trường đại học bình dươ...\"', 'Info', 0, '2025-11-14 15:10:44', 410, 'Question'),
+(114, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 4.0 điểm', 'Info', 0, '2025-11-14 15:14:21', 69, 'Exam'),
+(115, 7, 'Bài thi \"điện toán đám mây - các câu hỏi về vpc ec2\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 09:44:49', 70, 'Exam'),
+(116, 7, 'Đã thêm câu hỏi mới: \"Trình bày khái niệm Amazon Virtual Private Cloud (...\"', 'Info', 0, '2025-11-15 09:44:49', 411, 'Question'),
+(117, 7, 'Đã thêm câu hỏi mới: \"Phân biệt sự khác nhau cơ bản giữa Public Subnet v...\"', 'Info', 0, '2025-11-15 09:44:49', 412, 'Question'),
+(118, 7, 'Đã thêm câu hỏi mới: \"So sánh và phân biệt các cơ chế bảo mật Security G...\"', 'Info', 0, '2025-11-15 09:44:49', 413, 'Question'),
+(119, 7, 'Đã thêm câu hỏi mới: \"Giải thích khái niệm Elastic IP Address (EIP) tron...\"', 'Info', 0, '2025-11-15 09:44:49', 414, 'Question'),
+(120, 7, 'Đã thêm câu hỏi mới: \"Mô tả vai trò và chức năng của Internet Gateway (I...\"', 'Info', 0, '2025-11-15 09:44:49', 415, 'Question'),
+(121, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích của Route Table (Bảng định tuy...\"', 'Info', 0, '2025-11-15 09:44:49', 416, 'Question'),
+(122, 7, 'Đã thêm câu hỏi mới: \"Giải thích tại sao cần có NAT Gateway hoặc NAT Ins...\"', 'Info', 0, '2025-11-15 09:44:49', 417, 'Question'),
+(123, 7, 'Đã thêm câu hỏi mới: \"Mô tả VPC Peering. Trong những tình huống nào bạn ...\"', 'Info', 0, '2025-11-15 09:44:49', 418, 'Question'),
+(124, 7, 'Đã thêm câu hỏi mới: \"Khi triển khai các phiên bản EC2, hãy trình bày cá...\"', 'Info', 0, '2025-11-15 09:44:49', 419, 'Question'),
+(125, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích và sự khác biệt cơ bản giữa AW...\"', 'Info', 0, '2025-11-15 09:44:49', 420, 'Question'),
+(126, 7, 'Bài thi \"điện toán đám mây - các câu hỏi về vpc ec2\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 09:44:59', 71, 'Exam'),
+(127, 7, 'Đã thêm câu hỏi mới: \"Trình bày khái niệm Amazon Virtual Private Cloud (...\"', 'Info', 0, '2025-11-15 09:44:59', 421, 'Question'),
+(128, 7, 'Đã thêm câu hỏi mới: \"Phân biệt sự khác nhau cơ bản giữa Public Subnet v...\"', 'Info', 0, '2025-11-15 09:44:59', 422, 'Question'),
+(129, 7, 'Đã thêm câu hỏi mới: \"So sánh và phân biệt các cơ chế bảo mật Security G...\"', 'Info', 0, '2025-11-15 09:44:59', 423, 'Question'),
+(130, 7, 'Đã thêm câu hỏi mới: \"Giải thích khái niệm Elastic IP Address (EIP) tron...\"', 'Info', 0, '2025-11-15 09:44:59', 424, 'Question'),
+(131, 7, 'Đã thêm câu hỏi mới: \"Mô tả vai trò và chức năng của Internet Gateway (I...\"', 'Info', 0, '2025-11-15 09:44:59', 425, 'Question'),
+(132, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích của Route Table (Bảng định tuy...\"', 'Info', 0, '2025-11-15 09:44:59', 426, 'Question'),
+(133, 7, 'Đã thêm câu hỏi mới: \"Giải thích tại sao cần có NAT Gateway hoặc NAT Ins...\"', 'Info', 0, '2025-11-15 09:44:59', 427, 'Question'),
+(134, 7, 'Đã thêm câu hỏi mới: \"Mô tả VPC Peering. Trong những tình huống nào bạn ...\"', 'Info', 0, '2025-11-15 09:44:59', 428, 'Question'),
+(135, 7, 'Đã thêm câu hỏi mới: \"Khi triển khai các phiên bản EC2, hãy trình bày cá...\"', 'Info', 0, '2025-11-15 09:45:00', 429, 'Question'),
+(136, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích và sự khác biệt cơ bản giữa AW...\"', 'Info', 0, '2025-11-15 09:45:00', 430, 'Question'),
+(137, 7, 'Bài thi \"điện toán đám mây - vpc ec2\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 09:51:38', 72, 'Exam'),
+(138, 7, 'Đã thêm câu hỏi mới: \"Trong AWS VPC, thành phần nào chịu trách nhiệm chí...\"', 'Info', 0, '2025-11-15 09:51:38', 431, 'Question'),
+(139, 7, 'Đã thêm câu hỏi mới: \"Một EC2 instance được triển khai trong một private...\"', 'Info', 0, '2025-11-15 09:51:38', 432, 'Question'),
+(140, 7, 'Đã thêm câu hỏi mới: \"Điểm khác biệt quan trọng nào sau đây là *chính xá...\"', 'Info', 0, '2025-11-15 09:51:38', 433, 'Question'),
+(141, 7, 'Đã thêm câu hỏi mới: \"Để một EC2 instance trong public subnet có thể nhậ...\"', 'Info', 0, '2025-11-15 09:51:38', 434, 'Question'),
+(142, 7, 'Đã thêm câu hỏi mới: \"Một EC2 instance có cả địa chỉ IP riêng (private I...\"', 'Info', 0, '2025-11-15 09:51:38', 435, 'Question'),
+(143, 7, 'Bài thi \"test cheatting\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 10:32:12', 73, 'Exam'),
+(144, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 0, '2025-11-15 10:32:12', 436, 'Question'),
+(145, 7, 'Bài thi \"điện toán đám mây - rds\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 10:34:49', 74, 'Exam'),
+(146, 7, 'Đã thêm câu hỏi mới: \"Một ứng dụng yêu cầu tính sẵn sàng cao cho cơ sở d...\"', 'Info', 0, '2025-11-15 10:34:49', 437, 'Question'),
+(147, 7, 'Đã thêm câu hỏi mới: \"So với việc tự quản lý một cơ sở dữ liệu quan hệ t...\"', 'Info', 0, '2025-11-15 10:34:49', 438, 'Question'),
+(148, 7, 'Đã thêm câu hỏi mới: \"Một ứng dụng web đang gặp phải tình trạng nghẽn cổ...\"', 'Info', 0, '2025-11-15 10:34:49', 439, 'Question'),
+(149, 7, 'Đã thêm câu hỏi mới: \"Để kiểm soát quyền truy cập mạng vào một phiên bản...\"', 'Info', 0, '2025-11-15 10:34:49', 440, 'Question'),
+(150, 7, 'Đã thêm câu hỏi mới: \"Loại lưu trữ Amazon RDS nào thường được khuyến ngh...\"', 'Info', 0, '2025-11-15 10:34:49', 441, 'Question'),
+(151, 7, 'Bài thi \"test chấm bài thi\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-16 09:03:28', 75, 'Exam'),
+(152, 7, 'Đã thêm câu hỏi mới: \"tets...\"', 'Info', 0, '2025-11-16 09:03:28', 442, 'Question'),
+(153, 7, 'Bài thi \"test lần 3\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-16 09:20:53', 76, 'Exam'),
+(154, 7, 'Đã thêm câu hỏi mới: \"test...\"', 'Info', 0, '2025-11-16 09:20:53', 443, 'Question'),
+(155, 4, 'Bài thi \"test lần 3\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-16 09:22:47', 76, 'Exam');
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `otps`
+--
+
+CREATE TABLE `otps` (
+  `id` varchar(36) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `otp` varchar(6) NOT NULL,
+  `expiresAt` datetime NOT NULL,
+  `verified` tinyint(1) NOT NULL DEFAULT '0',
+  `attempts` int NOT NULL DEFAULT '0',
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -811,7 +976,125 @@ INSERT INTO `question_bank` (`question_id`, `subject_id`, `teacher_id`, `questio
 (322, NULL, 7, 'ngôn ngữ nào lập trình hướng đối tượng', 'FillInBlank', 'Easy', 'C#.C++', NULL, '2025-11-01 08:11:59', '2025-11-01 08:11:59'),
 (323, NULL, 7, 'test 1', 'FillInBlank', 'Easy', '...', NULL, '2025-11-01 08:18:56', '2025-11-01 08:18:56'),
 (324, NULL, 7, 'qqqq', 'FillInBlank', 'Easy', 'qqq', NULL, '2025-11-01 08:43:51', '2025-11-01 08:43:51'),
-(326, NULL, 7, '1111', 'FillInBlank', 'Easy', '111', NULL, '2025-11-01 09:06:30', '2025-11-01 09:06:30');
+(326, NULL, 7, '1111', 'FillInBlank', 'Easy', '111', NULL, '2025-11-01 09:06:30', '2025-11-01 09:06:30'),
+(327, NULL, 7, 'hello', 'FillInBlank', 'Easy', '.', NULL, '2025-11-06 12:47:26', '2025-11-06 12:47:26'),
+(328, NULL, 7, 'heloo', 'FillInBlank', 'Easy', '.', NULL, '2025-11-06 12:49:11', '2025-11-06 12:49:11'),
+(329, NULL, 7, 'hello', 'FillInBlank', 'Easy', '.', NULL, '2025-11-06 12:54:08', '2025-11-06 12:54:08'),
+(330, 2, 7, 'Ngôn ngữ C# được phát triển bởi công ty nào?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(331, 2, 7, 'Đuôi mở rộng của tệp mã nguồn C# là gì?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(332, 2, 7, 'C# là ngôn ngữ thuộc nền tảng nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(333, 2, 7, 'Phương thức Main trong C# có vai trò gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(334, 2, 7, 'Kiểu dữ liệu nào được dùng để lưu trữ số nguyên trong C#?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(335, 2, 7, 'Từ khóa nào dùng để khai báo lớp trong C#?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(336, 2, 7, 'Từ khóa nào được dùng để kế thừa lớp khác trong C#?', 'SingleChoice', 'Medium', 'D', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(337, 2, 7, 'Từ khóa nào để tạo đối tượng mới trong C#?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(338, 2, 7, 'Namespace trong C# dùng để làm gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(339, 2, 7, 'Phương thức ToString() trong C# dùng để?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(340, 2, 7, 'Từ khóa nào trong C# được dùng để xử lý ngoại lệ?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(341, 2, 7, 'Trong C#, mảng được khai báo bằng ký hiệu nào?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(342, 2, 7, 'Cấu trúc điều kiện trong C# được viết bằng từ khóa nào?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(343, 2, 7, 'C# có thể lập trình hướng đối tượng không?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(344, 2, 7, 'Công cụ IDE phổ biến nhất để lập trình C# là gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(345, 2, 7, 'Phương thức nào được gọi khi khởi tạo đối tượng?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(346, 2, 7, 'Để nhập dữ liệu từ bàn phím trong C#, dùng phương thức nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(347, 2, 7, 'Để in dữ liệu ra màn hình trong C#, dùng phương thức nào?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(348, 2, 7, 'Từ khóa nào được dùng để ngăn lớp bị kế thừa?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(349, 2, 7, 'Kiểu dữ liệu nào dùng để lưu giá trị true/false?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 15:59:52', '2025-11-07 15:59:52'),
+(350, 2, 7, 'Ngôn ngữ C# được phát triển bởi công ty nào?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(351, 2, 7, 'Đuôi mở rộng của tệp mã nguồn C# là gì?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(352, 2, 7, 'C# là ngôn ngữ thuộc nền tảng nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(353, 2, 7, 'Phương thức Main trong C# có vai trò gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(354, 2, 7, 'Kiểu dữ liệu nào được dùng để lưu trữ số nguyên trong C#?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(355, 2, 7, 'Từ khóa nào dùng để khai báo lớp trong C#?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(356, 2, 7, 'Từ khóa nào được dùng để kế thừa lớp khác trong C#?', 'SingleChoice', 'Medium', 'D', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(357, 2, 7, 'Từ khóa nào để tạo đối tượng mới trong C#?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(358, 2, 7, 'Namespace trong C# dùng để làm gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(359, 2, 7, 'Phương thức ToString() trong C# dùng để?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(360, 2, 7, 'Từ khóa nào trong C# được dùng để xử lý ngoại lệ?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(361, 2, 7, 'Trong C#, mảng được khai báo bằng ký hiệu nào?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(362, 2, 7, 'Cấu trúc điều kiện trong C# được viết bằng từ khóa nào?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(363, 2, 7, 'C# có thể lập trình hướng đối tượng không?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(364, 2, 7, 'Công cụ IDE phổ biến nhất để lập trình C# là gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(365, 2, 7, 'Phương thức nào được gọi khi khởi tạo đối tượng?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17');
+INSERT INTO `question_bank` (`question_id`, `subject_id`, `teacher_id`, `question_content`, `question_type`, `difficulty`, `correct_answer_text`, `import_id`, `created_at`, `updated_at`) VALUES
+(366, 2, 7, 'Để nhập dữ liệu từ bàn phím trong C#, dùng phương thức nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(367, 2, 7, 'Để in dữ liệu ra màn hình trong C#, dùng phương thức nào?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(368, 2, 7, 'Từ khóa nào được dùng để ngăn lớp bị kế thừa?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(369, 2, 7, 'Kiểu dữ liệu nào dùng để lưu giá trị true/false?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-07 16:08:17', '2025-11-07 16:08:17'),
+(370, 2, 7, 'Điện toán đám mây (Cloud Computing) là gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(371, 2, 7, 'Dịch vụ IaaS cung cấp điều gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(372, 2, 7, 'Dịch vụ SaaS viết tắt của gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(373, 2, 7, 'Google Drive thuộc loại dịch vụ đám mây nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(374, 2, 7, 'PaaS cung cấp cho người dùng điều gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(375, 2, 7, 'AWS, Azure, và Google Cloud là ví dụ của?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(376, 2, 7, 'Ưu điểm chính của điện toán đám mây là gì?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(377, 2, 7, 'Người dùng có thể truy cập dịch vụ đám mây bằng cách nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(378, 2, 7, 'Private Cloud là gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(379, 2, 7, 'Public Cloud là gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(380, 2, 7, 'Hybrid Cloud là gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(381, 2, 7, 'Điện toán đám mây giúp tiết kiệm gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(382, 2, 7, 'Cloud Storage là gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(383, 2, 7, 'Tính năng chính của điện toán đám mây là gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(384, 2, 7, 'Microsoft OneDrive là ví dụ của loại dịch vụ nào?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(385, 2, 7, 'Người dùng chỉ trả tiền cho tài nguyên sử dụng trong mô hình nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(386, 2, 7, 'Virtualization (ảo hóa) là gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(387, 2, 7, 'Đặc điểm nào sau đây đúng với đám mây công cộng?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(388, 2, 7, 'Cloud Computing giúp doanh nghiệp như thế nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(389, 2, 7, 'Dịch vụ điện toán đám mây nào cho phép người dùng triển khai máy chủ ảo?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-11 09:21:12', '2025-11-11 09:21:12'),
+(390, 2, 7, 'Mẫu kiến trúc nào được sử dụng phổ biến trong các framework xây dựng HTTT?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(391, 2, 7, 'Trong MVC, Controller có vai trò gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(392, 2, 7, 'ORM trong framework giúp gì?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(393, 2, 7, 'RESTful API đảm bảo nguyên tắc nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(394, 2, 7, 'Mục tiêu của Dependency Injection là gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(395, 2, 7, 'Framework được dùng nhiều nhất để xây HTTT doanh nghiệp?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(396, 2, 7, 'Khái niệm Middleware thuộc framework nào?', 'SingleChoice', 'Medium', 'D', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(397, 2, 7, 'Tính năng Migration trong framework dùng để?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(398, 2, 7, 'Spring Boot dùng mô hình tiêm phụ thuộc nào?', 'SingleChoice', 'Medium', 'D', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(399, 2, 7, 'Service Layer trong HTTT đảm bảo điều gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(400, 2, 7, 'Entity trong ORM đại diện cho gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(401, 2, 7, 'Repository Pattern có vai trò gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(402, 2, 7, 'Framework nào mạnh nhất cho xử lý dữ liệu lớn?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(403, 2, 7, 'Trong xây HTTT, Load Balancing dùng để làm gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(404, 2, 7, 'Caching được dùng để?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(405, 2, 7, 'JWT thường dùng trong framework để làm gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(406, 2, 7, 'Docker hỗ trợ HTTT bằng cách?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(407, 2, 7, 'CI/CD giúp ích gì cho HTTT?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(408, 2, 7, 'Microservices trong HTTT có đặc điểm gì?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(409, 2, 7, 'API Gateway trong hệ thống microservices dùng để?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-14 15:03:01', '2025-11-14 15:03:01'),
+(410, NULL, 7, 'thầy nhân dạy tiếng nhật ở trường đại học bình dương', 'FillInBlank', 'Easy', '.', NULL, '2025-11-14 15:10:44', '2025-11-14 15:10:44'),
+(411, NULL, 7, 'Trình bày khái niệm Amazon Virtual Private Cloud (VPC) và giải thích tại sao nó lại là nền tảng quan trọng cho việc triển khai các phiên bản EC2 trong AWS.', 'Essay', 'Medium', 'Amazon VPC là một mạng ảo riêng biệt, cô lập logic trong đám mây AWS của bạn, nơi bạn có thể khởi chạy các tài nguyên AWS, bao gồm các phiên bản EC2. Nó quan trọng vì:\n1.  **Cô lập mạng**: Cung cấp một môi trường mạng riêng tư, tách biệt hoàn toàn với các khách hàng AWS khác, đảm bảo dữ liệu và ứng dụng của bạn không bị lộ ra ngoài. \n2.  **Kiểm soát kiến trúc mạng**: Cho phép bạn định nghĩa không gian địa chỉ IP riêng (CIDR block), tạo các subnet, cấu hình bảng định tuyến, và các gateway mạng. \n3.  **Bảo mật nâng cao**: Cung cấp các lớp bảo mật như Security Groups (nhóm bảo mật) và Network Access Control Lists (NACLs) để kiểm soát lưu lượng truy cập vào và ra khỏi các phiên bản EC2 ở cấp độ instance và subnet. \n4.  **Linh hoạt triển khai**: Hỗ trợ triển khai kiến trúc mạng đa tầng (multi-tier) với các subnet công cộng và riêng tư, cho phép các ứng dụng có thể truy cập internet hoặc chỉ được truy cập nội bộ.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(412, NULL, 7, 'Phân biệt sự khác nhau cơ bản giữa Public Subnet và Private Subnet trong VPC, và giải thích vai trò của mỗi loại đối với khả năng truy cập Internet của các phiên bản EC2.', 'Essay', 'Medium', '1.  **Public Subnet (Subnet Công cộng)**:\n    *   **Định nghĩa**: Một subnet có bảng định tuyến (route table) được cấu hình để định tuyến lưu lượng truy cập ra Internet thông qua một Internet Gateway (IGW).\n    *   **Khả năng truy cập Internet**: Các phiên bản EC2 trong Public Subnet có thể truy cập trực tiếp Internet và ngược lại (nếu có Public IP hoặc Elastic IP và Security Group cho phép). Chúng thường được sử dụng cho các máy chủ web, cân bằng tải, hoặc bất kỳ tài nguyên nào cần tương tác trực tiếp với Internet.\n2.  **Private Subnet (Subnet Riêng tư)**:\n    *   **Định nghĩa**: Một subnet không có bảng định tuyến được cấu hình để định tuyến lưu lượng trực tiếp ra Internet qua IGW.\n    *   **Khả năng truy cập Internet**: Các phiên bản EC2 trong Private Subnet không thể truy cập trực tiếp Internet. Để các instance này có thể truy cập Internet (ví dụ: để tải xuống bản cập nhật hoặc patch), chúng cần định tuyến lưu lượng thông qua một NAT Gateway hoặc NAT Instance trong một Public Subnet. Chúng thường được sử dụng cho các máy chủ cơ sở dữ liệu, máy chủ ứng dụng nội bộ, hoặc bất kỳ tài nguyên nào không cần lộ ra Internet.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(413, NULL, 7, 'So sánh và phân biệt các cơ chế bảo mật Security Groups và Network Access Control Lists (NACLs) trong ngữ cảnh bảo vệ các phiên bản EC2 trong VPC.', 'Essay', 'Medium', '1.  **Security Groups (Nhóm bảo mật)**:\n    *   **Cấp độ**: Hoạt động ở cấp độ phiên bản (instance level).\n    *   **Trạng thái**: Có trạng thái (stateful) - nếu bạn cho phép lưu lượng truy cập vào, lưu lượng phản hồi tự động được cho phép ra ngoài, và ngược lại.\n    *   **Quy tắc**: Cho phép hoặc từ chối lưu lượng truy cập. Chỉ có các quy tắc \'ALLOW\' (cho phép) được định nghĩa; mọi thứ không được phép sẽ tự động bị từ chối.\n    *   **Phạm vi**: Áp dụng cho một hoặc nhiều phiên bản EC2.\n    *   **Đánh giá**: Đánh giá tất cả các quy tắc trước khi cho phép hoặc từ chối lưu lượng. \n2.  **Network Access Control Lists (NACLs)**:\n    *   **Cấp độ**: Hoạt động ở cấp độ subnet (subnet level).\n    *   **Trạng thái**: Không trạng thái (stateless) - bạn phải định nghĩa cả quy tắc vào (inbound) và ra (outbound) một cách riêng biệt.\n    *   **Quy tắc**: Cho phép hoặc từ chối lưu lượng truy cập. Có thể định nghĩa cả quy tắc \'ALLOW\' và \'DENY\' (từ chối).\n    *   **Phạm vi**: Áp dụng cho tất cả các phiên bản EC2 trong subnet mà nó được liên kết.\n    *   **Đánh giá**: Đánh giá các quy tắc theo thứ tự số thứ tự (rule number) từ thấp đến cao, và dừng lại ở quy tắc đầu tiên phù hợp.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(414, NULL, 7, 'Giải thích khái niệm Elastic IP Address (EIP) trong AWS. Tại sao việc sử dụng EIP lại có lợi cho các phiên bản EC2, đặc biệt trong các kịch bản cần độ sẵn sàng cao?', 'Essay', 'Medium', 'Elastic IP Address (EIP) là một địa chỉ IPv4 công cộng tĩnh, được phân bổ cho tài khoản AWS của bạn. Nó có thể được liên kết với một phiên bản EC2, một interface mạng (network interface), hoặc một NAT Gateway.\n\n**Lợi ích khi sử dụng EIP cho EC2:**\n1.  **Độ sẵn sàng cao**: Nếu phiên bản EC2 của bạn gặp sự cố hoặc cần được thay thế, bạn có thể nhanh chóng gán lại EIP cho một phiên bản EC2 khác (trong cùng VPC) mà không cần thay đổi bản ghi DNS, giúp giảm thiểu thời gian ngừng hoạt động (downtime). Điều này rất quan trọng trong các kịch bản cần duy trì kết nối liên tục.\n2.  **Địa chỉ IP ổn định**: Địa chỉ IP công cộng mặc định của một phiên bản EC2 sẽ thay đổi mỗi khi instance được dừng và khởi động lại. EIP cung cấp một địa chỉ IP công cộng ổn định, không thay đổi ngay cả khi instance được dừng/khởi động lại hoặc được chuyển sang một instance khác. Điều này giúp các ứng dụng hoặc dịch vụ bên ngoài luôn có thể kết nối đến instance của bạn thông qua một địa chỉ IP nhất quán.\n3.  **Dễ dàng quản lý**: EIP giúp đơn giản hóa việc quản lý kết nối và cấu hình DNS, vì bạn luôn trỏ đến cùng một địa chỉ IP.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(415, NULL, 7, 'Mô tả vai trò và chức năng của Internet Gateway (IGW) trong kiến trúc VPC. Làm thế nào IGW giúp các phiên bản EC2 trong Public Subnet giao tiếp với Internet?', 'Essay', 'Medium', 'Internet Gateway (IGW) là một thành phần logic có khả năng mở rộng theo chiều ngang, cung cấp kết nối giữa VPC và Internet. Nó đóng vai trò là điểm vào/ra cho lưu lượng truy cập từ/đến Internet.\n\n**Vai trò của IGW đối với EC2 trong Public Subnet:**\n1.  **Cung cấp đích đến (target) cho bảng định tuyến**: Để một phiên bản EC2 trong Public Subnet có thể giao tiếp với Internet, bảng định tuyến của subnet đó phải chứa một tuyến đường (route) trỏ đến IGW cho lưu lượng truy cập Internet (thường là 0.0.0.0/0).\n2.  **Thực hiện NAT**: Khi một phiên bản EC2 có địa chỉ IP công cộng (Public IP hoặc Elastic IP) gửi hoặc nhận lưu lượng truy cập từ Internet, IGW thực hiện chuyển đổi địa chỉ mạng (Network Address Translation - NAT) giữa địa chỉ IP riêng của instance và địa chỉ IP công cộng của nó.\n\n**Quá trình hoạt động:**\n*   Khi một phiên bản EC2 trong Public Subnet (có Public IP/EIP) muốn truy cập Internet, lưu lượng truy cập sẽ được định tuyến thông qua IGW theo quy tắc trong bảng định tuyến của subnet. IGW sẽ chuyển tiếp yêu cầu ra Internet.\n*   Khi lưu lượng từ Internet muốn đến phiên bản EC2 đó, nó sẽ đến IGW, IGW sẽ thực hiện NAT để chuyển tiếp lưu lượng đến địa chỉ IP riêng của instance trong VPC.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(416, NULL, 7, 'Giải thích mục đích của Route Table (Bảng định tuyến) trong một VPC. Cho một ví dụ về cách một Route Table có thể được cấu hình để cho phép một Public Subnet truy cập Internet.', 'Essay', 'Medium', 'Route Table (Bảng định tuyến) là một tập hợp các quy tắc, được gọi là các tuyến đường (routes), được sử dụng để điều khiển nơi lưu lượng mạng từ một subnet hoặc gateway được định hướng đi tới. Mỗi subnet trong VPC phải được liên kết với một Route Table.\n\n**Mục đích**: Route Table xác định đường dẫn mà các gói tin sẽ đi qua để đến đích mong muốn (trong VPC, ra Internet, đến một VPC khác, v.v.).\n\n**Ví dụ về cấu hình Route Table cho Public Subnet truy cập Internet:**\nGiả sử chúng ta có một VPC với dải IP 10.0.0.0/16 và một Public Subnet 10.0.1.0/24.\n\nMột Route Table cho Public Subnet sẽ có các tuyến đường sau:\n1.  **Destination**: 10.0.0.0/16\n    *   **Target**: `local`\n    *   **Giải thích**: Tuyến đường này là tuyến đường mặc định, cho phép tất cả các tài nguyên trong VPC giao tiếp với nhau. Tất cả lưu lượng dành cho các địa chỉ IP trong dải CIDR của VPC sẽ được giữ lại trong mạng nội bộ VPC.\n2.  **Destination**: 0.0.0.0/0\n    *   **Target**: `igw-xxxxxxxxxxxxxxxxx` (ID của Internet Gateway đã gắn vào VPC)\n    *   **Giải thích**: Tuyến đường này là tuyến đường mặc định cho lưu lượng ra Internet (tất cả các địa chỉ IP không nằm trong VPC). Bằng cách trỏ nó đến Internet Gateway, các phiên bản EC2 trong Public Subnet có thể gửi và nhận lưu lượng từ Internet.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(417, NULL, 7, 'Giải thích tại sao cần có NAT Gateway hoặc NAT Instance trong một VPC. Mô tả cách chúng cho phép các phiên bản EC2 trong Private Subnet truy cập Internet mà vẫn duy trì tính riêng tư.', 'Essay', 'Medium', '**Sự cần thiết của NAT Gateway/Instance:**\nCác phiên bản EC2 trong Private Subnet cần truy cập Internet vì nhiều lý do (ví dụ: tải xuống bản cập nhật hệ điều hành, cài đặt gói phần mềm, kết nối với các dịch vụ AWS khác như S3 hoặc DynamoDB). Tuy nhiên, chúng không được phép có địa chỉ IP công cộng và không thể truy cập Internet trực tiếp thông qua Internet Gateway để duy trì tính riêng tư và bảo mật.\n\n**Cách NAT Gateway/Instance hoạt động:**\n1.  **Vị trí**: Cả NAT Gateway và NAT Instance đều được triển khai trong một Public Subnet và được gán một Elastic IP Address (EIP).\n2.  **Bảng định tuyến (Route Table)**: Bảng định tuyến của Private Subnet được cấu hình với một tuyến đường mặc định (0.0.0.0/0) trỏ đến NAT Gateway hoặc NAT Instance.\n3.  **Quá trình truy cập Internet**: Khi một phiên bản EC2 trong Private Subnet muốn truy cập Internet, nó gửi lưu lượng đến NAT Gateway/Instance. NAT Gateway/Instance sau đó thực hiện Network Address Translation (NAT), thay thế địa chỉ IP riêng của instance bằng địa chỉ IP công cộng (EIP) của chính nó, sau đó gửi yêu cầu ra Internet thông qua Internet Gateway.\n4.  **Phản hồi**: Khi phản hồi từ Internet trở về, nó sẽ đến EIP của NAT Gateway/Instance. NAT Gateway/Instance sẽ dịch địa chỉ lại và chuyển tiếp phản hồi về phiên bản EC2 trong Private Subnet.\n\nNhờ cơ chế này, các instance trong Private Subnet có thể khởi tạo kết nối ra Internet nhưng không thể bị truy cập trực tiếp từ Internet, duy trì tính riêng tư và bảo mật.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(418, NULL, 7, 'Mô tả VPC Peering. Trong những tình huống nào bạn sẽ sử dụng VPC Peering, và những giới hạn chính của nó là gì?', 'Essay', 'Medium', 'VPC Peering là một kết nối mạng giữa hai VPC, cho phép các tài nguyên trong mỗi VPC giao tiếp với nhau bằng địa chỉ IP riêng của chúng, giống như thể chúng nằm trong cùng một mạng. Các VPC có thể thuộc cùng một tài khoản AWS hoặc các tài khoản AWS khác nhau, và có thể nằm trong cùng một hoặc các khu vực (Region) khác nhau.\n\n**Tình huống sử dụng VPC Peering:**\n1.  **Chia sẻ tài nguyên**: Khi bạn có các ứng dụng hoặc dịch vụ cần truy cập các tài nguyên (ví dụ: cơ sở dữ liệu, dịch vụ microservice) được triển khai trong một VPC khác.\n2.  **Mô hình hub-and-spoke**: Một VPC trung tâm (hub) có thể được peering với nhiều VPC khác (spoke) để quản lý tập trung hoặc chia sẻ các dịch vụ chung.\n3.  **Hợp nhất hoặc mua lại**: Khi hai công ty sáp nhập và cần kết nối các tài nguyên AWS của họ mà không di chuyển chúng.\n\n**Giới hạn chính của VPC Peering:**\n1.  **Không có tính chuyển tiếp (No transitive peering)**: Nếu VPC A được peering với VPC B, và VPC B được peering với VPC C, thì VPC A không thể trực tiếp giao tiếp với VPC C thông qua VPC B. Bạn cần tạo kết nối peering trực tiếp giữa VPC A và VPC C.\n2.  **Không trùng lặp CIDR blocks**: Hai VPC đang peering không được có các dải CIDR IP trùng lặp.\n3.  **Số lượng peering giới hạn**: Mỗi VPC có giới hạn về số lượng kết nối peering có thể thiết lập.\n4.  **Cấu hình DNS resolver**: Cần cấu hình DNS resolver phù hợp nếu muốn phân giải tên miền riêng giữa các VPC được peering.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(419, NULL, 7, 'Khi triển khai các phiên bản EC2, hãy trình bày các yếu tố quan trọng liên quan đến kiến trúc VPC (như subnet, Availability Zone, và bảo mật) cần được xem xét để đảm bảo hiệu suất và độ sẵn sàng cao.', 'Essay', 'Medium', 'Khi triển khai EC2, cần xem xét các yếu tố VPC sau:\n1.  **Subnet**: \n    *   **Phân loại**: Xác định xem instance cần truy cập Internet (Public Subnet) hay chỉ truy cập nội bộ (Private Subnet). Đặt các máy chủ web/load balancer vào Public Subnet và máy chủ ứng dụng/cơ sở dữ liệu vào Private Subnet. \n    *   **Kích thước**: Đảm bảo subnet có đủ địa chỉ IP cho nhu cầu hiện tại và tương lai. \n2.  **Availability Zone (AZ)**:\n    *   **Phân tán**: Luôn triển khai các phiên bản EC2 quan trọng (hoặc các nhóm EC2) trên nhiều AZ khác nhau để tăng cường khả năng chịu lỗi và độ sẵn sàng. Nếu một AZ gặp sự cố, ứng dụng vẫn hoạt động ở các AZ khác.\n    *   **Độ trễ**: Xem xét độ trễ khi giao tiếp giữa các AZ nếu ứng dụng yêu cầu hiệu suất cao giữa các thành phần.\n3.  **Bảo mật (Security Groups và NACLs)**:\n    *   **Security Groups**: Cấu hình các quy tắc \'allow\' cần thiết cho từng phiên bản EC2 hoặc nhóm instance. Chỉ mở các cổng và địa chỉ IP nguồn thực sự cần thiết. Ví dụ: mở cổng 80/443 cho máy chủ web từ mọi nơi, cổng 22 cho SSH từ IP quản trị viên.\n    *   **NACLs**: Sử dụng NACLs ở cấp độ subnet để tạo thêm một lớp bảo mật không trạng thái, đặc biệt hữu ích để chặn các dải IP độc hại hoặc thiết lập các chính sách bảo mật rộng hơn cho toàn bộ subnet.\n4.  **Bảng định tuyến (Route Tables)**: Đảm bảo rằng Route Table của subnet được cấu hình đúng để các phiên bản EC2 có thể giao tiếp với các tài nguyên mong muốn (trong VPC, ra Internet, qua peering, v.v.).\n5.  **Elastic IP/NAT Gateway**: Nếu các instance trong Private Subnet cần truy cập Internet, đảm bảo có NAT Gateway/Instance được cấu hình đúng và Private Subnet có route trỏ đến đó. Nếu các instance trong Public Subnet cần địa chỉ IP tĩnh, sử dụng Elastic IP.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(420, NULL, 7, 'Giải thích mục đích và sự khác biệt cơ bản giữa AWS VPN Gateway và AWS Direct Connect trong việc kết nối mạng On-Premise với VPC của bạn.', 'Essay', 'Medium', 'Cả AWS VPN Gateway và AWS Direct Connect đều là các dịch vụ giúp kết nối mạng On-Premise (tại chỗ) của bạn với VPC trong AWS, nhưng chúng khác nhau về cách thức, hiệu suất và chi phí.\n\n1.  **AWS VPN Gateway (Site-to-Site VPN)**:\n    *   **Mục đích**: Thiết lập một kết nối bảo mật (IPsec VPN) qua mạng Internet công cộng giữa trung tâm dữ liệu On-Premise của bạn và VPC của bạn.\n    *   **Cách thức**: Dữ liệu được mã hóa và truyền qua Internet công cộng. Bạn cần một Customer Gateway (thiết bị/phần mềm VPN) ở phía On-Premise.\n    *   **Đặc điểm**: \n        *   **Chi phí**: Thường thấp hơn, dựa trên giờ sử dụng và chi phí truyền dữ liệu.\n        *   **Hiệu suất**: Phụ thuộc vào chất lượng và băng thông của kết nối Internet công cộng, có thể biến động về độ trễ và thông lượng.\n        *   **Bảo mật**: Dữ liệu được mã hóa, an toàn trên Internet.\n        *   **Triển khai**: Nhanh chóng và dễ dàng triển khai.\n\n2.  **AWS Direct Connect**:\n    *   **Mục đích**: Thiết lập một kết nối mạng vật lý riêng, chuyên dụng từ trung tâm dữ liệu On-Premise của bạn đến một điểm POP (Point of Presence) của AWS, sau đó đến VPC của bạn.\n    *   **Cách thức**: Dữ liệu truyền qua một đường truyền cáp quang riêng, không đi qua Internet công cộng. Yêu cầu hợp tác với một đối tác Direct Connect hoặc nhà cung cấp dịch vụ mạng.\n    *   **Đặc điểm**: \n        *   **Chi phí**: Thường cao hơn VPN, bao gồm phí cổng kết nối và chi phí truyền dữ liệu, cùng với chi phí từ nhà cung cấp dịch vụ mạng.\n        *   **Hiệu suất**: Cung cấp băng thông cao, độ trễ thấp và ổn định, nhất quán hơn nhiều so với VPN qua Internet.\n        *   **Bảo mật**: Dữ liệu không đi qua Internet công cộng, tăng cường bảo mật và tuân thủ.\n        *   **Triển khai**: Mất nhiều thời gian hơn để thiết lập do yêu cầu hạ tầng vật lý.\n\n**Khi nào sử dụng cái nào:**\n*   **VPN Gateway**: Thích hợp cho các trường hợp cần kết nối nhanh chóng, chi phí thấp, cho các ứng dụng không yêu cầu băng thông cực cao hoặc độ trễ cực thấp, hoặc như một giải pháp dự phòng cho Direct Connect.\n*   **Direct Connect**: Thích hợp cho các ứng dụng doanh nghiệp quan trọng, yêu cầu băng thông cao, độ trễ thấp, ổn định, và cần tuân thủ các quy định bảo mật nghiêm ngặt.', NULL, '2025-11-15 09:44:49', '2025-11-15 09:44:49'),
+(421, NULL, 7, 'Trình bày khái niệm Amazon Virtual Private Cloud (VPC) và giải thích tại sao nó lại là nền tảng quan trọng cho việc triển khai các phiên bản EC2 trong AWS.', 'Essay', 'Medium', 'Amazon VPC là một mạng ảo riêng biệt, cô lập logic trong đám mây AWS của bạn, nơi bạn có thể khởi chạy các tài nguyên AWS, bao gồm các phiên bản EC2. Nó quan trọng vì:\n1.  **Cô lập mạng**: Cung cấp một môi trường mạng riêng tư, tách biệt hoàn toàn với các khách hàng AWS khác, đảm bảo dữ liệu và ứng dụng của bạn không bị lộ ra ngoài. \n2.  **Kiểm soát kiến trúc mạng**: Cho phép bạn định nghĩa không gian địa chỉ IP riêng (CIDR block), tạo các subnet, cấu hình bảng định tuyến, và các gateway mạng. \n3.  **Bảo mật nâng cao**: Cung cấp các lớp bảo mật như Security Groups (nhóm bảo mật) và Network Access Control Lists (NACLs) để kiểm soát lưu lượng truy cập vào và ra khỏi các phiên bản EC2 ở cấp độ instance và subnet. \n4.  **Linh hoạt triển khai**: Hỗ trợ triển khai kiến trúc mạng đa tầng (multi-tier) với các subnet công cộng và riêng tư, cho phép các ứng dụng có thể truy cập internet hoặc chỉ được truy cập nội bộ.', NULL, '2025-11-15 09:44:59', '2025-11-15 09:44:59'),
+(422, NULL, 7, 'Phân biệt sự khác nhau cơ bản giữa Public Subnet và Private Subnet trong VPC, và giải thích vai trò của mỗi loại đối với khả năng truy cập Internet của các phiên bản EC2.', 'Essay', 'Medium', '1.  **Public Subnet (Subnet Công cộng)**:\n    *   **Định nghĩa**: Một subnet có bảng định tuyến (route table) được cấu hình để định tuyến lưu lượng truy cập ra Internet thông qua một Internet Gateway (IGW).\n    *   **Khả năng truy cập Internet**: Các phiên bản EC2 trong Public Subnet có thể truy cập trực tiếp Internet và ngược lại (nếu có Public IP hoặc Elastic IP và Security Group cho phép). Chúng thường được sử dụng cho các máy chủ web, cân bằng tải, hoặc bất kỳ tài nguyên nào cần tương tác trực tiếp với Internet.\n2.  **Private Subnet (Subnet Riêng tư)**:\n    *   **Định nghĩa**: Một subnet không có bảng định tuyến được cấu hình để định tuyến lưu lượng trực tiếp ra Internet qua IGW.\n    *   **Khả năng truy cập Internet**: Các phiên bản EC2 trong Private Subnet không thể truy cập trực tiếp Internet. Để các instance này có thể truy cập Internet (ví dụ: để tải xuống bản cập nhật hoặc patch), chúng cần định tuyến lưu lượng thông qua một NAT Gateway hoặc NAT Instance trong một Public Subnet. Chúng thường được sử dụng cho các máy chủ cơ sở dữ liệu, máy chủ ứng dụng nội bộ, hoặc bất kỳ tài nguyên nào không cần lộ ra Internet.', NULL, '2025-11-15 09:44:59', '2025-11-15 09:44:59'),
+(423, NULL, 7, 'So sánh và phân biệt các cơ chế bảo mật Security Groups và Network Access Control Lists (NACLs) trong ngữ cảnh bảo vệ các phiên bản EC2 trong VPC.', 'Essay', 'Medium', '1.  **Security Groups (Nhóm bảo mật)**:\n    *   **Cấp độ**: Hoạt động ở cấp độ phiên bản (instance level).\n    *   **Trạng thái**: Có trạng thái (stateful) - nếu bạn cho phép lưu lượng truy cập vào, lưu lượng phản hồi tự động được cho phép ra ngoài, và ngược lại.\n    *   **Quy tắc**: Cho phép hoặc từ chối lưu lượng truy cập. Chỉ có các quy tắc \'ALLOW\' (cho phép) được định nghĩa; mọi thứ không được phép sẽ tự động bị từ chối.\n    *   **Phạm vi**: Áp dụng cho một hoặc nhiều phiên bản EC2.\n    *   **Đánh giá**: Đánh giá tất cả các quy tắc trước khi cho phép hoặc từ chối lưu lượng. \n2.  **Network Access Control Lists (NACLs)**:\n    *   **Cấp độ**: Hoạt động ở cấp độ subnet (subnet level).\n    *   **Trạng thái**: Không trạng thái (stateless) - bạn phải định nghĩa cả quy tắc vào (inbound) và ra (outbound) một cách riêng biệt.\n    *   **Quy tắc**: Cho phép hoặc từ chối lưu lượng truy cập. Có thể định nghĩa cả quy tắc \'ALLOW\' và \'DENY\' (từ chối).\n    *   **Phạm vi**: Áp dụng cho tất cả các phiên bản EC2 trong subnet mà nó được liên kết.\n    *   **Đánh giá**: Đánh giá các quy tắc theo thứ tự số thứ tự (rule number) từ thấp đến cao, và dừng lại ở quy tắc đầu tiên phù hợp.', NULL, '2025-11-15 09:44:59', '2025-11-15 09:44:59'),
+(424, NULL, 7, 'Giải thích khái niệm Elastic IP Address (EIP) trong AWS. Tại sao việc sử dụng EIP lại có lợi cho các phiên bản EC2, đặc biệt trong các kịch bản cần độ sẵn sàng cao?', 'Essay', 'Medium', 'Elastic IP Address (EIP) là một địa chỉ IPv4 công cộng tĩnh, được phân bổ cho tài khoản AWS của bạn. Nó có thể được liên kết với một phiên bản EC2, một interface mạng (network interface), hoặc một NAT Gateway.\n\n**Lợi ích khi sử dụng EIP cho EC2:**\n1.  **Độ sẵn sàng cao**: Nếu phiên bản EC2 của bạn gặp sự cố hoặc cần được thay thế, bạn có thể nhanh chóng gán lại EIP cho một phiên bản EC2 khác (trong cùng VPC) mà không cần thay đổi bản ghi DNS, giúp giảm thiểu thời gian ngừng hoạt động (downtime). Điều này rất quan trọng trong các kịch bản cần duy trì kết nối liên tục.\n2.  **Địa chỉ IP ổn định**: Địa chỉ IP công cộng mặc định của một phiên bản EC2 sẽ thay đổi mỗi khi instance được dừng và khởi động lại. EIP cung cấp một địa chỉ IP công cộng ổn định, không thay đổi ngay cả khi instance được dừng/khởi động lại hoặc được chuyển sang một instance khác. Điều này giúp các ứng dụng hoặc dịch vụ bên ngoài luôn có thể kết nối đến instance của bạn thông qua một địa chỉ IP nhất quán.\n3.  **Dễ dàng quản lý**: EIP giúp đơn giản hóa việc quản lý kết nối và cấu hình DNS, vì bạn luôn trỏ đến cùng một địa chỉ IP.', NULL, '2025-11-15 09:44:59', '2025-11-15 09:44:59'),
+(425, NULL, 7, 'Mô tả vai trò và chức năng của Internet Gateway (IGW) trong kiến trúc VPC. Làm thế nào IGW giúp các phiên bản EC2 trong Public Subnet giao tiếp với Internet?', 'Essay', 'Medium', 'Internet Gateway (IGW) là một thành phần logic có khả năng mở rộng theo chiều ngang, cung cấp kết nối giữa VPC và Internet. Nó đóng vai trò là điểm vào/ra cho lưu lượng truy cập từ/đến Internet.\n\n**Vai trò của IGW đối với EC2 trong Public Subnet:**\n1.  **Cung cấp đích đến (target) cho bảng định tuyến**: Để một phiên bản EC2 trong Public Subnet có thể giao tiếp với Internet, bảng định tuyến của subnet đó phải chứa một tuyến đường (route) trỏ đến IGW cho lưu lượng truy cập Internet (thường là 0.0.0.0/0).\n2.  **Thực hiện NAT**: Khi một phiên bản EC2 có địa chỉ IP công cộng (Public IP hoặc Elastic IP) gửi hoặc nhận lưu lượng truy cập từ Internet, IGW thực hiện chuyển đổi địa chỉ mạng (Network Address Translation - NAT) giữa địa chỉ IP riêng của instance và địa chỉ IP công cộng của nó.\n\n**Quá trình hoạt động:**\n*   Khi một phiên bản EC2 trong Public Subnet (có Public IP/EIP) muốn truy cập Internet, lưu lượng truy cập sẽ được định tuyến thông qua IGW theo quy tắc trong bảng định tuyến của subnet. IGW sẽ chuyển tiếp yêu cầu ra Internet.\n*   Khi lưu lượng từ Internet muốn đến phiên bản EC2 đó, nó sẽ đến IGW, IGW sẽ thực hiện NAT để chuyển tiếp lưu lượng đến địa chỉ IP riêng của instance trong VPC.', NULL, '2025-11-15 09:44:59', '2025-11-15 09:44:59'),
+(426, NULL, 7, 'Giải thích mục đích của Route Table (Bảng định tuyến) trong một VPC. Cho một ví dụ về cách một Route Table có thể được cấu hình để cho phép một Public Subnet truy cập Internet.', 'Essay', 'Medium', 'Route Table (Bảng định tuyến) là một tập hợp các quy tắc, được gọi là các tuyến đường (routes), được sử dụng để điều khiển nơi lưu lượng mạng từ một subnet hoặc gateway được định hướng đi tới. Mỗi subnet trong VPC phải được liên kết với một Route Table.\n\n**Mục đích**: Route Table xác định đường dẫn mà các gói tin sẽ đi qua để đến đích mong muốn (trong VPC, ra Internet, đến một VPC khác, v.v.).\n\n**Ví dụ về cấu hình Route Table cho Public Subnet truy cập Internet:**\nGiả sử chúng ta có một VPC với dải IP 10.0.0.0/16 và một Public Subnet 10.0.1.0/24.\n\nMột Route Table cho Public Subnet sẽ có các tuyến đường sau:\n1.  **Destination**: 10.0.0.0/16\n    *   **Target**: `local`\n    *   **Giải thích**: Tuyến đường này là tuyến đường mặc định, cho phép tất cả các tài nguyên trong VPC giao tiếp với nhau. Tất cả lưu lượng dành cho các địa chỉ IP trong dải CIDR của VPC sẽ được giữ lại trong mạng nội bộ VPC.\n2.  **Destination**: 0.0.0.0/0\n    *   **Target**: `igw-xxxxxxxxxxxxxxxxx` (ID của Internet Gateway đã gắn vào VPC)\n    *   **Giải thích**: Tuyến đường này là tuyến đường mặc định cho lưu lượng ra Internet (tất cả các địa chỉ IP không nằm trong VPC). Bằng cách trỏ nó đến Internet Gateway, các phiên bản EC2 trong Public Subnet có thể gửi và nhận lưu lượng từ Internet.', NULL, '2025-11-15 09:44:59', '2025-11-15 09:44:59'),
+(427, NULL, 7, 'Giải thích tại sao cần có NAT Gateway hoặc NAT Instance trong một VPC. Mô tả cách chúng cho phép các phiên bản EC2 trong Private Subnet truy cập Internet mà vẫn duy trì tính riêng tư.', 'Essay', 'Medium', '**Sự cần thiết của NAT Gateway/Instance:**\nCác phiên bản EC2 trong Private Subnet cần truy cập Internet vì nhiều lý do (ví dụ: tải xuống bản cập nhật hệ điều hành, cài đặt gói phần mềm, kết nối với các dịch vụ AWS khác như S3 hoặc DynamoDB). Tuy nhiên, chúng không được phép có địa chỉ IP công cộng và không thể truy cập Internet trực tiếp thông qua Internet Gateway để duy trì tính riêng tư và bảo mật.\n\n**Cách NAT Gateway/Instance hoạt động:**\n1.  **Vị trí**: Cả NAT Gateway và NAT Instance đều được triển khai trong một Public Subnet và được gán một Elastic IP Address (EIP).\n2.  **Bảng định tuyến (Route Table)**: Bảng định tuyến của Private Subnet được cấu hình với một tuyến đường mặc định (0.0.0.0/0) trỏ đến NAT Gateway hoặc NAT Instance.\n3.  **Quá trình truy cập Internet**: Khi một phiên bản EC2 trong Private Subnet muốn truy cập Internet, nó gửi lưu lượng đến NAT Gateway/Instance. NAT Gateway/Instance sau đó thực hiện Network Address Translation (NAT), thay thế địa chỉ IP riêng của instance bằng địa chỉ IP công cộng (EIP) của chính nó, sau đó gửi yêu cầu ra Internet thông qua Internet Gateway.\n4.  **Phản hồi**: Khi phản hồi từ Internet trở về, nó sẽ đến EIP của NAT Gateway/Instance. NAT Gateway/Instance sẽ dịch địa chỉ lại và chuyển tiếp phản hồi về phiên bản EC2 trong Private Subnet.\n\nNhờ cơ chế này, các instance trong Private Subnet có thể khởi tạo kết nối ra Internet nhưng không thể bị truy cập trực tiếp từ Internet, duy trì tính riêng tư và bảo mật.', NULL, '2025-11-15 09:44:59', '2025-11-15 09:44:59'),
+(428, NULL, 7, 'Mô tả VPC Peering. Trong những tình huống nào bạn sẽ sử dụng VPC Peering, và những giới hạn chính của nó là gì?', 'Essay', 'Medium', 'VPC Peering là một kết nối mạng giữa hai VPC, cho phép các tài nguyên trong mỗi VPC giao tiếp với nhau bằng địa chỉ IP riêng của chúng, giống như thể chúng nằm trong cùng một mạng. Các VPC có thể thuộc cùng một tài khoản AWS hoặc các tài khoản AWS khác nhau, và có thể nằm trong cùng một hoặc các khu vực (Region) khác nhau.\n\n**Tình huống sử dụng VPC Peering:**\n1.  **Chia sẻ tài nguyên**: Khi bạn có các ứng dụng hoặc dịch vụ cần truy cập các tài nguyên (ví dụ: cơ sở dữ liệu, dịch vụ microservice) được triển khai trong một VPC khác.\n2.  **Mô hình hub-and-spoke**: Một VPC trung tâm (hub) có thể được peering với nhiều VPC khác (spoke) để quản lý tập trung hoặc chia sẻ các dịch vụ chung.\n3.  **Hợp nhất hoặc mua lại**: Khi hai công ty sáp nhập và cần kết nối các tài nguyên AWS của họ mà không di chuyển chúng.\n\n**Giới hạn chính của VPC Peering:**\n1.  **Không có tính chuyển tiếp (No transitive peering)**: Nếu VPC A được peering với VPC B, và VPC B được peering với VPC C, thì VPC A không thể trực tiếp giao tiếp với VPC C thông qua VPC B. Bạn cần tạo kết nối peering trực tiếp giữa VPC A và VPC C.\n2.  **Không trùng lặp CIDR blocks**: Hai VPC đang peering không được có các dải CIDR IP trùng lặp.\n3.  **Số lượng peering giới hạn**: Mỗi VPC có giới hạn về số lượng kết nối peering có thể thiết lập.\n4.  **Cấu hình DNS resolver**: Cần cấu hình DNS resolver phù hợp nếu muốn phân giải tên miền riêng giữa các VPC được peering.', NULL, '2025-11-15 09:44:59', '2025-11-15 09:44:59'),
+(429, NULL, 7, 'Khi triển khai các phiên bản EC2, hãy trình bày các yếu tố quan trọng liên quan đến kiến trúc VPC (như subnet, Availability Zone, và bảo mật) cần được xem xét để đảm bảo hiệu suất và độ sẵn sàng cao.', 'Essay', 'Medium', 'Khi triển khai EC2, cần xem xét các yếu tố VPC sau:\n1.  **Subnet**: \n    *   **Phân loại**: Xác định xem instance cần truy cập Internet (Public Subnet) hay chỉ truy cập nội bộ (Private Subnet). Đặt các máy chủ web/load balancer vào Public Subnet và máy chủ ứng dụng/cơ sở dữ liệu vào Private Subnet. \n    *   **Kích thước**: Đảm bảo subnet có đủ địa chỉ IP cho nhu cầu hiện tại và tương lai. \n2.  **Availability Zone (AZ)**:\n    *   **Phân tán**: Luôn triển khai các phiên bản EC2 quan trọng (hoặc các nhóm EC2) trên nhiều AZ khác nhau để tăng cường khả năng chịu lỗi và độ sẵn sàng. Nếu một AZ gặp sự cố, ứng dụng vẫn hoạt động ở các AZ khác.\n    *   **Độ trễ**: Xem xét độ trễ khi giao tiếp giữa các AZ nếu ứng dụng yêu cầu hiệu suất cao giữa các thành phần.\n3.  **Bảo mật (Security Groups và NACLs)**:\n    *   **Security Groups**: Cấu hình các quy tắc \'allow\' cần thiết cho từng phiên bản EC2 hoặc nhóm instance. Chỉ mở các cổng và địa chỉ IP nguồn thực sự cần thiết. Ví dụ: mở cổng 80/443 cho máy chủ web từ mọi nơi, cổng 22 cho SSH từ IP quản trị viên.\n    *   **NACLs**: Sử dụng NACLs ở cấp độ subnet để tạo thêm một lớp bảo mật không trạng thái, đặc biệt hữu ích để chặn các dải IP độc hại hoặc thiết lập các chính sách bảo mật rộng hơn cho toàn bộ subnet.\n4.  **Bảng định tuyến (Route Tables)**: Đảm bảo rằng Route Table của subnet được cấu hình đúng để các phiên bản EC2 có thể giao tiếp với các tài nguyên mong muốn (trong VPC, ra Internet, qua peering, v.v.).\n5.  **Elastic IP/NAT Gateway**: Nếu các instance trong Private Subnet cần truy cập Internet, đảm bảo có NAT Gateway/Instance được cấu hình đúng và Private Subnet có route trỏ đến đó. Nếu các instance trong Public Subnet cần địa chỉ IP tĩnh, sử dụng Elastic IP.', NULL, '2025-11-15 09:45:00', '2025-11-15 09:45:00'),
+(430, NULL, 7, 'Giải thích mục đích và sự khác biệt cơ bản giữa AWS VPN Gateway và AWS Direct Connect trong việc kết nối mạng On-Premise với VPC của bạn.', 'Essay', 'Medium', 'Cả AWS VPN Gateway và AWS Direct Connect đều là các dịch vụ giúp kết nối mạng On-Premise (tại chỗ) của bạn với VPC trong AWS, nhưng chúng khác nhau về cách thức, hiệu suất và chi phí.\n\n1.  **AWS VPN Gateway (Site-to-Site VPN)**:\n    *   **Mục đích**: Thiết lập một kết nối bảo mật (IPsec VPN) qua mạng Internet công cộng giữa trung tâm dữ liệu On-Premise của bạn và VPC của bạn.\n    *   **Cách thức**: Dữ liệu được mã hóa và truyền qua Internet công cộng. Bạn cần một Customer Gateway (thiết bị/phần mềm VPN) ở phía On-Premise.\n    *   **Đặc điểm**: \n        *   **Chi phí**: Thường thấp hơn, dựa trên giờ sử dụng và chi phí truyền dữ liệu.\n        *   **Hiệu suất**: Phụ thuộc vào chất lượng và băng thông của kết nối Internet công cộng, có thể biến động về độ trễ và thông lượng.\n        *   **Bảo mật**: Dữ liệu được mã hóa, an toàn trên Internet.\n        *   **Triển khai**: Nhanh chóng và dễ dàng triển khai.\n\n2.  **AWS Direct Connect**:\n    *   **Mục đích**: Thiết lập một kết nối mạng vật lý riêng, chuyên dụng từ trung tâm dữ liệu On-Premise của bạn đến một điểm POP (Point of Presence) của AWS, sau đó đến VPC của bạn.\n    *   **Cách thức**: Dữ liệu truyền qua một đường truyền cáp quang riêng, không đi qua Internet công cộng. Yêu cầu hợp tác với một đối tác Direct Connect hoặc nhà cung cấp dịch vụ mạng.\n    *   **Đặc điểm**: \n        *   **Chi phí**: Thường cao hơn VPN, bao gồm phí cổng kết nối và chi phí truyền dữ liệu, cùng với chi phí từ nhà cung cấp dịch vụ mạng.\n        *   **Hiệu suất**: Cung cấp băng thông cao, độ trễ thấp và ổn định, nhất quán hơn nhiều so với VPN qua Internet.\n        *   **Bảo mật**: Dữ liệu không đi qua Internet công cộng, tăng cường bảo mật và tuân thủ.\n        *   **Triển khai**: Mất nhiều thời gian hơn để thiết lập do yêu cầu hạ tầng vật lý.\n\n**Khi nào sử dụng cái nào:**\n*   **VPN Gateway**: Thích hợp cho các trường hợp cần kết nối nhanh chóng, chi phí thấp, cho các ứng dụng không yêu cầu băng thông cực cao hoặc độ trễ cực thấp, hoặc như một giải pháp dự phòng cho Direct Connect.\n*   **Direct Connect**: Thích hợp cho các ứng dụng doanh nghiệp quan trọng, yêu cầu băng thông cao, độ trễ thấp, ổn định, và cần tuân thủ các quy định bảo mật nghiêm ngặt.', NULL, '2025-11-15 09:45:00', '2025-11-15 09:45:00'),
+(431, NULL, 7, 'Trong AWS VPC, thành phần nào chịu trách nhiệm chính trong việc định nghĩa dải địa chỉ IP cho toàn bộ mạng ảo của bạn?', 'SingleChoice', 'Medium', 'D', NULL, '2025-11-15 09:51:38', '2025-11-15 09:51:38'),
+(432, NULL, 7, 'Một EC2 instance được triển khai trong một private subnet cần truy cập Internet để tải xuống các bản cập nhật. Thành phần VPC nào là *thiết yếu* để cho phép kết nối Internet ra bên ngoài mà không cần địa chỉ IP công cộng cho EC2 instance đó?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-15 09:51:38', '2025-11-15 09:51:38'),
+(433, NULL, 7, 'Điểm khác biệt quan trọng nào sau đây là *chính xác* khi so sánh Nhóm bảo mật (Security Group) và Danh sách kiểm soát truy cập mạng (Network ACL - NACL) trong AWS VPC?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-15 09:51:38', '2025-11-15 09:51:38'),
+(434, NULL, 7, 'Để một EC2 instance trong public subnet có thể nhận được lưu lượng truy cập từ Internet (ví dụ: SSH hoặc HTTP), ngoài việc có một địa chỉ IP công cộng hoặc Elastic IP, thành phần VPC nào phải được cấu hình *chính xác* để hướng lưu lượng từ Internet Gateway đến subnet chứa instance đó?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-15 09:51:38', '2025-11-15 09:51:38'),
+(435, NULL, 7, 'Một EC2 instance có cả địa chỉ IP riêng (private IP) và địa chỉ IP công cộng (public IP) được cấp bởi AWS. Khi instance này khởi tạo một kết nối ra ngoài Internet, địa chỉ IP nào sẽ được nhìn thấy làm nguồn (source) của lưu lượng truy cập từ góc nhìn bên ngoài Internet?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-15 09:51:38', '2025-11-15 09:51:38'),
+(436, NULL, 7, 'hello', 'Essay', 'Easy', '.', NULL, '2025-11-15 10:32:12', '2025-11-15 10:32:12'),
+(437, NULL, 7, 'Một ứng dụng yêu cầu tính sẵn sàng cao cho cơ sở dữ liệu của nó và phải tự động chuyển đổi sang phiên bản dự phòng (standby instance) trong trường hợp có sự cố. Tính năng Amazon RDS nào sau đây đáp ứng tốt nhất yêu cầu này?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-15 10:34:49', '2025-11-15 10:34:49'),
+(438, NULL, 7, 'So với việc tự quản lý một cơ sở dữ liệu quan hệ trên một phiên bản EC2, lợi ích chính của việc sử dụng Amazon RDS là gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-15 10:34:49', '2025-11-15 10:34:49'),
+(439, NULL, 7, 'Một ứng dụng web đang gặp phải tình trạng nghẽn cổ chai về hiệu suất do số lượng truy vấn đọc (read queries) cao trên cơ sở dữ liệu Amazon RDS của nó. Để giảm tải và cải thiện thông lượng đọc, tính năng RDS nào nên được triển khai?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-15 10:34:49', '2025-11-15 10:34:49'),
+(440, NULL, 7, 'Để kiểm soát quyền truy cập mạng vào một phiên bản Amazon RDS, đảm bảo rằng chỉ các máy chủ ứng dụng cụ thể mới có thể kết nối được, dịch vụ hoặc tính năng AWS nào nên được cấu hình?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-15 10:34:49', '2025-11-15 10:34:49'),
+(441, NULL, 7, 'Loại lưu trữ Amazon RDS nào thường được khuyến nghị cho các cơ sở dữ liệu sản xuất yêu cầu hiệu suất cao và hoạt động I/O nhất quán, phù hợp với các khối lượng công việc giao dịch (transactional workloads)?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-15 10:34:49', '2025-11-15 10:34:49'),
+(442, NULL, 7, 'tets', 'Essay', 'Easy', '.', NULL, '2025-11-16 09:03:28', '2025-11-16 09:03:28'),
+(443, NULL, 7, 'test', 'Essay', 'Easy', '.', NULL, '2025-11-16 09:20:53', '2025-11-16 09:20:53');
 
 -- --------------------------------------------------------
 
@@ -1610,7 +1893,367 @@ INSERT INTO `question_options` (`option_id`, `question_id`, `option_content`, `i
 (781, 319, 'bool', 1),
 (782, 319, 'int', 0),
 (783, 319, 'string', 0),
-(784, 319, 'float', 0);
+(784, 319, 'float', 0),
+(785, 330, 'Google', 0),
+(786, 330, 'Microsoft', 1),
+(787, 330, 'Apple', 0),
+(788, 330, 'Oracle', 0),
+(789, 331, '.java', 0),
+(790, 331, '.cpp', 0),
+(791, 331, '.cs', 1),
+(792, 331, '.c', 0),
+(793, 332, '.NET', 1),
+(794, 332, 'JVM', 0),
+(795, 332, 'Android', 0),
+(796, 332, 'Python', 0),
+(797, 333, 'Khởi tạo đối tượng', 0),
+(798, 333, 'Là điểm bắt đầu của chương trình', 1),
+(799, 333, 'Khai báo biến', 0),
+(800, 333, 'Gọi hàm', 0),
+(801, 334, 'int', 1),
+(802, 334, 'float', 0),
+(803, 334, 'double', 0),
+(804, 334, 'char', 0),
+(805, 335, 'class', 1),
+(806, 335, 'struct', 0),
+(807, 335, 'interface', 0),
+(808, 335, 'namespace', 0),
+(809, 336, 'inherits', 0),
+(810, 336, 'extends', 0),
+(811, 336, 'base', 0),
+(812, 336, ':', 1),
+(813, 337, 'object', 0),
+(814, 337, 'this', 0),
+(815, 337, 'new', 1),
+(816, 337, 'create', 0),
+(817, 338, 'Tổ chức mã nguồn', 1),
+(818, 338, 'Khai báo biến', 0),
+(819, 338, 'Định nghĩa hàm', 0),
+(820, 338, 'Gán giá trị', 0),
+(821, 339, 'So sánh chuỗi', 0),
+(822, 339, 'Chuyển đối tượng thành chuỗi', 1),
+(823, 339, 'In ra màn hình', 0),
+(824, 339, 'Xóa đối tượng', 0),
+(825, 340, 'catch', 1),
+(826, 340, 'if', 0),
+(827, 340, 'while', 0),
+(828, 340, 'switch', 0),
+(829, 341, '()', 0),
+(830, 341, '{}', 0),
+(831, 341, '[]', 1),
+(832, 341, '<>', 0),
+(833, 342, 'loop', 0),
+(834, 342, 'if', 1),
+(835, 342, 'switch', 0),
+(836, 342, 'case', 0),
+(837, 343, 'Không', 0),
+(838, 343, 'Có', 1),
+(839, 343, 'Chỉ 1 phần', 0),
+(840, 343, 'Chưa xác định', 0),
+(841, 344, 'Eclipse', 0),
+(842, 344, 'Visual Studio', 1),
+(843, 344, 'IntelliJ', 0),
+(844, 344, 'Code::Blocks', 0),
+(845, 345, 'init', 0),
+(846, 345, 'start', 0),
+(847, 345, 'constructor', 1),
+(848, 345, 'Main', 0),
+(849, 346, 'Console.ReadLine()', 1),
+(850, 346, 'Console.Write()', 0),
+(851, 346, 'Input()', 0),
+(852, 346, 'Read()', 0),
+(853, 347, 'Console.Out()', 0),
+(854, 347, 'Console.Print()', 0),
+(855, 347, 'Console.WriteLine()', 1),
+(856, 347, 'Write()', 0),
+(857, 348, 'static', 0),
+(858, 348, 'final', 0),
+(859, 348, 'sealed', 1),
+(860, 348, 'readonly', 0),
+(861, 349, 'bool', 1),
+(862, 349, 'int', 0),
+(863, 349, 'string', 0),
+(864, 349, 'float', 0),
+(865, 350, 'Google', 0),
+(866, 350, 'Microsoft', 1),
+(867, 350, 'Apple', 0),
+(868, 350, 'Oracle', 0),
+(869, 351, '.java', 0),
+(870, 351, '.cpp', 0),
+(871, 351, '.cs', 1),
+(872, 351, '.c', 0),
+(873, 352, '.NET', 1),
+(874, 352, 'JVM', 0),
+(875, 352, 'Android', 0),
+(876, 352, 'Python', 0),
+(877, 353, 'Khởi tạo đối tượng', 0),
+(878, 353, 'Là điểm bắt đầu của chương trình', 1),
+(879, 353, 'Khai báo biến', 0),
+(880, 353, 'Gọi hàm', 0),
+(881, 354, 'int', 1),
+(882, 354, 'float', 0),
+(883, 354, 'double', 0),
+(884, 354, 'char', 0),
+(885, 355, 'class', 1),
+(886, 355, 'struct', 0),
+(887, 355, 'interface', 0),
+(888, 355, 'namespace', 0),
+(889, 356, 'inherits', 0),
+(890, 356, 'extends', 0),
+(891, 356, 'base', 0),
+(892, 356, ':', 1),
+(893, 357, 'object', 0),
+(894, 357, 'this', 0),
+(895, 357, 'new', 1),
+(896, 357, 'create', 0),
+(897, 358, 'Tổ chức mã nguồn', 1),
+(898, 358, 'Khai báo biến', 0),
+(899, 358, 'Định nghĩa hàm', 0),
+(900, 358, 'Gán giá trị', 0),
+(901, 359, 'So sánh chuỗi', 0),
+(902, 359, 'Chuyển đối tượng thành chuỗi', 1),
+(903, 359, 'In ra màn hình', 0),
+(904, 359, 'Xóa đối tượng', 0),
+(905, 360, 'catch', 1),
+(906, 360, 'if', 0),
+(907, 360, 'while', 0),
+(908, 360, 'switch', 0),
+(909, 361, '()', 0),
+(910, 361, '{}', 0),
+(911, 361, '[]', 1),
+(912, 361, '<>', 0),
+(913, 362, 'loop', 0),
+(914, 362, 'if', 1),
+(915, 362, 'switch', 0),
+(916, 362, 'case', 0),
+(917, 363, 'Không', 0),
+(918, 363, 'Có', 1),
+(919, 363, 'Chỉ 1 phần', 0),
+(920, 363, 'Chưa xác định', 0),
+(921, 364, 'Eclipse', 0),
+(922, 364, 'Visual Studio', 1),
+(923, 364, 'IntelliJ', 0),
+(924, 364, 'Code::Blocks', 0),
+(925, 365, 'init', 0),
+(926, 365, 'start', 0),
+(927, 365, 'constructor', 1),
+(928, 365, 'Main', 0),
+(929, 366, 'Console.ReadLine()', 1),
+(930, 366, 'Console.Write()', 0),
+(931, 366, 'Input()', 0),
+(932, 366, 'Read()', 0),
+(933, 367, 'Console.Out()', 0),
+(934, 367, 'Console.Print()', 0),
+(935, 367, 'Console.WriteLine()', 1),
+(936, 367, 'Write()', 0),
+(937, 368, 'static', 0),
+(938, 368, 'final', 0),
+(939, 368, 'sealed', 1),
+(940, 368, 'readonly', 0),
+(941, 369, 'bool', 1),
+(942, 369, 'int', 0),
+(943, 369, 'string', 0),
+(944, 369, 'float', 0),
+(945, 370, 'Lưu trữ dữ liệu cục bộ', 0),
+(946, 370, 'Lưu trữ và xử lý dữ liệu qua Internet', 1),
+(947, 370, 'Sử dụng phần cứng mạnh', 0),
+(948, 370, 'Chia sẻ dữ liệu qua USB', 0),
+(949, 371, 'Phần mềm', 0),
+(950, 371, 'Cơ sở hạ tầng ảo hóa', 1),
+(951, 371, 'Ứng dụng web', 0),
+(952, 371, 'Máy tính để bàn', 0),
+(953, 372, 'Software as a Service', 1),
+(954, 372, 'System as a Software', 0),
+(955, 372, 'Storage as a Server', 0),
+(956, 372, 'Solution as a Software', 0),
+(957, 373, 'SaaS', 1),
+(958, 373, 'PaaS', 0),
+(959, 373, 'IaaS', 0),
+(960, 373, 'CaaS', 0),
+(961, 374, 'Phần cứng vật lý', 0),
+(962, 374, 'Nền tảng phát triển ứng dụng', 1),
+(963, 374, 'Ứng dụng hoàn chỉnh', 0),
+(964, 374, 'Cơ sở dữ liệu cục bộ', 0),
+(965, 375, 'Nhà cung cấp dịch vụ đám mây', 1),
+(966, 375, 'Phần mềm văn phòng', 0),
+(967, 375, 'Thiết bị mạng', 0),
+(968, 375, 'Trình duyệt web', 0),
+(969, 376, 'Chi phí cao', 0),
+(970, 376, 'Không bảo mật', 0),
+(971, 376, 'Khả năng mở rộng và linh hoạt', 1),
+(972, 376, 'Khó bảo trì', 0),
+(973, 377, 'Qua Internet', 1),
+(974, 377, 'Qua USB', 0),
+(975, 377, 'Qua Bluetooth', 0),
+(976, 377, 'Qua mạng LAN', 0),
+(977, 378, 'Đám mây công cộng', 0),
+(978, 378, 'Đám mây dùng riêng cho một tổ chức', 1),
+(979, 378, 'Đám mây của Google', 0),
+(980, 378, 'Đám mây chia sẻ', 0),
+(981, 379, 'Dịch vụ đám mây công cộng', 1),
+(982, 379, 'Dịch vụ đám mây cá nhân', 0),
+(983, 379, 'Dịch vụ nội bộ', 0),
+(984, 379, 'Dịch vụ không có Internet', 0),
+(985, 380, 'Kết hợp giữa đám mây công cộng và riêng tư', 1),
+(986, 380, 'Đám mây chỉ cho nội bộ', 0),
+(987, 380, 'Đám mây offline', 0),
+(988, 380, 'Không có thật', 0),
+(989, 381, 'Điện năng', 0),
+(990, 381, 'Chi phí đầu tư hạ tầng', 1),
+(991, 381, 'Băng thông mạng', 0),
+(992, 381, 'Dung lượng bộ nhớ RAM', 0),
+(993, 382, 'Dịch vụ lưu trữ dữ liệu trực tuyến', 1),
+(994, 382, 'Phần mềm diệt virus', 0),
+(995, 382, 'Hệ điều hành', 0),
+(996, 382, 'Ứng dụng văn phòng', 0),
+(997, 383, 'Khả năng mở rộng linh hoạt', 1),
+(998, 383, 'Tốc độ chậm', 0),
+(999, 383, 'Phụ thuộc thiết bị', 0),
+(1000, 383, 'Không thể chia sẻ', 0),
+(1001, 384, 'PaaS', 0),
+(1002, 384, 'SaaS', 1),
+(1003, 384, 'IaaS', 0),
+(1004, 384, 'CaaS', 0),
+(1005, 385, 'Pay-as-you-go', 1),
+(1006, 385, 'Trả phí cố định', 0),
+(1007, 385, 'Miễn phí', 0),
+(1008, 385, 'Gói trọn đời', 0),
+(1009, 386, 'Tăng tốc CPU', 0),
+(1010, 386, 'Tạo bản sao ảo của tài nguyên', 1),
+(1011, 386, 'Sao lưu dữ liệu', 0),
+(1012, 386, 'Chia sẻ mạng', 0),
+(1013, 387, 'Chỉ một tổ chức sử dụng', 0),
+(1014, 387, 'Chia sẻ tài nguyên giữa nhiều người dùng', 1),
+(1015, 387, 'Không dùng Internet', 0),
+(1016, 387, 'Miễn phí hoàn toàn', 0),
+(1017, 388, 'Giảm chi phí hạ tầng và bảo trì', 1),
+(1018, 388, 'Tăng chi phí phần cứng', 0),
+(1019, 388, 'Phụ thuộc địa lý', 0),
+(1020, 388, 'Cần nhân lực lớn hơn', 0),
+(1021, 389, 'IaaS', 1),
+(1022, 389, 'PaaS', 0),
+(1023, 389, 'SaaS', 0),
+(1024, 389, 'FaaS', 0),
+(1025, 390, 'MVC', 1),
+(1026, 390, 'MVT', 0),
+(1027, 390, 'MVU', 0),
+(1028, 390, 'MVP', 0),
+(1029, 391, 'Quản lý giao diện', 0),
+(1030, 391, 'Xử lý nghiệp vụ và điều hướng', 1),
+(1031, 391, 'Quản lý dữ liệu', 0),
+(1032, 391, 'Giao tiếp API', 0),
+(1033, 392, 'Tăng tốc giao diện', 0),
+(1034, 392, 'Tối ưu CSS', 0),
+(1035, 392, 'Quản lý database bằng đối tượng', 1),
+(1036, 392, 'Xử lý cache', 0),
+(1037, 393, 'Stateless', 1),
+(1038, 393, 'Stateful', 0),
+(1039, 393, 'Đồng bộ tuyệt đối', 0),
+(1040, 393, 'Luồng gắn kết chặt', 0),
+(1041, 394, 'Giảm tính phụ thuộc giữa các module', 1),
+(1042, 394, 'Tăng hiệu năng UI', 0),
+(1043, 394, 'Tăng kích thước code', 0),
+(1044, 394, 'Cải thiện CSS', 0),
+(1045, 395, '.NET', 1),
+(1046, 395, 'Angular', 0),
+(1047, 395, 'Bootstrap', 0),
+(1048, 395, 'Firebase', 0),
+(1049, 396, 'Laravel', 0),
+(1050, 396, '.NET Core', 0),
+(1051, 396, 'Spring Boot', 0),
+(1052, 396, 'Cả 3 đáp án trên', 1),
+(1053, 397, 'Quản lý thay đổi cấu trúc DB', 1),
+(1054, 397, 'Quản lý UI', 0),
+(1055, 397, 'Tăng tốc API', 0),
+(1056, 397, 'Xử lý lỗi runtime', 0),
+(1057, 398, 'Setter', 0),
+(1058, 398, 'Constructor', 0),
+(1059, 398, 'Field Injection', 0),
+(1060, 398, 'Tất cả loại trên', 1),
+(1061, 399, 'Tách biệt nghiệp vụ khỏi UI & DB', 1),
+(1062, 399, 'Quản lý giao diện', 0),
+(1063, 399, 'Quản lý CSS', 0),
+(1064, 399, 'Quản lý route', 0),
+(1065, 400, 'Bảng trong DB', 1),
+(1066, 400, 'File log', 0),
+(1067, 400, 'Session', 0),
+(1068, 400, 'API', 0),
+(1069, 401, 'Truy cập dữ liệu có cấu trúc', 1),
+(1070, 401, 'Tối ưu UI', 0),
+(1071, 401, 'Quản lý thread', 0),
+(1072, 401, 'Nén dữ liệu', 0),
+(1073, 402, 'React', 0),
+(1074, 402, 'Spring', 1),
+(1075, 402, 'Django', 0),
+(1076, 402, 'Flutter', 0),
+(1077, 403, 'Tăng giao diện đẹp', 0),
+(1078, 403, 'Chia tải xử lý giữa nhiều server', 1),
+(1079, 403, 'Nén ảnh', 0),
+(1080, 403, 'Tối ưu database', 0),
+(1081, 404, 'Giảm truy vấn DB', 1),
+(1082, 404, 'Giảm dung lượng RAM', 0),
+(1083, 404, 'Tăng màu sắc UI', 0),
+(1084, 404, 'Tăng số lượng route', 0),
+(1085, 405, 'Mã hóa mật khẩu', 0),
+(1086, 405, 'Xác thực người dùng', 1),
+(1087, 405, 'Tối ưu API', 0),
+(1088, 405, 'Render UI', 0),
+(1089, 406, 'Tối ưu UI', 0),
+(1090, 406, 'Đóng gói ứng dụng thành container dễ triển khai', 1),
+(1091, 406, 'Làm đẹp CSS', 0),
+(1092, 406, 'Tăng tốc HTML', 0),
+(1093, 407, 'Tự động hóa build & deploy', 1),
+(1094, 407, 'Tăng FPS', 0),
+(1095, 407, 'Giảm băng thông', 0),
+(1096, 407, 'Tăng RAM', 0),
+(1097, 408, 'Các service độc lập', 1),
+(1098, 408, 'Tất cả phụ thuộc chặt chẽ', 0),
+(1099, 408, 'Chạy chung một tiến trình duy nhất', 0),
+(1100, 408, 'Không giao tiếp với nhau', 0),
+(1101, 409, 'Quản lý request vào toàn hệ thống', 1),
+(1102, 409, 'Tăng dung lượng DB', 0),
+(1103, 409, 'Gắn kết UI', 0),
+(1104, 409, 'Biên dịch code', 0),
+(1105, 431, 'Subnet', 0),
+(1106, 431, 'Bảng định tuyến (Route Table)', 0),
+(1107, 431, 'Nhóm bảo mật (Security Group)', 0),
+(1108, 431, 'Khối CIDR (CIDR Block) của VPC', 1),
+(1109, 432, 'Internet Gateway', 0),
+(1110, 432, 'NAT Gateway', 1),
+(1111, 432, 'Virtual Private Gateway', 0),
+(1112, 432, 'VPC Endpoint', 0),
+(1113, 433, 'Security Group là stateless, NACL là stateful.', 0),
+(1114, 433, 'Security Group hoạt động ở cấp độ Subnet, NACL hoạt động ở cấp độ Instance.', 0),
+(1115, 433, 'Security Group chỉ cho phép các luật \"ALLOW\" (ngầm định từ chối tất cả), trong khi NACL cho phép cả luật \"ALLOW\" và \"DENY\".', 1),
+(1116, 433, 'Security Group xử lý lưu lượng truy cập ra (outbound) trước, NACL xử lý lưu lượng truy cập vào (inbound) trước.', 0),
+(1117, 434, 'Network ACL', 0),
+(1118, 434, 'Bảng định tuyến (Route Table)', 1),
+(1119, 434, 'Nhóm bảo mật (Security Group)', 0),
+(1120, 434, 'Peering Connection', 0),
+(1121, 435, 'Địa chỉ IP riêng của instance.', 0),
+(1122, 435, 'Địa chỉ IP công cộng của instance.', 1),
+(1123, 435, 'Địa chỉ IP công cộng của NAT Gateway (nếu có sử dụng).', 0),
+(1124, 435, 'Địa chỉ IP của Internet Gateway.', 0),
+(1125, 437, 'Read Replicas', 0),
+(1126, 437, 'Multi-AZ Deployment', 1),
+(1127, 437, 'Database Snapshots', 0),
+(1128, 437, 'Aurora Serverless', 0),
+(1129, 438, 'Cung cấp quyền truy cập root hoàn toàn vào hệ điều hành cơ bản.', 0),
+(1130, 438, 'Tự động hóa các tác vụ quản trị phổ biến như vá lỗi, sao lưu và nhân bản.', 1),
+(1131, 438, 'Cho phép truy cập SSH trực tiếp vào máy chủ cơ sở dữ liệu.', 0),
+(1132, 438, 'Cung cấp nhiều lựa chọn công cụ cơ sở dữ liệu hơn có thể cài đặt trên EC2.', 0),
+(1133, 439, 'Kích hoạt triển khai Multi-AZ.', 0),
+(1134, 439, 'Tăng kích thước lưu trữ của phiên bản chính.', 0),
+(1135, 439, 'Tạo một hoặc nhiều Read Replicas.', 1),
+(1136, 439, 'Nâng cấp phiên bản cơ sở dữ liệu chính lên một loại phiên bản EC2 lớn hơn.', 0),
+(1137, 440, 'IAM Roles', 0),
+(1138, 440, 'NACLs (Network Access Control Lists)', 0),
+(1139, 440, 'Security Groups', 1),
+(1140, 440, 'AWS WAF (Web Application Firewall)', 0),
+(1141, 441, 'Standard Storage (Magnetic)', 0),
+(1142, 441, 'General Purpose SSD (gp2/gp3)', 0),
+(1143, 441, 'Provisioned IOPS SSD (io1/io2)', 1),
+(1144, 441, 'EBS Cold HDD (sc1)', 0);
 
 -- --------------------------------------------------------
 
@@ -1625,6 +2268,33 @@ CREATE TABLE `question_statistics` (
   `difficulty_score` decimal(5,2) DEFAULT NULL,
   `last_updated` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `score_audit_logs`
+--
+
+CREATE TABLE `score_audit_logs` (
+  `log_id` int NOT NULL,
+  `attempt_id` bigint NOT NULL,
+  `question_id` bigint DEFAULT NULL,
+  `old_score` decimal(10,2) DEFAULT NULL,
+  `new_score` decimal(10,2) DEFAULT NULL COMMENT 'Điểm câu hỏi mới (NULL nếu chỉ thay đổi tổng điểm)',
+  `old_total_score` decimal(10,2) DEFAULT NULL,
+  `new_total_score` decimal(10,2) DEFAULT NULL COMMENT 'Tổng điểm mới (NULL nếu chỉ thay đổi điểm câu hỏi)',
+  `reason` text COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Lý do chỉnh sửa điểm (bắt buộc)',
+  `edited_by` bigint NOT NULL COMMENT 'ID giáo viên chỉnh sửa',
+  `edited_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `score_audit_logs`
+--
+
+INSERT INTO `score_audit_logs` (`log_id`, `attempt_id`, `question_id`, `old_score`, `new_score`, `old_total_score`, `new_total_score`, `reason`, `edited_by`, `edited_at`) VALUES
+(1, 41, 443, 0.00, 10.00, NULL, NULL, 'không cần', 7, '2025-11-16 02:22:47'),
+(2, 41, NULL, NULL, NULL, 0.00, 10.00, 'không cần', 7, '2025-11-16 02:22:47');
 
 -- --------------------------------------------------------
 
@@ -1690,9 +2360,9 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`user_id`, `username`, `password_hash`, `email`, `full_name`, `role`, `created_at`, `updated_at`, `phone`, `dob`, `class_id`) VALUES
 (1, 'admin', '$2b$10$ZERYixpbgC0.62btiNvUn.d8fuqWQ.lPXsAgwig1ZDLatLZNK35BK', 'admin@edexis.com', 'Admin', 'Admin', '2025-10-04 09:52:29', '2025-10-15 13:44:03', NULL, NULL, NULL),
-(2, 'thuan', '$2b$10$x38Qh9.jWUdcBILheUepNe1gZZrXfDd5acOfhKtZOSjgP86dyq/.u', 'maipanh35@gmail.com', 'thuan', 'Student', '2025-10-04 11:14:17', '2025-10-04 11:14:17', NULL, NULL, NULL),
+(2, 'thuan', '$2b$10$AGwpJOi/2LUuHZe/.0cIzerV0RVFeAzfR7vQcG6GknCYVR1Y/As5O', 'maipanh35@gmail.com', 'thuan', 'Student', '2025-10-04 11:14:17', '2025-11-14 14:08:52', NULL, NULL, NULL),
 (3, 'test1', '$2b$10$UH31JXVBVprjK3Ryud6E8uPnpLRj1kZKqp73l/IQ7wn4OQdFEBgYe', 'thuan@gmail.com', 'test1', 'Teacher', '2025-10-04 12:58:49', '2025-10-04 12:58:49', NULL, NULL, NULL),
-(4, 'thu', '$2b$10$NdaaaYBwM3Rfj3./sVSgMODdPsYF/1IjS2iJkB9YKWdV.epa71pcG', 'th@gmail.com', 'thuan', 'Student', '2025-10-04 13:20:43', '2025-10-17 13:15:39', '0399697281', '2005-03-22', NULL),
+(4, 'thu', '$2b$10$NdaaaYBwM3Rfj3./sVSgMODdPsYF/1IjS2iJkB9YKWdV.epa71pcG', 'th@gmail.com', 'thuan', 'Student', '2025-10-04 13:20:43', '2025-11-13 18:47:20', '0399697281', '2005-03-21', NULL),
 (5, 'thao', '$2b$10$OdKcmlA0f3yIulShiJvNbu8s1MG91mITzFRkvsDj6X.iciu88n3gy', 'zxc@gmail.com', 'thao', 'Teacher', '2025-10-04 20:09:10', '2025-10-04 20:09:10', NULL, NULL, NULL),
 (7, 'thao123', '$2b$10$NKbXGUGDermaTd69S7cx3O/nPmEnzGqLIuRaC9MV4rso3QuJHFSnu', 'tha@gamil.com', 'thao123', 'Teacher', '2025-10-11 16:49:53', '2025-10-11 16:49:53', NULL, NULL, NULL),
 (8, 'nguyen', '$2b$10$Uh08rbrmSb9Se4VFs8pvl.eUidsaTexnVtJNDgMo3zmXv/tsMeKW.', 'ng@gmail.com', 'nguyen', 'Student', '2025-10-22 09:08:52', '2025-10-22 09:08:52', NULL, NULL, NULL);
@@ -1796,6 +2466,15 @@ ALTER TABLE `notifications`
   ADD KEY `user_id` (`user_id`);
 
 --
+-- Chỉ mục cho bảng `otps`
+--
+ALTER TABLE `otps`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_email` (`email`),
+  ADD KEY `idx_expiresAt` (`expiresAt`),
+  ADD KEY `idx_verified` (`verified`);
+
+--
 -- Chỉ mục cho bảng `question_bank`
 --
 ALTER TABLE `question_bank`
@@ -1816,6 +2495,16 @@ ALTER TABLE `question_options`
 --
 ALTER TABLE `question_statistics`
   ADD PRIMARY KEY (`question_id`);
+
+--
+-- Chỉ mục cho bảng `score_audit_logs`
+--
+ALTER TABLE `score_audit_logs`
+  ADD PRIMARY KEY (`log_id`),
+  ADD KEY `question_id` (`question_id`),
+  ADD KEY `idx_attempt_id` (`attempt_id`),
+  ADD KEY `idx_edited_by` (`edited_by`),
+  ADD KEY `idx_edited_at` (`edited_at`);
 
 --
 -- Chỉ mục cho bảng `subjects`
@@ -1857,7 +2546,7 @@ ALTER TABLE `admin_logs`
 -- AUTO_INCREMENT cho bảng `anti_cheating_logs`
 --
 ALTER TABLE `anti_cheating_logs`
-  MODIFY `log_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `log_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT cho bảng `classes`
@@ -1875,13 +2564,13 @@ ALTER TABLE `complaints`
 -- AUTO_INCREMENT cho bảng `exams`
 --
 ALTER TABLE `exams`
-  MODIFY `exam_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
+  MODIFY `exam_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=77;
 
 --
 -- AUTO_INCREMENT cho bảng `exam_attempts`
 --
 ALTER TABLE `exam_attempts`
-  MODIFY `attempt_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
+  MODIFY `attempt_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
 
 --
 -- AUTO_INCREMENT cho bảng `import_logs`
@@ -1893,19 +2582,25 @@ ALTER TABLE `import_logs`
 -- AUTO_INCREMENT cho bảng `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `notification_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=96;
+  MODIFY `notification_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=156;
 
 --
 -- AUTO_INCREMENT cho bảng `question_bank`
 --
 ALTER TABLE `question_bank`
-  MODIFY `question_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=327;
+  MODIFY `question_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=444;
 
 --
 -- AUTO_INCREMENT cho bảng `question_options`
 --
 ALTER TABLE `question_options`
-  MODIFY `option_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=785;
+  MODIFY `option_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1145;
+
+--
+-- AUTO_INCREMENT cho bảng `score_audit_logs`
+--
+ALTER TABLE `score_audit_logs`
+  MODIFY `log_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT cho bảng `subjects`
@@ -2031,6 +2726,14 @@ ALTER TABLE `question_options`
 --
 ALTER TABLE `question_statistics`
   ADD CONSTRAINT `question_statistics_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `question_bank` (`question_id`);
+
+--
+-- Các ràng buộc cho bảng `score_audit_logs`
+--
+ALTER TABLE `score_audit_logs`
+  ADD CONSTRAINT `score_audit_logs_ibfk_1` FOREIGN KEY (`attempt_id`) REFERENCES `exam_attempts` (`attempt_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `score_audit_logs_ibfk_2` FOREIGN KEY (`question_id`) REFERENCES `question_bank` (`question_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `score_audit_logs_ibfk_3` FOREIGN KEY (`edited_by`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Các ràng buộc cho bảng `subjects`
