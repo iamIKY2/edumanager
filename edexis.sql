@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: localhost
--- Thời gian đã tạo: Th10 16, 2025 lúc 02:48 PM
+-- Thời gian đã tạo: Th10 17, 2025 lúc 06:06 AM
 -- Phiên bản máy phục vụ: 8.0.40
 -- Phiên bản PHP: 8.3.16
 
@@ -75,7 +75,30 @@ INSERT INTO `anti_cheating_logs` (`log_id`, `attempt_id`, `event_type`, `event_d
 (19, 39, 'TabSwitch', 'Chuyển tab lần 1', '2025-11-15 10:39:23'),
 (20, 39, 'TabSwitch', 'Chuyển tab lần 2', '2025-11-15 10:39:24'),
 (21, 39, 'TabSwitch', 'Chuyển tab lần 3', '2025-11-15 10:39:25'),
-(22, 39, 'TabSwitch', 'Chuyển tab lần 4', '2025-11-15 10:39:26');
+(22, 39, 'TabSwitch', 'Chuyển tab lần 4', '2025-11-15 10:39:26'),
+(23, 42, 'TabSwitch', 'Chuyển tab lần 1', '2025-11-17 12:29:27');
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `backup_history`
+--
+
+CREATE TABLE `backup_history` (
+  `backup_id` int NOT NULL,
+  `backup_file` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `backup_size` bigint DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `backup_history`
+--
+
+INSERT INTO `backup_history` (`backup_id`, `backup_file`, `backup_size`, `created_at`, `created_by`) VALUES
+(1, 'backup_2025-11-17_10-02-59.json', 524040, '2025-11-17 03:02:59', 1),
+(2, 'backup_2025-11-17_10-03-43.json', 524264, '2025-11-17 03:03:43', 1);
 
 -- --------------------------------------------------------
 
@@ -137,9 +160,20 @@ CREATE TABLE `complaints` (
   `student_id` bigint NOT NULL,
   `exam_id` bigint NOT NULL,
   `content` text NOT NULL,
+  `teacher_response` text,
   `status` enum('Pending','Resolved','Rejected') DEFAULT 'Pending',
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `complaints`
+--
+
+INSERT INTO `complaints` (`complaint_id`, `student_id`, `exam_id`, `content`, `teacher_response`, `status`, `created_at`, `updated_at`) VALUES
+(1, 4, 69, 'tets khiếu nại học sinh', NULL, 'Pending', '2025-11-17 12:06:37', NULL),
+(2, 4, 65, 'lỗi web cam', NULL, 'Pending', '2025-11-17 12:33:03', NULL),
+(3, 4, 79, 'tets khiếu nại lần 3', 'Điểm đã được chỉnh sửa. Lý do: sửa điểm. Điểm mới: 10.0 điểm.', 'Resolved', '2025-11-17 12:42:51', '2025-11-17 05:43:35');
 
 -- --------------------------------------------------------
 
@@ -180,7 +214,9 @@ INSERT INTO `exams` (`exam_id`, `exam_name`, `subject_id`, `teacher_id`, `durati
 (68, 'cho thằng nhân ', 2, 7, 13, '2025-11-14 15:05:00', NULL, '771244', 0, 0, 0, '2025-11-14 15:02:41', 6, '', 'upcoming'),
 (69, 'test 3.6', 2, 7, 10, '2025-11-14 15:11:00', NULL, '878020', 0, 0, 0, '2025-11-14 15:10:44', 6, 'Đề thi tạo thủ công', 'upcoming'),
 (74, 'điện toán đám mây - rds', 3, 7, 10, '2025-11-15 10:35:00', NULL, '133906', 0, 0, 0, '2025-11-15 10:34:49', 7, 'Đề thi được tạo tự động bằng AI - điện toán đám mây: rds', 'upcoming'),
-(76, 'test lần 3', 3, 7, 3, '2025-11-16 09:22:00', NULL, '312666', 0, 0, 0, '2025-11-16 09:20:53', 7, 'Đề thi tạo thủ công', 'upcoming');
+(76, 'test lần 3', 3, 7, 3, '2025-11-16 09:22:00', NULL, '312666', 0, 0, 0, '2025-11-16 09:20:53', 7, 'Đề thi tạo thủ công', 'upcoming'),
+(79, 'tets chấm điểm', 3, 7, 9, '2025-11-17 12:29:00', NULL, '939935', 0, 0, 0, '2025-11-17 12:27:30', 7, 'Đề thi tạo thủ công', 'upcoming'),
+(80, 'alo', 3, 7, 1, '2025-11-17 01:00:00', NULL, '912238', 0, 0, 0, '2025-11-17 12:49:10', 7, 'Đề thi tạo thủ công', 'upcoming');
 
 -- --------------------------------------------------------
 
@@ -214,13 +250,14 @@ INSERT INTO `exam_attempts` (`attempt_id`, `exam_id`, `student_id`, `start_time`
 (18, 38, 4, '2025-10-26 11:16:11', '2025-10-26 11:17:42', 8.00, 'Submitted', 0, '2025-10-26 11:16:11', 0, 0.00, 0, NULL, 0.00),
 (19, 49, 4, '2025-10-27 09:15:15', '2025-10-27 09:15:25', 9.50, 'Submitted', 1, '2025-10-27 09:15:15', 0, 0.00, 0, NULL, 0.00),
 (25, 54, 4, '2025-10-31 18:15:15', '2025-10-31 18:15:28', 10.00, 'Submitted', 1, '2025-10-31 18:15:15', 0, 0.00, 1, NULL, 0.00),
-(33, 60, 4, '2025-11-01 09:08:14', '2025-11-01 09:08:18', 1.00, 'Submitted', 1, '2025-11-01 09:08:14', 0, 0.00, 0, NULL, 0.00),
+(33, 60, 4, '2025-11-01 09:08:14', '2025-11-01 09:08:18', 10.00, 'Submitted', 1, '2025-11-01 09:08:14', 0, 0.00, 0, NULL, 0.00),
 (34, 63, 4, '2025-11-06 12:55:24', '2025-11-06 12:55:36', 10.00, 'Submitted', 1, '2025-11-06 12:55:24', 0, 0.00, 0, NULL, 0.00),
 (35, 65, 4, '2025-11-07 16:10:57', '2025-11-07 16:11:19', 0.00, 'Submitted', 1, '2025-11-07 16:10:57', 0, 0.00, 1, NULL, 0.00),
 (37, 68, 4, '2025-11-14 15:05:08', '2025-11-14 15:07:58', 3.00, 'Submitted', 1, '2025-11-14 15:05:08', 0, 0.00, 1, NULL, 0.00),
-(38, 69, 4, '2025-11-14 15:11:19', '2025-11-14 15:13:08', 4.00, 'Submitted', 1, '2025-11-14 15:11:19', 0, 0.00, 1, NULL, 0.00),
+(38, 69, 4, '2025-11-14 15:11:19', '2025-11-14 15:13:08', 8.00, 'Submitted', 1, '2025-11-14 15:11:19', 0, 0.00, 1, NULL, 0.00),
 (39, 74, 4, '2025-11-15 10:35:23', '2025-11-15 10:39:30', 9.00, 'Submitted', 1, '2025-11-15 10:35:23', 0, 0.00, 1, 'Bị trừ 1 điểm (10% điểm trắc nghiệm) do chuyển tab 12 lần (vượt quá giới hạn 3 lần)', 1.00),
-(41, 76, 4, '2025-11-16 09:22:18', '2025-11-16 09:22:25', 10.00, 'Submitted', 1, '2025-11-16 09:22:18', 0, 0.00, 0, NULL, 0.00);
+(41, 76, 4, '2025-11-16 09:22:18', '2025-11-16 09:22:25', 10.00, 'Submitted', 1, '2025-11-16 09:22:18', 0, 0.00, 0, NULL, 0.00),
+(42, 79, 4, '2025-11-17 12:29:18', '2025-11-17 12:29:25', 10.00, 'Submitted', 1, '2025-11-17 12:29:18', 0, 0.00, 1, NULL, 0.00);
 
 -- --------------------------------------------------------
 
@@ -287,8 +324,9 @@ INSERT INTO `exam_attempt_answers` (`attempt_id`, `question_id`, `option_id`, `a
 (18, 256, 537, NULL, NULL, NULL, NULL, 0, '2025-10-26 11:17:42', NULL, NULL),
 (18, 257, 541, NULL, NULL, NULL, NULL, 0, '2025-10-26 11:17:42', NULL, NULL),
 (19, 258, NULL, 'bùi đức thuần', 0, 9.50, 'tốt', 1, '2025-10-27 09:15:25', 7, '2025-10-31 14:11:41'),
-(33, 326, NULL, 'qqqq', 0, 1.00, '1', 1, '2025-11-01 09:08:18', 7, '2025-11-01 09:08:46'),
+(33, 326, NULL, 'qqqq', 0, 10.00, '1', 1, '2025-11-01 09:08:18', 7, '2025-11-17 12:38:11'),
 (34, 329, NULL, 'hello', 0, 10.00, 'tốt', 1, '2025-11-06 12:55:36', 7, '2025-11-06 12:55:51'),
+(38, 410, NULL, NULL, NULL, 8.00, '', 1, '2025-11-17 12:22:46', 7, '2025-11-17 12:22:46'),
 (39, 437, 1125, NULL, 0, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
 (39, 438, 1130, NULL, 1, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
 (39, 439, 1133, NULL, 0, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
@@ -415,7 +453,9 @@ INSERT INTO `exam_questions` (`exam_id`, `question_id`, `question_order`, `point
 (74, 439, 3, 10.00),
 (74, 440, 4, 10.00),
 (74, 441, 5, 10.00),
-(76, 443, 1, 10.00);
+(76, 443, 1, 10.00),
+(79, 446, 1, 10.00),
+(80, 447, 1, 10.00);
 
 -- --------------------------------------------------------
 
@@ -448,7 +488,7 @@ CREATE TABLE `notifications` (
   `is_read` tinyint(1) DEFAULT '0',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `related_id` bigint DEFAULT NULL,
-  `related_type` enum('Class','Exam','Complaint','AntiCheating','Question') DEFAULT NULL
+  `related_type` varchar(50) DEFAULT NULL COMMENT 'Loại đối tượng liên quan (Class, Exam, Msg, etc.)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
@@ -464,153 +504,180 @@ INSERT INTO `notifications` (`notification_id`, `user_id`, `content`, `type`, `i
 (6, 7, 'Học sinh thu đã tham gia lớp 26th03', 'Info', 1, '2025-10-14 14:12:50', 6, 'Class'),
 (7, 7, 'Lớp học mới \"26th02\" đã được tạo', 'Info', 1, '2025-10-15 08:57:13', 7, 'Class'),
 (8, 7, 'Học sinh thu đã tham gia lớp 26th02', 'Info', 1, '2025-10-15 08:57:46', 7, 'Class'),
-(9, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 14:34:07', 1, 'Exam'),
-(10, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 14:34:15', 2, 'Exam'),
-(11, 7, 'Bài thi \"lab3\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 14:37:31', 3, 'Exam'),
-(12, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 14:44:31', 4, 'Exam'),
-(13, 7, 'Bài thi \"lab4\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 14:47:38', 5, 'Exam'),
-(14, 7, 'Bài thi \"lab5\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 14:49:13', 6, 'Exam'),
-(15, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 14:50:09', 7, 'Exam'),
-(16, 7, 'Bài thi \"lab10\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 15:06:03', 8, 'Exam'),
-(17, 7, 'Bài thi \"lab7\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 15:08:00', 9, 'Exam'),
-(18, 7, 'Bài thi \"lab7\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 15:09:26', 10, 'Exam'),
-(19, 7, 'Bài thi \"lab31\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 15:10:32', 11, 'Exam'),
-(20, 7, 'Bài thi \"lab21\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 15:12:09', 12, 'Exam'),
-(21, 7, 'Bài thi \"abc\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-10-17 15:13:43', 13, 'Exam'),
-(22, 7, 'Bài thi \"12\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 15:16:42', 14, 'Exam'),
-(23, 7, 'Bài thi \"lan1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 15:21:19', 15, 'Exam'),
-(24, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 15:26:13', 16, 'Exam'),
-(25, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 21:37:20', 17, 'Exam'),
-(26, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-17 21:40:03', 18, 'Exam'),
-(27, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-18 09:37:25', 19, 'Exam'),
-(28, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-18 09:39:17', 20, 'Exam'),
-(29, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-18 09:39:49', 21, 'Exam'),
-(30, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-18 09:43:12', 22, 'Exam'),
-(31, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-18 14:53:11', 23, 'Exam'),
-(32, 7, 'Bài thi \"Bài thi từ Excel - 21:42:58 19/10/2025\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-19 21:42:58', 24, 'Exam'),
-(33, 7, 'Đã nhập 20 câu hỏi vào bài thi \"Bài thi từ Excel - 21:42:58 19/10/2025\"', 'Info', 0, '2025-10-19 21:42:58', 24, 'Exam'),
-(34, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-19 21:46:46', 25, 'Exam'),
-(35, 7, 'Bài thi \"Bài thi từ Excel - 21:49:05 19/10/2025\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-19 21:49:05', 26, 'Exam'),
-(36, 7, 'Đã nhập 20 câu hỏi vào bài thi \"Bài thi từ Excel - 21:49:05 19/10/2025\"', 'Info', 0, '2025-10-19 21:49:05', 26, 'Exam'),
-(37, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-19 21:51:36', 27, 'Exam'),
-(38, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab1\"', 'Info', 0, '2025-10-19 21:52:10', 27, 'Exam'),
-(39, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-19 21:57:48', 28, 'Exam'),
-(40, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab2\"', 'Info', 0, '2025-10-19 21:58:01', 28, 'Exam'),
-(41, 7, 'Bài thi \"lab3\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-19 22:09:42', 29, 'Exam'),
-(42, 7, 'Bài thi \"lab3\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-19 22:09:42', 30, 'Exam'),
-(43, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab3\"', 'Info', 0, '2025-10-19 22:09:57', 29, 'Exam'),
-(44, 7, 'Bài thi \"cấu trúc máy tính \" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-20 09:11:29', 31, 'Exam'),
-(45, 7, 'Đã nhập 20 câu hỏi vào bài thi \"cấu trúc máy tính \"', 'Info', 0, '2025-10-20 09:11:41', 31, 'Exam'),
-(46, 7, 'Bài thi \"lab4\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-20 09:31:47', 32, 'Exam'),
-(47, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab4\"', 'Info', 0, '2025-10-20 09:31:58', 32, 'Exam'),
-(48, 7, 'Bài thi \"lab6\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-20 09:53:58', 33, 'Exam'),
-(49, 7, 'Đã nhập 19 câu hỏi vào bài thi \"lab6\"', 'Info', 0, '2025-10-20 09:54:14', 33, 'Exam'),
-(50, 7, 'Bài thi \"lab9\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-20 15:00:28', 34, 'Exam'),
-(51, 7, 'Đã nhập 19 câu hỏi vào bài thi \"lab9\"', 'Info', 0, '2025-10-20 15:00:49', 34, 'Exam'),
-(52, 7, 'Bài thi \"lab10\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-20 15:27:20', 35, 'Exam'),
-(53, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab10\"', 'Info', 0, '2025-10-20 15:27:37', 35, 'Exam'),
-(54, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-20 20:17:23', 36, 'Exam'),
-(55, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab1\"', 'Info', 0, '2025-10-20 20:17:37', 36, 'Exam'),
-(56, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-20 21:24:08', 37, 'Exam'),
-(57, 7, 'Đã nhập 19 câu hỏi vào bài thi \"lab2\"', 'Info', 0, '2025-10-20 21:24:20', 37, 'Exam'),
-(58, 7, 'Học sinh nguyen đã tham gia lớp 26th03', 'Info', 0, '2025-10-22 09:09:58', 6, 'Class'),
-(59, 7, 'Bài thi \"giữa kỳ\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-26 11:07:22', 38, 'Exam'),
-(60, 7, 'Đã nhập 20 câu hỏi vào bài thi \"giữa kỳ\"', 'Info', 0, '2025-10-26 11:07:34', 38, 'Exam'),
-(61, 7, 'Bài thi \"lab9\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-26 17:10:51', 39, 'Exam'),
-(62, 7, 'Bài thi \"lab9\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-26 17:11:16', 40, 'Exam'),
-(63, 7, 'Bài thi \"lab10\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-27 08:38:28', 41, 'Exam'),
-(64, 7, 'Bài thi \"lab4\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-27 08:52:53', 42, 'Exam'),
-(65, 7, 'Bài thi \"lab5\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-27 08:56:15', 43, 'Exam'),
-(66, 7, 'Bài thi \"lab6\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-27 08:57:42', 44, 'Exam'),
-(67, 7, 'Bài thi \"lab8\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-27 09:01:04', 45, 'Exam'),
-(68, 7, 'Bài thi \"lab9\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-27 09:03:46', 46, 'Exam'),
-(69, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-27 09:10:15', 47, 'Exam'),
-(70, 7, 'Bài thi \"lab21\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-27 09:12:24', 48, 'Exam'),
-(71, 7, 'Bài thi \"kiem tra\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-27 09:14:03', 49, 'Exam'),
-(72, 7, 'Đã thêm câu hỏi mới: \"tên của e...\"', 'Info', 0, '2025-10-27 09:14:03', 258, 'Question'),
-(73, 7, 'Bài thi \"lab0\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-28 07:02:49', 50, 'Exam'),
-(74, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab0\"', 'Info', 0, '2025-10-28 07:03:32', 50, 'Exam'),
-(75, 7, 'Bài thi \"tets1\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-28 19:00:59', 51, 'Exam'),
-(76, 7, 'Đã thêm câu hỏi mới: \"điện toán đám mây là gì...\"', 'Info', 0, '2025-10-28 19:00:59', 279, 'Question'),
-(77, 7, 'Bài thi \"kiem tra lan2\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-31 15:29:31', 52, 'Exam'),
-(78, 7, 'Đã nhập 20 câu hỏi vào bài thi \"kiem tra lan2\"', 'Info', 0, '2025-10-31 15:29:49', 52, 'Exam'),
-(79, 7, 'Bài thi \"kiem tra lan3\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-31 15:41:22', 53, 'Exam'),
-(80, 7, 'Đã nhập 20 câu hỏi vào bài thi \"kiem tra lan3\"', 'Info', 0, '2025-10-31 15:41:58', 53, 'Exam'),
-(81, 7, 'Bài thi \"test4\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-10-31 18:13:54', 54, 'Exam'),
-(82, 7, 'Đã thêm câu hỏi mới: \"trong mysql việc sử dụng tiếng việt có dấu thì dùn...\"', 'Info', 0, '2025-10-31 18:13:54', 320, 'Question'),
-(83, 7, 'Bài thi \"test4\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-01 08:02:47', 55, 'Exam'),
-(84, 7, 'Đã thêm câu hỏi mới: \"kiểu dữ liệu số trong js là gì...\"', 'Info', 0, '2025-11-01 08:02:47', 321, 'Question'),
-(85, 7, 'Bài thi \"test 6\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-01 08:11:59', 56, 'Exam'),
-(86, 7, 'Đã thêm câu hỏi mới: \"ngôn ngữ nào lập trình hướng đối tượng...\"', 'Info', 0, '2025-11-01 08:11:59', 322, 'Question'),
-(87, 7, 'Bài thi \"test 7\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-01 08:18:56', 57, 'Exam'),
-(88, 7, 'Đã thêm câu hỏi mới: \"test 1...\"', 'Info', 0, '2025-11-01 08:18:56', 323, 'Question'),
-(89, 7, 'Bài thi \"test noti\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-01 08:43:51', 58, 'Exam'),
-(90, 7, 'Đã thêm câu hỏi mới: \"qqqq...\"', 'Info', 0, '2025-11-01 08:43:51', 324, 'Question'),
-(91, 7, 'Bài thi \"test 9\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-01 08:53:53', 59, 'Exam'),
-(92, 7, 'Đã thêm câu hỏi mới: \"qqqq...\"', 'Info', 0, '2025-11-01 08:53:53', 325, 'Question'),
-(93, 7, 'Bài thi \"tets10\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-01 09:06:30', 60, 'Exam'),
-(94, 7, 'Đã thêm câu hỏi mới: \"1111...\"', 'Info', 0, '2025-11-01 09:06:30', 326, 'Question'),
+(9, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 14:34:07', 1, 'Exam'),
+(10, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 14:34:15', 2, 'Exam'),
+(11, 7, 'Bài thi \"lab3\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 14:37:31', 3, 'Exam'),
+(12, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 14:44:31', 4, 'Exam'),
+(13, 7, 'Bài thi \"lab4\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 14:47:38', 5, 'Exam'),
+(14, 7, 'Bài thi \"lab5\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 14:49:13', 6, 'Exam'),
+(15, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 14:50:09', 7, 'Exam'),
+(16, 7, 'Bài thi \"lab10\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 15:06:03', 8, 'Exam'),
+(17, 7, 'Bài thi \"lab7\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 15:08:00', 9, 'Exam'),
+(18, 7, 'Bài thi \"lab7\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 15:09:26', 10, 'Exam'),
+(19, 7, 'Bài thi \"lab31\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 15:10:32', 11, 'Exam'),
+(20, 7, 'Bài thi \"lab21\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 15:12:09', 12, 'Exam'),
+(21, 7, 'Bài thi \"abc\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-10-17 15:13:43', 13, 'Exam'),
+(22, 7, 'Bài thi \"12\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 15:16:42', 14, 'Exam'),
+(23, 7, 'Bài thi \"lan1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 15:21:19', 15, 'Exam'),
+(24, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 15:26:13', 16, 'Exam'),
+(25, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 21:37:20', 17, 'Exam'),
+(26, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-17 21:40:03', 18, 'Exam'),
+(27, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-18 09:37:25', 19, 'Exam'),
+(28, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-18 09:39:17', 20, 'Exam'),
+(29, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-18 09:39:49', 21, 'Exam'),
+(30, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-18 09:43:12', 22, 'Exam'),
+(31, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-18 14:53:11', 23, 'Exam'),
+(32, 7, 'Bài thi \"Bài thi từ Excel - 21:42:58 19/10/2025\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-19 21:42:58', 24, 'Exam'),
+(33, 7, 'Đã nhập 20 câu hỏi vào bài thi \"Bài thi từ Excel - 21:42:58 19/10/2025\"', 'Info', 1, '2025-10-19 21:42:58', 24, 'Exam'),
+(34, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-19 21:46:46', 25, 'Exam'),
+(35, 7, 'Bài thi \"Bài thi từ Excel - 21:49:05 19/10/2025\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-19 21:49:05', 26, 'Exam'),
+(36, 7, 'Đã nhập 20 câu hỏi vào bài thi \"Bài thi từ Excel - 21:49:05 19/10/2025\"', 'Info', 1, '2025-10-19 21:49:05', 26, 'Exam'),
+(37, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-19 21:51:36', 27, 'Exam'),
+(38, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab1\"', 'Info', 1, '2025-10-19 21:52:10', 27, 'Exam'),
+(39, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-19 21:57:48', 28, 'Exam'),
+(40, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab2\"', 'Info', 1, '2025-10-19 21:58:01', 28, 'Exam'),
+(41, 7, 'Bài thi \"lab3\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-19 22:09:42', 29, 'Exam'),
+(42, 7, 'Bài thi \"lab3\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-19 22:09:42', 30, 'Exam'),
+(43, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab3\"', 'Info', 1, '2025-10-19 22:09:57', 29, 'Exam'),
+(44, 7, 'Bài thi \"cấu trúc máy tính \" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-20 09:11:29', 31, 'Exam'),
+(45, 7, 'Đã nhập 20 câu hỏi vào bài thi \"cấu trúc máy tính \"', 'Info', 1, '2025-10-20 09:11:41', 31, 'Exam'),
+(46, 7, 'Bài thi \"lab4\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-20 09:31:47', 32, 'Exam'),
+(47, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab4\"', 'Info', 1, '2025-10-20 09:31:58', 32, 'Exam'),
+(48, 7, 'Bài thi \"lab6\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-20 09:53:58', 33, 'Exam'),
+(49, 7, 'Đã nhập 19 câu hỏi vào bài thi \"lab6\"', 'Info', 1, '2025-10-20 09:54:14', 33, 'Exam'),
+(50, 7, 'Bài thi \"lab9\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-20 15:00:28', 34, 'Exam'),
+(51, 7, 'Đã nhập 19 câu hỏi vào bài thi \"lab9\"', 'Info', 1, '2025-10-20 15:00:49', 34, 'Exam'),
+(52, 7, 'Bài thi \"lab10\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-20 15:27:20', 35, 'Exam'),
+(53, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab10\"', 'Info', 1, '2025-10-20 15:27:37', 35, 'Exam'),
+(54, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-20 20:17:23', 36, 'Exam'),
+(55, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab1\"', 'Info', 1, '2025-10-20 20:17:37', 36, 'Exam'),
+(56, 7, 'Bài thi \"lab2\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-20 21:24:08', 37, 'Exam'),
+(57, 7, 'Đã nhập 19 câu hỏi vào bài thi \"lab2\"', 'Info', 1, '2025-10-20 21:24:20', 37, 'Exam'),
+(58, 7, 'Học sinh nguyen đã tham gia lớp 26th03', 'Info', 1, '2025-10-22 09:09:58', 6, 'Class'),
+(59, 7, 'Bài thi \"giữa kỳ\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-26 11:07:22', 38, 'Exam'),
+(60, 7, 'Đã nhập 20 câu hỏi vào bài thi \"giữa kỳ\"', 'Info', 1, '2025-10-26 11:07:34', 38, 'Exam'),
+(61, 7, 'Bài thi \"lab9\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-26 17:10:51', 39, 'Exam'),
+(62, 7, 'Bài thi \"lab9\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-26 17:11:16', 40, 'Exam'),
+(63, 7, 'Bài thi \"lab10\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-27 08:38:28', 41, 'Exam'),
+(64, 7, 'Bài thi \"lab4\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-27 08:52:53', 42, 'Exam'),
+(65, 7, 'Bài thi \"lab5\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-27 08:56:15', 43, 'Exam'),
+(66, 7, 'Bài thi \"lab6\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-27 08:57:42', 44, 'Exam'),
+(67, 7, 'Bài thi \"lab8\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-27 09:01:04', 45, 'Exam'),
+(68, 7, 'Bài thi \"lab9\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-27 09:03:46', 46, 'Exam'),
+(69, 7, 'Bài thi \"lab1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-27 09:10:15', 47, 'Exam'),
+(70, 7, 'Bài thi \"lab21\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-27 09:12:24', 48, 'Exam'),
+(71, 7, 'Bài thi \"kiem tra\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-27 09:14:03', 49, 'Exam'),
+(72, 7, 'Đã thêm câu hỏi mới: \"tên của e...\"', 'Info', 1, '2025-10-27 09:14:03', 258, 'Question'),
+(73, 7, 'Bài thi \"lab0\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-28 07:02:49', 50, 'Exam'),
+(74, 7, 'Đã nhập 20 câu hỏi vào bài thi \"lab0\"', 'Info', 1, '2025-10-28 07:03:32', 50, 'Exam'),
+(75, 7, 'Bài thi \"tets1\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-28 19:00:59', 51, 'Exam'),
+(76, 7, 'Đã thêm câu hỏi mới: \"điện toán đám mây là gì...\"', 'Info', 1, '2025-10-28 19:00:59', 279, 'Question'),
+(77, 7, 'Bài thi \"kiem tra lan2\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-31 15:29:31', 52, 'Exam'),
+(78, 7, 'Đã nhập 20 câu hỏi vào bài thi \"kiem tra lan2\"', 'Info', 1, '2025-10-31 15:29:49', 52, 'Exam'),
+(79, 7, 'Bài thi \"kiem tra lan3\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-31 15:41:22', 53, 'Exam'),
+(80, 7, 'Đã nhập 20 câu hỏi vào bài thi \"kiem tra lan3\"', 'Info', 1, '2025-10-31 15:41:58', 53, 'Exam'),
+(81, 7, 'Bài thi \"test4\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-10-31 18:13:54', 54, 'Exam'),
+(82, 7, 'Đã thêm câu hỏi mới: \"trong mysql việc sử dụng tiếng việt có dấu thì dùn...\"', 'Info', 1, '2025-10-31 18:13:54', 320, 'Question'),
+(83, 7, 'Bài thi \"test4\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-01 08:02:47', 55, 'Exam'),
+(84, 7, 'Đã thêm câu hỏi mới: \"kiểu dữ liệu số trong js là gì...\"', 'Info', 1, '2025-11-01 08:02:47', 321, 'Question'),
+(85, 7, 'Bài thi \"test 6\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-01 08:11:59', 56, 'Exam'),
+(86, 7, 'Đã thêm câu hỏi mới: \"ngôn ngữ nào lập trình hướng đối tượng...\"', 'Info', 1, '2025-11-01 08:11:59', 322, 'Question'),
+(87, 7, 'Bài thi \"test 7\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-01 08:18:56', 57, 'Exam'),
+(88, 7, 'Đã thêm câu hỏi mới: \"test 1...\"', 'Info', 1, '2025-11-01 08:18:56', 323, 'Question'),
+(89, 7, 'Bài thi \"test noti\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-01 08:43:51', 58, 'Exam'),
+(90, 7, 'Đã thêm câu hỏi mới: \"qqqq...\"', 'Info', 1, '2025-11-01 08:43:51', 324, 'Question'),
+(91, 7, 'Bài thi \"test 9\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-01 08:53:53', 59, 'Exam'),
+(92, 7, 'Đã thêm câu hỏi mới: \"qqqq...\"', 'Info', 1, '2025-11-01 08:53:53', 325, 'Question'),
+(93, 7, 'Bài thi \"tets10\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-01 09:06:30', 60, 'Exam'),
+(94, 7, 'Đã thêm câu hỏi mới: \"1111...\"', 'Info', 1, '2025-11-01 09:06:30', 326, 'Question'),
 (95, 4, 'Bài thi \"tets10\" của bạn đã được chấm điểm. Điểm số: 1.0 điểm', 'Info', 1, '2025-11-01 09:08:46', 60, 'Exam'),
 (96, 7, 'Bài thi \"test mã pin\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-06 12:47:26', 61, 'Exam'),
-(97, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 0, '2025-11-06 12:47:26', 327, 'Question'),
+(97, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 1, '2025-11-06 12:47:26', 327, 'Question'),
 (98, 7, 'Bài thi \"test mã pin lần 2\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-06 12:49:11', 62, 'Exam'),
-(99, 7, 'Đã thêm câu hỏi mới: \"heloo...\"', 'Info', 0, '2025-11-06 12:49:11', 328, 'Question'),
-(100, 7, 'Bài thi \"test mã pin lần 3\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-06 12:54:08', 63, 'Exam'),
-(101, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 0, '2025-11-06 12:54:08', 329, 'Question'),
-(102, 4, 'Bài thi \"test mã pin lần 3\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-06 12:55:51', 63, 'Exam'),
-(103, 7, 'Bài thi \"Bài thi từ Excel - 15:59:52 7/11/2025\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-07 15:59:52', 64, 'Exam'),
-(104, 7, 'Đã nhập 20 câu hỏi vào bài thi \"Bài thi từ Excel - 15:59:52 7/11/2025\"', 'Info', 0, '2025-11-07 15:59:52', 64, 'Exam'),
-(105, 7, 'Bài thi \"test 10\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-07 16:08:01', 65, 'Exam'),
-(106, 7, 'Đã nhập 20 câu hỏi vào bài thi \"test 10\"', 'Info', 0, '2025-11-07 16:08:17', 65, 'Exam'),
-(107, 7, 'Bài thi \"test 36\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-11 09:20:56', 66, 'Exam'),
-(108, 7, 'Đã nhập 20 câu hỏi vào bài thi \"test 36\"', 'Info', 0, '2025-11-11 09:21:12', 66, 'Exam'),
-(109, 7, 'Bài thi \"đasa\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-13 18:37:48', 67, 'Exam'),
-(110, 7, 'Bài thi \"cho thằng nhân \" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-14 15:02:41', 68, 'Exam'),
-(111, 7, 'Đã nhập 20 câu hỏi vào bài thi \"cho thằng nhân \"', 'Info', 0, '2025-11-14 15:03:01', 68, 'Exam'),
-(112, 7, 'Bài thi \"test 3.6\" đã được thêm vào lớp 26th03', 'Info', 0, '2025-11-14 15:10:44', 69, 'Exam'),
-(113, 7, 'Đã thêm câu hỏi mới: \"thầy nhân dạy tiếng nhật ở trường đại học bình dươ...\"', 'Info', 0, '2025-11-14 15:10:44', 410, 'Question'),
-(114, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 4.0 điểm', 'Info', 0, '2025-11-14 15:14:21', 69, 'Exam'),
-(115, 7, 'Bài thi \"điện toán đám mây - các câu hỏi về vpc ec2\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 09:44:49', 70, 'Exam'),
-(116, 7, 'Đã thêm câu hỏi mới: \"Trình bày khái niệm Amazon Virtual Private Cloud (...\"', 'Info', 0, '2025-11-15 09:44:49', 411, 'Question'),
-(117, 7, 'Đã thêm câu hỏi mới: \"Phân biệt sự khác nhau cơ bản giữa Public Subnet v...\"', 'Info', 0, '2025-11-15 09:44:49', 412, 'Question'),
-(118, 7, 'Đã thêm câu hỏi mới: \"So sánh và phân biệt các cơ chế bảo mật Security G...\"', 'Info', 0, '2025-11-15 09:44:49', 413, 'Question'),
-(119, 7, 'Đã thêm câu hỏi mới: \"Giải thích khái niệm Elastic IP Address (EIP) tron...\"', 'Info', 0, '2025-11-15 09:44:49', 414, 'Question'),
-(120, 7, 'Đã thêm câu hỏi mới: \"Mô tả vai trò và chức năng của Internet Gateway (I...\"', 'Info', 0, '2025-11-15 09:44:49', 415, 'Question'),
-(121, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích của Route Table (Bảng định tuy...\"', 'Info', 0, '2025-11-15 09:44:49', 416, 'Question'),
-(122, 7, 'Đã thêm câu hỏi mới: \"Giải thích tại sao cần có NAT Gateway hoặc NAT Ins...\"', 'Info', 0, '2025-11-15 09:44:49', 417, 'Question'),
-(123, 7, 'Đã thêm câu hỏi mới: \"Mô tả VPC Peering. Trong những tình huống nào bạn ...\"', 'Info', 0, '2025-11-15 09:44:49', 418, 'Question'),
-(124, 7, 'Đã thêm câu hỏi mới: \"Khi triển khai các phiên bản EC2, hãy trình bày cá...\"', 'Info', 0, '2025-11-15 09:44:49', 419, 'Question'),
-(125, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích và sự khác biệt cơ bản giữa AW...\"', 'Info', 0, '2025-11-15 09:44:49', 420, 'Question'),
-(126, 7, 'Bài thi \"điện toán đám mây - các câu hỏi về vpc ec2\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 09:44:59', 71, 'Exam'),
-(127, 7, 'Đã thêm câu hỏi mới: \"Trình bày khái niệm Amazon Virtual Private Cloud (...\"', 'Info', 0, '2025-11-15 09:44:59', 421, 'Question'),
-(128, 7, 'Đã thêm câu hỏi mới: \"Phân biệt sự khác nhau cơ bản giữa Public Subnet v...\"', 'Info', 0, '2025-11-15 09:44:59', 422, 'Question'),
-(129, 7, 'Đã thêm câu hỏi mới: \"So sánh và phân biệt các cơ chế bảo mật Security G...\"', 'Info', 0, '2025-11-15 09:44:59', 423, 'Question'),
-(130, 7, 'Đã thêm câu hỏi mới: \"Giải thích khái niệm Elastic IP Address (EIP) tron...\"', 'Info', 0, '2025-11-15 09:44:59', 424, 'Question'),
-(131, 7, 'Đã thêm câu hỏi mới: \"Mô tả vai trò và chức năng của Internet Gateway (I...\"', 'Info', 0, '2025-11-15 09:44:59', 425, 'Question'),
-(132, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích của Route Table (Bảng định tuy...\"', 'Info', 0, '2025-11-15 09:44:59', 426, 'Question'),
-(133, 7, 'Đã thêm câu hỏi mới: \"Giải thích tại sao cần có NAT Gateway hoặc NAT Ins...\"', 'Info', 0, '2025-11-15 09:44:59', 427, 'Question'),
-(134, 7, 'Đã thêm câu hỏi mới: \"Mô tả VPC Peering. Trong những tình huống nào bạn ...\"', 'Info', 0, '2025-11-15 09:44:59', 428, 'Question'),
-(135, 7, 'Đã thêm câu hỏi mới: \"Khi triển khai các phiên bản EC2, hãy trình bày cá...\"', 'Info', 0, '2025-11-15 09:45:00', 429, 'Question'),
-(136, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích và sự khác biệt cơ bản giữa AW...\"', 'Info', 0, '2025-11-15 09:45:00', 430, 'Question'),
-(137, 7, 'Bài thi \"điện toán đám mây - vpc ec2\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 09:51:38', 72, 'Exam'),
-(138, 7, 'Đã thêm câu hỏi mới: \"Trong AWS VPC, thành phần nào chịu trách nhiệm chí...\"', 'Info', 0, '2025-11-15 09:51:38', 431, 'Question'),
-(139, 7, 'Đã thêm câu hỏi mới: \"Một EC2 instance được triển khai trong một private...\"', 'Info', 0, '2025-11-15 09:51:38', 432, 'Question'),
-(140, 7, 'Đã thêm câu hỏi mới: \"Điểm khác biệt quan trọng nào sau đây là *chính xá...\"', 'Info', 0, '2025-11-15 09:51:38', 433, 'Question'),
-(141, 7, 'Đã thêm câu hỏi mới: \"Để một EC2 instance trong public subnet có thể nhậ...\"', 'Info', 0, '2025-11-15 09:51:38', 434, 'Question'),
-(142, 7, 'Đã thêm câu hỏi mới: \"Một EC2 instance có cả địa chỉ IP riêng (private I...\"', 'Info', 0, '2025-11-15 09:51:38', 435, 'Question'),
-(143, 7, 'Bài thi \"test cheatting\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 10:32:12', 73, 'Exam'),
-(144, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 0, '2025-11-15 10:32:12', 436, 'Question'),
-(145, 7, 'Bài thi \"điện toán đám mây - rds\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-15 10:34:49', 74, 'Exam'),
-(146, 7, 'Đã thêm câu hỏi mới: \"Một ứng dụng yêu cầu tính sẵn sàng cao cho cơ sở d...\"', 'Info', 0, '2025-11-15 10:34:49', 437, 'Question'),
-(147, 7, 'Đã thêm câu hỏi mới: \"So với việc tự quản lý một cơ sở dữ liệu quan hệ t...\"', 'Info', 0, '2025-11-15 10:34:49', 438, 'Question'),
-(148, 7, 'Đã thêm câu hỏi mới: \"Một ứng dụng web đang gặp phải tình trạng nghẽn cổ...\"', 'Info', 0, '2025-11-15 10:34:49', 439, 'Question'),
-(149, 7, 'Đã thêm câu hỏi mới: \"Để kiểm soát quyền truy cập mạng vào một phiên bản...\"', 'Info', 0, '2025-11-15 10:34:49', 440, 'Question'),
-(150, 7, 'Đã thêm câu hỏi mới: \"Loại lưu trữ Amazon RDS nào thường được khuyến ngh...\"', 'Info', 0, '2025-11-15 10:34:49', 441, 'Question'),
-(151, 7, 'Bài thi \"test chấm bài thi\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-16 09:03:28', 75, 'Exam'),
-(152, 7, 'Đã thêm câu hỏi mới: \"tets...\"', 'Info', 0, '2025-11-16 09:03:28', 442, 'Question'),
-(153, 7, 'Bài thi \"test lần 3\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-16 09:20:53', 76, 'Exam'),
-(154, 7, 'Đã thêm câu hỏi mới: \"test...\"', 'Info', 0, '2025-11-16 09:20:53', 443, 'Question'),
-(155, 4, 'Bài thi \"test lần 3\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-16 09:22:47', 76, 'Exam');
+(99, 7, 'Đã thêm câu hỏi mới: \"heloo...\"', 'Info', 1, '2025-11-06 12:49:11', 328, 'Question'),
+(100, 7, 'Bài thi \"test mã pin lần 3\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-06 12:54:08', 63, 'Exam'),
+(101, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 1, '2025-11-06 12:54:08', 329, 'Question'),
+(102, 4, 'Bài thi \"test mã pin lần 3\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 1, '2025-11-06 12:55:51', 63, 'Exam'),
+(103, 7, 'Bài thi \"Bài thi từ Excel - 15:59:52 7/11/2025\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-07 15:59:52', 64, 'Exam'),
+(104, 7, 'Đã nhập 20 câu hỏi vào bài thi \"Bài thi từ Excel - 15:59:52 7/11/2025\"', 'Info', 1, '2025-11-07 15:59:52', 64, 'Exam'),
+(105, 7, 'Bài thi \"test 10\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-07 16:08:01', 65, 'Exam'),
+(106, 7, 'Đã nhập 20 câu hỏi vào bài thi \"test 10\"', 'Info', 1, '2025-11-07 16:08:17', 65, 'Exam'),
+(107, 7, 'Bài thi \"test 36\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-11 09:20:56', 66, 'Exam'),
+(108, 7, 'Đã nhập 20 câu hỏi vào bài thi \"test 36\"', 'Info', 1, '2025-11-11 09:21:12', 66, 'Exam'),
+(109, 7, 'Bài thi \"đasa\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-13 18:37:48', 67, 'Exam'),
+(110, 7, 'Bài thi \"cho thằng nhân \" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-14 15:02:41', 68, 'Exam'),
+(111, 7, 'Đã nhập 20 câu hỏi vào bài thi \"cho thằng nhân \"', 'Info', 1, '2025-11-14 15:03:01', 68, 'Exam'),
+(112, 7, 'Bài thi \"test 3.6\" đã được thêm vào lớp 26th03', 'Info', 1, '2025-11-14 15:10:44', 69, 'Exam'),
+(113, 7, 'Đã thêm câu hỏi mới: \"thầy nhân dạy tiếng nhật ở trường đại học bình dươ...\"', 'Info', 1, '2025-11-14 15:10:44', 410, 'Question'),
+(114, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 4.0 điểm', 'Info', 1, '2025-11-14 15:14:21', 69, 'Exam'),
+(115, 7, 'Bài thi \"điện toán đám mây - các câu hỏi về vpc ec2\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-15 09:44:49', 70, 'Exam'),
+(116, 7, 'Đã thêm câu hỏi mới: \"Trình bày khái niệm Amazon Virtual Private Cloud (...\"', 'Info', 1, '2025-11-15 09:44:49', 411, 'Question'),
+(117, 7, 'Đã thêm câu hỏi mới: \"Phân biệt sự khác nhau cơ bản giữa Public Subnet v...\"', 'Info', 1, '2025-11-15 09:44:49', 412, 'Question'),
+(118, 7, 'Đã thêm câu hỏi mới: \"So sánh và phân biệt các cơ chế bảo mật Security G...\"', 'Info', 1, '2025-11-15 09:44:49', 413, 'Question'),
+(119, 7, 'Đã thêm câu hỏi mới: \"Giải thích khái niệm Elastic IP Address (EIP) tron...\"', 'Info', 1, '2025-11-15 09:44:49', 414, 'Question'),
+(120, 7, 'Đã thêm câu hỏi mới: \"Mô tả vai trò và chức năng của Internet Gateway (I...\"', 'Info', 1, '2025-11-15 09:44:49', 415, 'Question'),
+(121, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích của Route Table (Bảng định tuy...\"', 'Info', 1, '2025-11-15 09:44:49', 416, 'Question'),
+(122, 7, 'Đã thêm câu hỏi mới: \"Giải thích tại sao cần có NAT Gateway hoặc NAT Ins...\"', 'Info', 1, '2025-11-15 09:44:49', 417, 'Question'),
+(123, 7, 'Đã thêm câu hỏi mới: \"Mô tả VPC Peering. Trong những tình huống nào bạn ...\"', 'Info', 1, '2025-11-15 09:44:49', 418, 'Question'),
+(124, 7, 'Đã thêm câu hỏi mới: \"Khi triển khai các phiên bản EC2, hãy trình bày cá...\"', 'Info', 1, '2025-11-15 09:44:49', 419, 'Question'),
+(125, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích và sự khác biệt cơ bản giữa AW...\"', 'Info', 1, '2025-11-15 09:44:49', 420, 'Question'),
+(126, 7, 'Bài thi \"điện toán đám mây - các câu hỏi về vpc ec2\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-15 09:44:59', 71, 'Exam'),
+(127, 7, 'Đã thêm câu hỏi mới: \"Trình bày khái niệm Amazon Virtual Private Cloud (...\"', 'Info', 1, '2025-11-15 09:44:59', 421, 'Question'),
+(128, 7, 'Đã thêm câu hỏi mới: \"Phân biệt sự khác nhau cơ bản giữa Public Subnet v...\"', 'Info', 1, '2025-11-15 09:44:59', 422, 'Question'),
+(129, 7, 'Đã thêm câu hỏi mới: \"So sánh và phân biệt các cơ chế bảo mật Security G...\"', 'Info', 1, '2025-11-15 09:44:59', 423, 'Question'),
+(130, 7, 'Đã thêm câu hỏi mới: \"Giải thích khái niệm Elastic IP Address (EIP) tron...\"', 'Info', 1, '2025-11-15 09:44:59', 424, 'Question'),
+(131, 7, 'Đã thêm câu hỏi mới: \"Mô tả vai trò và chức năng của Internet Gateway (I...\"', 'Info', 1, '2025-11-15 09:44:59', 425, 'Question'),
+(132, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích của Route Table (Bảng định tuy...\"', 'Info', 1, '2025-11-15 09:44:59', 426, 'Question'),
+(133, 7, 'Đã thêm câu hỏi mới: \"Giải thích tại sao cần có NAT Gateway hoặc NAT Ins...\"', 'Info', 1, '2025-11-15 09:44:59', 427, 'Question'),
+(134, 7, 'Đã thêm câu hỏi mới: \"Mô tả VPC Peering. Trong những tình huống nào bạn ...\"', 'Info', 1, '2025-11-15 09:44:59', 428, 'Question'),
+(135, 7, 'Đã thêm câu hỏi mới: \"Khi triển khai các phiên bản EC2, hãy trình bày cá...\"', 'Info', 1, '2025-11-15 09:45:00', 429, 'Question'),
+(136, 7, 'Đã thêm câu hỏi mới: \"Giải thích mục đích và sự khác biệt cơ bản giữa AW...\"', 'Info', 1, '2025-11-15 09:45:00', 430, 'Question'),
+(137, 7, 'Bài thi \"điện toán đám mây - vpc ec2\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-15 09:51:38', 72, 'Exam'),
+(138, 7, 'Đã thêm câu hỏi mới: \"Trong AWS VPC, thành phần nào chịu trách nhiệm chí...\"', 'Info', 1, '2025-11-15 09:51:38', 431, 'Question'),
+(139, 7, 'Đã thêm câu hỏi mới: \"Một EC2 instance được triển khai trong một private...\"', 'Info', 1, '2025-11-15 09:51:38', 432, 'Question'),
+(140, 7, 'Đã thêm câu hỏi mới: \"Điểm khác biệt quan trọng nào sau đây là *chính xá...\"', 'Info', 1, '2025-11-15 09:51:38', 433, 'Question'),
+(141, 7, 'Đã thêm câu hỏi mới: \"Để một EC2 instance trong public subnet có thể nhậ...\"', 'Info', 1, '2025-11-15 09:51:38', 434, 'Question'),
+(142, 7, 'Đã thêm câu hỏi mới: \"Một EC2 instance có cả địa chỉ IP riêng (private I...\"', 'Info', 1, '2025-11-15 09:51:38', 435, 'Question'),
+(143, 7, 'Bài thi \"test cheatting\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-15 10:32:12', 73, 'Exam'),
+(144, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 1, '2025-11-15 10:32:12', 436, 'Question'),
+(145, 7, 'Bài thi \"điện toán đám mây - rds\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-15 10:34:49', 74, 'Exam'),
+(146, 7, 'Đã thêm câu hỏi mới: \"Một ứng dụng yêu cầu tính sẵn sàng cao cho cơ sở d...\"', 'Info', 1, '2025-11-15 10:34:49', 437, 'Question'),
+(147, 7, 'Đã thêm câu hỏi mới: \"So với việc tự quản lý một cơ sở dữ liệu quan hệ t...\"', 'Info', 1, '2025-11-15 10:34:49', 438, 'Question'),
+(148, 7, 'Đã thêm câu hỏi mới: \"Một ứng dụng web đang gặp phải tình trạng nghẽn cổ...\"', 'Info', 1, '2025-11-15 10:34:49', 439, 'Question'),
+(149, 7, 'Đã thêm câu hỏi mới: \"Để kiểm soát quyền truy cập mạng vào một phiên bản...\"', 'Info', 1, '2025-11-15 10:34:49', 440, 'Question'),
+(150, 7, 'Đã thêm câu hỏi mới: \"Loại lưu trữ Amazon RDS nào thường được khuyến ngh...\"', 'Info', 1, '2025-11-15 10:34:49', 441, 'Question'),
+(151, 7, 'Bài thi \"test chấm bài thi\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-16 09:03:28', 75, 'Exam'),
+(152, 7, 'Đã thêm câu hỏi mới: \"tets...\"', 'Info', 1, '2025-11-16 09:03:28', 442, 'Question'),
+(153, 7, 'Bài thi \"test lần 3\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-16 09:20:53', 76, 'Exam'),
+(154, 7, 'Đã thêm câu hỏi mới: \"test...\"', 'Info', 1, '2025-11-16 09:20:53', 443, 'Question'),
+(155, 4, 'Bài thi \"test lần 3\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 1, '2025-11-16 09:22:47', 76, 'Exam'),
+(156, 4, 'tets noti \n\ntets noti', 'Info', 0, '2025-11-17 10:41:10', NULL, NULL),
+(157, 8, 'tets noti \n\ntets noti', 'Info', 0, '2025-11-17 10:41:10', NULL, NULL),
+(158, 4, 'tets noti lần 2\n\ntets noti lần 2', 'Info', 0, '2025-11-17 10:42:36', NULL, NULL),
+(159, 7, 'Học sinh thuan đã gửi khiếu nại về bài thi \"test 3.6\" (Lớp 26th03)', 'Warning', 1, '2025-11-17 12:06:37', 1, 'Comp'),
+(160, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:07:40', 69, 'Exam'),
+(161, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:08:28', 69, 'Exam'),
+(162, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:12:48', 69, 'Exam'),
+(163, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:13:09', 69, 'Exam'),
+(164, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:19:03', 69, 'Exam'),
+(165, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:20:20', 69, 'Exam'),
+(166, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 8.0 điểm', 'Info', 0, '2025-11-17 12:22:46', 69, 'Exam'),
+(167, 7, 'Bài thi \"tets chấm điểm\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-17 12:24:44', 77, 'Exam'),
+(168, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 1, '2025-11-17 12:24:44', 444, 'Question'),
+(169, 7, 'Bài thi \"tets lần 12\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-17 12:25:55', 78, 'Exam'),
+(170, 7, 'Đã thêm câu hỏi mới: \"....\"', 'Info', 1, '2025-11-17 12:25:55', 445, 'Question'),
+(171, 7, 'Bài thi \"tets chấm điểm\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-17 12:27:30', 79, 'Exam'),
+(172, 7, 'Đã thêm câu hỏi mới: \"....\"', 'Info', 1, '2025-11-17 12:27:30', 446, 'Question'),
+(173, 4, 'Bài thi \"tets chấm điểm\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-17 12:29:54', 79, 'Exam'),
+(174, 7, 'Học sinh thuan đã gửi khiếu nại về bài thi \"test 10\" (Lớp 26th03)', 'Warning', 1, '2025-11-17 12:33:03', 2, 'Comp'),
+(175, 4, 'Bài thi \"tets10\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-17 12:38:11', 60, 'Exam'),
+(176, 4, 'Bài thi \"tets chấm điểm\" của bạn đã được chấm điểm. Điểm số: 9.0 điểm', 'Info', 0, '2025-11-17 12:41:01', 79, 'Exam'),
+(177, 7, 'Học sinh thuan đã gửi khiếu nại về bài thi \"tets chấm điểm\" (Lớp 26th02)', 'Warning', 1, '2025-11-17 12:42:51', 3, 'Comp'),
+(178, 4, 'Bài thi \"tets chấm điểm\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-17 12:43:35', 79, 'Exam'),
+(179, 7, 'Bài thi \"alo\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-17 12:49:10', 80, 'Exam'),
+(180, 7, 'Đã thêm câu hỏi mới: \"....\"', 'Info', 0, '2025-11-17 12:49:10', 447, 'Question'),
+(181, 7, 'Bài thi \"alo alo\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-17 12:50:23', 81, 'Exam'),
+(182, 7, 'Đã thêm câu hỏi mới: \"test 1...\"', 'Info', 0, '2025-11-17 12:50:23', 448, 'Question');
 
 -- --------------------------------------------------------
 
@@ -1094,7 +1161,12 @@ INSERT INTO `question_bank` (`question_id`, `subject_id`, `teacher_id`, `questio
 (440, NULL, 7, 'Để kiểm soát quyền truy cập mạng vào một phiên bản Amazon RDS, đảm bảo rằng chỉ các máy chủ ứng dụng cụ thể mới có thể kết nối được, dịch vụ hoặc tính năng AWS nào nên được cấu hình?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-15 10:34:49', '2025-11-15 10:34:49'),
 (441, NULL, 7, 'Loại lưu trữ Amazon RDS nào thường được khuyến nghị cho các cơ sở dữ liệu sản xuất yêu cầu hiệu suất cao và hoạt động I/O nhất quán, phù hợp với các khối lượng công việc giao dịch (transactional workloads)?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-15 10:34:49', '2025-11-15 10:34:49'),
 (442, NULL, 7, 'tets', 'Essay', 'Easy', '.', NULL, '2025-11-16 09:03:28', '2025-11-16 09:03:28'),
-(443, NULL, 7, 'test', 'Essay', 'Easy', '.', NULL, '2025-11-16 09:20:53', '2025-11-16 09:20:53');
+(443, NULL, 7, 'test', 'Essay', 'Easy', '.', NULL, '2025-11-16 09:20:53', '2025-11-16 09:20:53'),
+(444, NULL, 7, 'hello', 'Essay', 'Easy', '.', NULL, '2025-11-17 12:24:44', '2025-11-17 12:24:44'),
+(445, NULL, 7, '.', 'Essay', 'Easy', '.', NULL, '2025-11-17 12:25:55', '2025-11-17 12:25:55'),
+(446, NULL, 7, '.', 'Essay', 'Easy', '.', NULL, '2025-11-17 12:27:30', '2025-11-17 12:27:30'),
+(447, NULL, 7, '.', 'Essay', 'Easy', '.', NULL, '2025-11-17 12:49:10', '2025-11-17 12:49:10'),
+(448, NULL, 7, 'test 1', 'Essay', 'Easy', 'tets 1', NULL, '2025-11-17 12:50:23', '2025-11-17 12:50:23');
 
 -- --------------------------------------------------------
 
@@ -2294,7 +2366,21 @@ CREATE TABLE `score_audit_logs` (
 
 INSERT INTO `score_audit_logs` (`log_id`, `attempt_id`, `question_id`, `old_score`, `new_score`, `old_total_score`, `new_total_score`, `reason`, `edited_by`, `edited_at`) VALUES
 (1, 41, 443, 0.00, 10.00, NULL, NULL, 'không cần', 7, '2025-11-16 02:22:47'),
-(2, 41, NULL, NULL, NULL, 0.00, 10.00, 'không cần', 7, '2025-11-16 02:22:47');
+(2, 41, NULL, NULL, NULL, 0.00, 10.00, 'không cần', 7, '2025-11-16 02:22:47'),
+(3, 38, 410, 0.00, 10.00, NULL, NULL, 'lỗi sơ xuất chấm điểm', 7, '2025-11-17 05:07:40'),
+(4, 38, NULL, NULL, NULL, 4.00, 0.00, 'lỗi sơ xuất chấm điểm', 7, '2025-11-17 05:07:40'),
+(5, 38, 410, 0.00, 10.00, NULL, NULL, 'sơ xuất', 7, '2025-11-17 05:08:28'),
+(6, 38, 410, 0.00, 10.00, NULL, NULL, '.', 7, '2025-11-17 05:12:48'),
+(7, 38, 410, 0.00, 10.00, NULL, NULL, '.', 7, '2025-11-17 05:13:09'),
+(8, 38, 410, 0.00, 8.00, NULL, NULL, ',', 7, '2025-11-17 05:22:46'),
+(9, 38, NULL, NULL, NULL, 0.00, 8.00, ',', 7, '2025-11-17 05:22:46'),
+(10, 42, 446, 0.00, 10.00, NULL, NULL, '.', 7, '2025-11-17 05:29:54'),
+(11, 33, 326, 1.00, 10.00, NULL, NULL, '.', 7, '2025-11-17 05:38:11'),
+(12, 33, NULL, NULL, NULL, 1.00, 10.00, '.', 7, '2025-11-17 05:38:11'),
+(13, 42, 446, 10.00, 9.00, NULL, NULL, '.', 7, '2025-11-17 05:41:00'),
+(14, 42, NULL, NULL, NULL, 10.00, 9.00, '.', 7, '2025-11-17 05:41:00'),
+(15, 42, 446, 9.00, 10.00, NULL, NULL, 'sửa điểm', 7, '2025-11-17 05:43:35'),
+(16, 42, NULL, NULL, NULL, 9.00, 10.00, 'sửa điểm', 7, '2025-11-17 05:43:35');
 
 -- --------------------------------------------------------
 
@@ -2317,6 +2403,98 @@ CREATE TABLE `subjects` (
 INSERT INTO `subjects` (`subject_id`, `subject_name`, `description`, `created_by`, `created_at`) VALUES
 (2, 'điện toán đám mây', 'Môn học: điện toán đám mây', 7, '2025-10-14 14:11:52'),
 (3, 'xây dựng httt', 'Môn học: xây dựng httt', 7, '2025-10-15 08:57:13');
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `system_settings`
+--
+
+CREATE TABLE `system_settings` (
+  `setting_key` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `setting_value` text COLLATE utf8mb4_unicode_ci,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `system_settings`
+--
+
+INSERT INTO `system_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
+('antiCheat.enableCopyPasteDetection', 'true', '2025-11-17 02:48:57'),
+('antiCheat.enableTabSwitchDetection', 'true', '2025-11-17 02:48:57'),
+('antiCheat.enableWebcamMonitoring', 'true', '2025-11-17 02:48:57'),
+('antiCheat.maxWarnings', '3', '2025-11-17 02:48:57'),
+('api.enableAPI', 'false', '2025-11-17 02:48:57'),
+('api.enableFacebookIntegration', 'false', '2025-11-17 02:48:57'),
+('api.enableGoogleIntegration', 'false', '2025-11-17 02:48:57'),
+('api.facebookAppId', '\"\"', '2025-11-17 02:48:57'),
+('api.googleClientId', '\"\"', '2025-11-17 02:48:57'),
+('api.rateLimit', '100', '2025-11-17 02:48:57'),
+('api.tokenExpiry', '60', '2025-11-17 02:48:57'),
+('api.webhookOnExamEnd', 'false', '2025-11-17 02:48:57'),
+('api.webhookOnExamStart', 'false', '2025-11-17 02:48:57'),
+('api.webhookUrl', '\"\"', '2025-11-17 02:48:57'),
+('backup.compress', 'true', '2025-11-17 02:48:57'),
+('backup.includeFiles', 'true', '2025-11-17 02:48:57'),
+('backup.retention', '7', '2025-11-17 02:48:57'),
+('backup.schedule', '\"weekly\"', '2025-11-17 02:48:57'),
+('display.compactMode', 'false', '2025-11-17 02:48:57'),
+('display.fontSize', '\"medium\"', '2025-11-17 02:48:57'),
+('display.itemsPerPage', '25', '2025-11-17 02:48:57'),
+('display.language', '\"en\"', '2025-11-17 02:48:57'),
+('display.primaryColor', '\"#0d6efd\"', '2025-11-17 02:48:57'),
+('display.showAnimations', 'true', '2025-11-17 02:48:57'),
+('display.showTooltips', 'true', '2025-11-17 02:48:57'),
+('email.emailFromName', '\"\"', '2025-11-17 02:48:57'),
+('email.smtpEmail', '\"\"', '2025-11-17 02:48:57'),
+('email.smtpHost', '\"\"', '2025-11-17 02:48:57'),
+('email.smtpPort', 'null', '2025-11-17 02:48:57'),
+('email.smtpSecure', '\"tls\"', '2025-11-17 02:48:57'),
+('exam.defaultDuration', '60', '2025-11-17 02:48:57'),
+('exam.defaultPassingScore', '5', '2025-11-17 02:48:57'),
+('exam.enableAutoSubmit', 'true', '2025-11-17 02:48:57'),
+('exam.enableReviewBeforeSubmit', 'true', '2025-11-17 02:48:57'),
+('logs.cpuThreshold', '80', '2025-11-17 02:48:57'),
+('logs.enableSystemMonitoring', 'false', '2025-11-17 02:48:57'),
+('logs.level', '\"info\"', '2025-11-17 02:48:57'),
+('logs.logAPIRequests', 'false', '2025-11-17 02:48:57'),
+('logs.logUserActions', 'false', '2025-11-17 02:48:57'),
+('logs.maxFileSize', '10', '2025-11-17 02:48:57'),
+('logs.monitoringInterval', '5', '2025-11-17 02:48:57'),
+('logs.ramThreshold', '85', '2025-11-17 02:48:57'),
+('notification.enableEmail', 'false', '2025-11-17 02:48:57'),
+('notification.notifyExamEnd', 'true', '2025-11-17 02:48:57'),
+('notification.notifyExamStart', 'true', '2025-11-17 02:48:57'),
+('notification.notifyScoreAvailable', 'true', '2025-11-17 02:48:57'),
+('performance.cacheDuration', '3600', '2025-11-17 02:48:57'),
+('performance.cdnUrl', '\"\"', '2025-11-17 02:48:57'),
+('performance.dbPoolSize', '10', '2025-11-17 02:48:57'),
+('performance.enableCDN', 'false', '2025-11-17 02:48:57'),
+('performance.enableGzip', 'false', '2025-11-17 02:48:57'),
+('performance.enableImageOptimization', 'false', '2025-11-17 02:48:57'),
+('performance.enableQueryCache', 'false', '2025-11-17 02:48:57'),
+('performance.imageQuality', '80', '2025-11-17 02:48:57'),
+('performance.maxImageSize', '5', '2025-11-17 02:48:57'),
+('performance.queryCacheDuration', '300', '2025-11-17 02:48:57'),
+('security.accountLockoutDuration', '15', '2025-11-17 02:48:57'),
+('security.enableIPWhitelist', 'false', '2025-11-17 02:48:57'),
+('security.enableTwoFactor', 'false', '2025-11-17 02:48:57'),
+('security.maxLoginAttempts', '5', '2025-11-17 02:48:57'),
+('security.requireStrongPassword', 'false', '2025-11-17 02:48:57'),
+('security.sessionTimeout', '30', '2025-11-17 02:48:57'),
+('system.autoSaveInterval', '60', '2025-11-17 02:48:57'),
+('system.backupFrequency', '7', '2025-11-17 02:48:57'),
+('system.enableCaching', 'true', '2025-11-17 02:48:57'),
+('system.enableMaintenanceMode', 'false', '2025-11-17 02:48:57'),
+('system.logRetentionDays', '30', '2025-11-17 02:48:57'),
+('system.questionsPerPage', '20', '2025-11-17 02:48:57'),
+('user.allowStudentRegistration', 'true', '2025-11-17 02:48:57'),
+('user.maxStudentsPerClass', '50', '2025-11-17 02:48:57'),
+('user.minPasswordLength', '8', '2025-11-17 02:48:57'),
+('user.passwordExpiryDays', '90', '2025-11-17 02:48:57'),
+('user.preventPasswordReuse', 'false', '2025-11-17 02:48:57'),
+('user.requireEmailVerification', 'false', '2025-11-17 02:48:57');
 
 -- --------------------------------------------------------
 
@@ -2384,6 +2562,14 @@ ALTER TABLE `admin_logs`
 ALTER TABLE `anti_cheating_logs`
   ADD PRIMARY KEY (`log_id`),
   ADD KEY `attempt_id` (`attempt_id`);
+
+--
+-- Chỉ mục cho bảng `backup_history`
+--
+ALTER TABLE `backup_history`
+  ADD PRIMARY KEY (`backup_id`),
+  ADD KEY `idx_created_at` (`created_at`),
+  ADD KEY `idx_created_by` (`created_by`);
 
 --
 -- Chỉ mục cho bảng `classes`
@@ -2514,6 +2700,13 @@ ALTER TABLE `subjects`
   ADD KEY `created_by` (`created_by`);
 
 --
+-- Chỉ mục cho bảng `system_settings`
+--
+ALTER TABLE `system_settings`
+  ADD PRIMARY KEY (`setting_key`),
+  ADD KEY `idx_updated_at` (`updated_at`);
+
+--
 -- Chỉ mục cho bảng `teacher_actions`
 --
 ALTER TABLE `teacher_actions`
@@ -2546,7 +2739,13 @@ ALTER TABLE `admin_logs`
 -- AUTO_INCREMENT cho bảng `anti_cheating_logs`
 --
 ALTER TABLE `anti_cheating_logs`
-  MODIFY `log_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+  MODIFY `log_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+
+--
+-- AUTO_INCREMENT cho bảng `backup_history`
+--
+ALTER TABLE `backup_history`
+  MODIFY `backup_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT cho bảng `classes`
@@ -2558,19 +2757,19 @@ ALTER TABLE `classes`
 -- AUTO_INCREMENT cho bảng `complaints`
 --
 ALTER TABLE `complaints`
-  MODIFY `complaint_id` bigint NOT NULL AUTO_INCREMENT;
+  MODIFY `complaint_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `exams`
 --
 ALTER TABLE `exams`
-  MODIFY `exam_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=77;
+  MODIFY `exam_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=82;
 
 --
 -- AUTO_INCREMENT cho bảng `exam_attempts`
 --
 ALTER TABLE `exam_attempts`
-  MODIFY `attempt_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
+  MODIFY `attempt_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT cho bảng `import_logs`
@@ -2582,13 +2781,13 @@ ALTER TABLE `import_logs`
 -- AUTO_INCREMENT cho bảng `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `notification_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=156;
+  MODIFY `notification_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=183;
 
 --
 -- AUTO_INCREMENT cho bảng `question_bank`
 --
 ALTER TABLE `question_bank`
-  MODIFY `question_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=444;
+  MODIFY `question_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=449;
 
 --
 -- AUTO_INCREMENT cho bảng `question_options`
@@ -2600,7 +2799,7 @@ ALTER TABLE `question_options`
 -- AUTO_INCREMENT cho bảng `score_audit_logs`
 --
 ALTER TABLE `score_audit_logs`
-  MODIFY `log_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `log_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT cho bảng `subjects`
