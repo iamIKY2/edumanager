@@ -384,6 +384,347 @@ router.get('/stats', authenticateToken, async (req, res) => {
   }
 });
 
+// API lấy dữ liệu biểu đồ cho dashboard
+router.get('/dashboard/charts', authenticateToken, async (req, res) => {
+  try {
+    const db = req.db;
+    
+    // 1. Người dùng mới theo tháng (12 tháng gần nhất)
+    const [userStats] = await db.query(`
+      SELECT 
+        DATE_FORMAT(created_at, '%Y-%m') as month,
+        DATE_FORMAT(created_at, '%m') as month_num,
+        SUM(CASE WHEN role = 'Student' THEN 1 ELSE 0 END) as students,
+        SUM(CASE WHEN role = 'Teacher' THEN 1 ELSE 0 END) as teachers
+      FROM users
+      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+        AND role IN ('Student', 'Teacher')
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m'), DATE_FORMAT(created_at, '%m')
+      ORDER BY month ASC
+    `);
+    
+    // Tạo mảng đầy đủ 12 tháng
+    const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+    const studentData = new Array(12).fill(0);
+    const teacherData = new Array(12).fill(0);
+    
+    userStats.forEach(stat => {
+      const monthIndex = parseInt(stat.month_num) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        studentData[monthIndex] = parseInt(stat.students) || 0;
+        teacherData[monthIndex] = parseInt(stat.teachers) || 0;
+      }
+    });
+    
+    // 2. Tỷ lệ hoàn thành bài thi
+    const [completionStats] = await db.query(`
+      SELECT 
+        COUNT(*) as total_attempts,
+        SUM(CASE WHEN status = 'Submitted' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN status = 'InProgress' THEN 1 ELSE 0 END) as in_progress,
+        SUM(CASE WHEN status IN ('Abandoned', 'Expired') THEN 1 ELSE 0 END) as abandoned
+      FROM exam_attempts
+    `);
+    
+    const totalAttempts = completionStats[0]?.total_attempts || 0;
+    const completed = completionStats[0]?.completed || 0;
+    const inProgress = completionStats[0]?.in_progress || 0;
+    const abandoned = completionStats[0]?.abandoned || 0;
+    
+    const completionRate = totalAttempts > 0 ? (completed / totalAttempts * 100).toFixed(1) : 0;
+    const inProgressRate = totalAttempts > 0 ? (inProgress / totalAttempts * 100).toFixed(1) : 0;
+    const abandonedRate = totalAttempts > 0 ? (abandoned / totalAttempts * 100).toFixed(1) : 0;
+    
+    // 3. Phân bố điểm số (từ các bài thi đã nộp)
+    const [scoreDistribution] = await db.query(`
+      SELECT 
+        CASE 
+          WHEN score >= 0 AND score < 2 THEN '0-2'
+          WHEN score >= 2 AND score < 4 THEN '2-4'
+          WHEN score >= 4 AND score < 6 THEN '4-6'
+          WHEN score >= 6 AND score < 8 THEN '6-8'
+          WHEN score >= 8 AND score <= 10 THEN '8-10'
+          ELSE 'Khác'
+        END as score_range,
+        COUNT(*) as count
+      FROM exam_attempts
+      WHERE status = 'Submitted' AND score IS NOT NULL
+      GROUP BY score_range
+      ORDER BY 
+        CASE score_range
+          WHEN '0-2' THEN 1
+          WHEN '2-4' THEN 2
+          WHEN '4-6' THEN 3
+          WHEN '6-8' THEN 4
+          WHEN '8-10' THEN 5
+          ELSE 6
+        END
+    `);
+    
+    const scoreRanges = ['0-2', '2-4', '4-6', '6-8', '8-10'];
+    const scoreData = new Array(5).fill(0);
+    scoreDistribution.forEach(stat => {
+      const index = scoreRanges.indexOf(stat.score_range);
+      if (index >= 0) {
+        scoreData[index] = parseInt(stat.count) || 0;
+      }
+    });
+    
+    // 4. Số lượng kỳ thi theo tháng (12 tháng gần nhất)
+    const [examStats] = await db.query(`
+      SELECT 
+        DATE_FORMAT(created_at, '%Y-%m') as month,
+        DATE_FORMAT(created_at, '%m') as month_num,
+        COUNT(*) as count
+      FROM exams
+      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+        AND status != 'deleted'
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m'), DATE_FORMAT(created_at, '%m')
+      ORDER BY month ASC
+    `);
+    
+    const examData = new Array(12).fill(0);
+    examStats.forEach(stat => {
+      const monthIndex = parseInt(stat.month_num) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        examData[monthIndex] = parseInt(stat.count) || 0;
+      }
+    });
+    
+    // 5. Tính phần trăm thay đổi so với tháng trước
+    const [prevMonthUsers] = await db.query(`
+      SELECT 
+        SUM(CASE WHEN role = 'Student' THEN 1 ELSE 0 END) as students,
+        SUM(CASE WHEN role = 'Teacher' THEN 1 ELSE 0 END) as teachers
+      FROM users
+      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH)
+        AND created_at < DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+        AND role IN ('Student', 'Teacher')
+    `);
+    
+    const [currentMonthUsers] = await db.query(`
+      SELECT 
+        SUM(CASE WHEN role = 'Student' THEN 1 ELSE 0 END) as students,
+        SUM(CASE WHEN role = 'Teacher' THEN 1 ELSE 0 END) as teachers
+      FROM users
+      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+        AND role IN ('Student', 'Teacher')
+    `);
+    
+    const prevStudents = prevMonthUsers[0]?.students || 0;
+    const currentStudents = currentMonthUsers[0]?.students || 0;
+    const prevTeachers = prevMonthUsers[0]?.teachers || 0;
+    const currentTeachers = currentMonthUsers[0]?.teachers || 0;
+    
+    const studentChange = prevStudents > 0 
+      ? ((currentStudents - prevStudents) / prevStudents * 100).toFixed(1)
+      : (currentStudents > 0 ? '100' : '0');
+    const teacherChange = prevTeachers > 0
+      ? ((currentTeachers - prevTeachers) / prevTeachers * 100).toFixed(1)
+      : (currentTeachers > 0 ? '100' : '0');
+    
+    // Lấy số lượng kỳ thi tháng trước và tháng này
+    const [prevMonthExams] = await db.query(`
+      SELECT COUNT(*) as count
+      FROM exams
+      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH)
+        AND created_at < DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+        AND status != 'deleted'
+    `);
+    
+    const [currentMonthExams] = await db.query(`
+      SELECT COUNT(*) as count
+      FROM exams
+      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+        AND status != 'deleted'
+    `);
+    
+    const prevExams = prevMonthExams[0]?.count || 0;
+    const currentExams = currentMonthExams[0]?.count || 0;
+    const examChange = prevExams > 0
+      ? ((currentExams - prevExams) / prevExams * 100).toFixed(1)
+      : (currentExams > 0 ? '100' : '0');
+    
+    // Lấy số câu hỏi mới tháng này
+    const [currentMonthQuestions] = await db.query(`
+      SELECT COUNT(*) as count
+      FROM question_bank
+      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+    `);
+    const newQuestions = currentMonthQuestions[0]?.count || 0;
+    
+    res.json({
+      userChart: {
+        labels: months,
+        students: studentData,
+        teachers: teacherData
+      },
+      completionChart: {
+        completed: parseFloat(completionRate),
+        inProgress: parseFloat(inProgressRate),
+        abandoned: parseFloat(abandonedRate),
+        total: totalAttempts
+      },
+      scoreChart: {
+        labels: scoreRanges,
+        data: scoreData
+      },
+      examChart: {
+        labels: months,
+        data: examData
+      },
+      changes: {
+        students: parseFloat(studentChange),
+        teachers: parseFloat(teacherChange),
+        exams: parseFloat(examChange),
+        newQuestions: newQuestions
+      }
+    });
+  } catch (err) {
+    console.error('Lỗi lấy dữ liệu biểu đồ:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// API lấy hoạt động gần đây cho admin
+router.get('/recent-activities', authenticateToken, async (req, res) => {
+  try {
+    const db = req.db;
+    const activities = [];
+
+    // 1. Người dùng mới đăng ký (7 ngày gần nhất)
+    const [newUsers] = await db.query(`
+      SELECT user_id, full_name, email, role, created_at
+      FROM users
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        AND role IN ('Student', 'Teacher')
+      ORDER BY created_at DESC
+      LIMIT 5
+    `);
+
+    for (const user of newUsers) {
+      const timeAgo = getTimeAgo(user.created_at);
+      activities.push({
+        type: 'new_user',
+        icon: user.role === 'Student' ? '👤' : '👨‍🏫',
+        title: `${user.role === 'Student' ? 'Sinh viên' : 'Giáo viên'} mới đăng ký`,
+        content: `${user.full_name || user.email}`,
+        time: timeAgo,
+        timestamp: user.created_at,
+        user_id: user.user_id
+      });
+    }
+
+    // 2. Kỳ thi mới được tạo (7 ngày gần nhất)
+    const [newExams] = await db.query(`
+      SELECT e.exam_id, e.exam_name, e.created_at, u.full_name as teacher_name, s.subject_name
+      FROM exams e
+      LEFT JOIN users u ON e.teacher_id = u.user_id
+      LEFT JOIN subjects s ON e.subject_id = s.subject_id
+      WHERE e.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        AND e.status != 'deleted'
+      ORDER BY e.created_at DESC
+      LIMIT 5
+    `);
+
+    for (const exam of newExams) {
+      const timeAgo = getTimeAgo(exam.created_at);
+      activities.push({
+        type: 'new_exam',
+        icon: '📝',
+        title: 'Kỳ thi mới được tạo',
+        content: `${exam.exam_name}${exam.subject_name ? ' - ' + exam.subject_name : ''}`,
+        time: timeAgo,
+        timestamp: exam.created_at,
+        exam_id: exam.exam_id
+      });
+    }
+
+    // 3. Bài thi mới được nộp (24 giờ qua)
+    const [recentSubmissions] = await db.query(`
+      SELECT 
+        e.exam_id,
+        e.exam_name,
+        COUNT(ea.attempt_id) as submission_count,
+        MAX(ea.end_time) as latest_submission_time
+      FROM exam_attempts ea
+      JOIN exams e ON ea.exam_id = e.exam_id
+      WHERE ea.status IN ('Submitted', 'AutoSubmitted')
+        AND ea.end_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      GROUP BY e.exam_id, e.exam_name
+      ORDER BY latest_submission_time DESC
+      LIMIT 5
+    `);
+
+    for (const submission of recentSubmissions) {
+      const timeAgo = getTimeAgo(submission.latest_submission_time);
+      activities.push({
+        type: 'exam_submitted',
+        icon: '✅',
+        title: `Có ${submission.submission_count} bài thi mới được nộp`,
+        content: submission.exam_name,
+        time: timeAgo,
+        timestamp: submission.latest_submission_time,
+        exam_id: submission.exam_id
+      });
+    }
+
+    // 4. Cảnh báo gian lận gần đây (24 giờ qua)
+    const [recentCheating] = await db.query(`
+      SELECT 
+        acl.log_id,
+        acl.event_type,
+        acl.event_time,
+        e.exam_id,
+        e.exam_name,
+        u.full_name as student_name,
+        COUNT(*) as violation_count
+      FROM anti_cheating_logs acl
+      JOIN exam_attempts ea ON acl.attempt_id = ea.attempt_id
+      JOIN exams e ON ea.exam_id = e.exam_id
+      JOIN users u ON ea.student_id = u.user_id
+      WHERE acl.event_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      GROUP BY acl.log_id, acl.event_type, acl.event_time, e.exam_id, e.exam_name, u.full_name
+      ORDER BY acl.event_time DESC
+      LIMIT 5
+    `);
+
+    for (const cheating of recentCheating) {
+      const timeAgo = getTimeAgo(cheating.event_time);
+      activities.push({
+        type: 'cheating_detected',
+        icon: '⚠️',
+        title: `Phát hiện gian lận: ${cheating.event_type}`,
+        content: `${cheating.student_name} - ${cheating.exam_name}`,
+        time: timeAgo,
+        timestamp: cheating.event_time,
+        exam_id: cheating.exam_id
+      });
+    }
+
+    // Sắp xếp theo thời gian mới nhất
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    res.json(activities.slice(0, 10)); // Trả về tối đa 10 hoạt động
+  } catch (err) {
+    console.error('Lỗi lấy hoạt động gần đây:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// Hàm helper để tính thời gian trước
+function getTimeAgo(date) {
+  const now = new Date();
+  const past = new Date(date);
+  const diffInSeconds = Math.floor((now - past) / 1000);
+
+  if (diffInSeconds < 60) return 'Vừa xong';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
+  return `${Math.floor(diffInSeconds / 604800)} tuần trước`;
+}
+
 // API danh sách người dùng
 router.get('/users', authenticateToken, async (req, res) => {
   try {
@@ -529,15 +870,104 @@ router.get('/settings', authenticateToken, async (req, res) => {
         notifyExamEnd: true,
         notifyScoreAvailable: true
       },
+      security: {
+        sessionTimeout: 30,
+        maxLoginAttempts: 5,
+        accountLockoutDuration: 15,
+        requireStrongPassword: false,
+        enableTwoFactor: false,
+        enableIPWhitelist: false
+      },
+      display: {
+        language: 'vi',
+        primaryColor: '#0d6efd',
+        fontSize: 'medium',
+        compactMode: false,
+        showAnimations: true,
+        showTooltips: true,
+        itemsPerPage: 25
+      },
+      email: {
+        smtpHost: '',
+        smtpPort: null,
+        smtpSecure: 'tls',
+        smtpEmail: '',
+        emailFromName: 'Hệ thống thi trực tuyến'
+      },
+      user: {
+        minPasswordLength: 8,
+        passwordExpiryDays: 90,
+        preventPasswordReuse: false,
+        allowStudentRegistration: true,
+        requireEmailVerification: false,
+        maxStudentsPerClass: 50
+      },
       system: {
         questionsPerPage: 20,
         autoSaveInterval: 60,
+        logRetentionDays: 30,
+        backupFrequency: 7,
         enableMaintenanceMode: false,
+        enableCaching: true,
         defaultAdminPassword: null
+      },
+      backup: {
+        schedule: 'weekly',
+        retention: 7,
+        includeFiles: true,
+        compress: true
+      },
+      logs: {
+        level: 'info',
+        maxFileSize: 10,
+        logUserActions: false,
+        logAPIRequests: false,
+        enableSystemMonitoring: false,
+        monitoringInterval: 5,
+        cpuThreshold: 80,
+        ramThreshold: 85
+      },
+      api: {
+        enableAPI: false,
+        apiKey: '',
+        rateLimit: 100,
+        tokenExpiry: 60,
+        enableGoogleIntegration: false,
+        googleClientId: '',
+        enableFacebookIntegration: false,
+        facebookAppId: '',
+        webhookUrl: '',
+        webhookOnExamStart: false,
+        webhookOnExamEnd: false
+      },
+      performance: {
+        enableCDN: false,
+        cdnUrl: '',
+        enableGzip: false,
+        cacheDuration: 3600,
+        dbPoolSize: 10,
+        enableQueryCache: false,
+        queryCacheDuration: 300,
+        enableImageOptimization: false,
+        maxImageSize: 5,
+        imageQuality: 80
       }
     };
 
-    // Thử lấy từ database (nếu có bảng settings)
+    // Tạo bảng settings nếu chưa có
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+          setting_key VARCHAR(100) PRIMARY KEY,
+          setting_value TEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+    } catch (err) {
+      console.error('Lỗi tạo bảng settings:', err);
+    }
+
+    // Thử lấy từ database
     try {
       const [settings] = await db.query("SELECT setting_key, setting_value FROM system_settings");
       if (settings.length > 0) {
@@ -564,8 +994,8 @@ router.get('/settings', authenticateToken, async (req, res) => {
         });
       }
     } catch (err) {
-      // Bảng chưa tồn tại, trả về default
-      console.log('Bảng settings chưa tồn tại, sử dụng default settings');
+      // Lỗi query, trả về default
+      console.log('Lỗi query settings, sử dụng default settings:', err.message);
     }
 
     res.json(defaultSettings);
@@ -622,14 +1052,111 @@ router.post('/settings', authenticateToken, async (req, res) => {
       await saveSetting('notification.notifyScoreAvailable', settings.notification.notifyScoreAvailable);
     }
 
+    // Lưu security settings
+    if (settings.security) {
+      await saveSetting('security.sessionTimeout', settings.security.sessionTimeout);
+      await saveSetting('security.maxLoginAttempts', settings.security.maxLoginAttempts);
+      await saveSetting('security.accountLockoutDuration', settings.security.accountLockoutDuration);
+      await saveSetting('security.requireStrongPassword', settings.security.requireStrongPassword);
+      await saveSetting('security.enableTwoFactor', settings.security.enableTwoFactor);
+      await saveSetting('security.enableIPWhitelist', settings.security.enableIPWhitelist);
+    }
+
+    // Lưu display settings
+    if (settings.display) {
+      await saveSetting('display.language', settings.display.language);
+      await saveSetting('display.primaryColor', settings.display.primaryColor);
+      await saveSetting('display.fontSize', settings.display.fontSize);
+      await saveSetting('display.compactMode', settings.display.compactMode);
+      await saveSetting('display.showAnimations', settings.display.showAnimations);
+      await saveSetting('display.showTooltips', settings.display.showTooltips);
+      await saveSetting('display.itemsPerPage', settings.display.itemsPerPage);
+    }
+
+    // Lưu email settings
+    if (settings.email) {
+      await saveSetting('email.smtpHost', settings.email.smtpHost);
+      await saveSetting('email.smtpPort', settings.email.smtpPort);
+      await saveSetting('email.smtpSecure', settings.email.smtpSecure);
+      await saveSetting('email.smtpEmail', settings.email.smtpEmail);
+      await saveSetting('email.emailFromName', settings.email.emailFromName);
+      if (settings.email.smtpPassword) {
+        await saveSetting('email.smtpPassword', settings.email.smtpPassword);
+      }
+    }
+
+    // Lưu user settings
+    if (settings.user) {
+      await saveSetting('user.minPasswordLength', settings.user.minPasswordLength);
+      await saveSetting('user.passwordExpiryDays', settings.user.passwordExpiryDays);
+      await saveSetting('user.preventPasswordReuse', settings.user.preventPasswordReuse);
+      await saveSetting('user.allowStudentRegistration', settings.user.allowStudentRegistration);
+      await saveSetting('user.requireEmailVerification', settings.user.requireEmailVerification);
+      await saveSetting('user.maxStudentsPerClass', settings.user.maxStudentsPerClass);
+    }
+
     // Lưu system settings
     if (settings.system) {
       await saveSetting('system.questionsPerPage', settings.system.questionsPerPage);
       await saveSetting('system.autoSaveInterval', settings.system.autoSaveInterval);
+      await saveSetting('system.logRetentionDays', settings.system.logRetentionDays);
+      await saveSetting('system.backupFrequency', settings.system.backupFrequency);
       await saveSetting('system.enableMaintenanceMode', settings.system.enableMaintenanceMode);
+      await saveSetting('system.enableCaching', settings.system.enableCaching);
       if (settings.system.defaultAdminPassword) {
         await saveSetting('system.defaultAdminPassword', settings.system.defaultAdminPassword);
       }
+    }
+
+    // Lưu backup settings
+    if (settings.backup) {
+      await saveSetting('backup.schedule', settings.backup.schedule);
+      await saveSetting('backup.retention', settings.backup.retention);
+      await saveSetting('backup.includeFiles', settings.backup.includeFiles);
+      await saveSetting('backup.compress', settings.backup.compress);
+    }
+
+    // Lưu logs settings
+    if (settings.logs) {
+      await saveSetting('logs.level', settings.logs.level);
+      await saveSetting('logs.maxFileSize', settings.logs.maxFileSize);
+      await saveSetting('logs.logUserActions', settings.logs.logUserActions);
+      await saveSetting('logs.logAPIRequests', settings.logs.logAPIRequests);
+      await saveSetting('logs.enableSystemMonitoring', settings.logs.enableSystemMonitoring);
+      await saveSetting('logs.monitoringInterval', settings.logs.monitoringInterval);
+      await saveSetting('logs.cpuThreshold', settings.logs.cpuThreshold);
+      await saveSetting('logs.ramThreshold', settings.logs.ramThreshold);
+    }
+
+    // Lưu API settings
+    if (settings.api) {
+      await saveSetting('api.enableAPI', settings.api.enableAPI);
+      if (settings.api.apiKey) {
+        await saveSetting('api.apiKey', settings.api.apiKey);
+      }
+      await saveSetting('api.rateLimit', settings.api.rateLimit);
+      await saveSetting('api.tokenExpiry', settings.api.tokenExpiry);
+      await saveSetting('api.enableGoogleIntegration', settings.api.enableGoogleIntegration);
+      await saveSetting('api.googleClientId', settings.api.googleClientId);
+      await saveSetting('api.enableFacebookIntegration', settings.api.enableFacebookIntegration);
+      await saveSetting('api.facebookAppId', settings.api.facebookAppId);
+      await saveSetting('api.webhookUrl', settings.api.webhookUrl);
+      await saveSetting('api.webhookOnExamStart', settings.api.webhookOnExamStart);
+      await saveSetting('api.webhookOnExamEnd', settings.api.webhookOnExamEnd);
+    }
+
+    // Lưu performance settings
+    if (settings.performance) {
+      await saveSetting('performance.enableCDN', settings.performance.enableCDN);
+      await saveSetting('performance.cdnUrl', settings.performance.cdnUrl);
+      await saveSetting('performance.enableGzip', settings.performance.enableGzip);
+      await saveSetting('performance.cacheDuration', settings.performance.cacheDuration);
+      await saveSetting('performance.dbPoolSize', settings.performance.dbPoolSize);
+      await saveSetting('performance.enableQueryCache', settings.performance.enableQueryCache);
+      await saveSetting('performance.queryCacheDuration', settings.performance.queryCacheDuration);
+      await saveSetting('performance.enableImageOptimization', settings.performance.enableImageOptimization);
+      await saveSetting('performance.maxImageSize', settings.performance.maxImageSize);
+      await saveSetting('performance.imageQuality', settings.performance.imageQuality);
     }
 
     res.json({ message: 'Lưu cài đặt thành công' });
@@ -1921,5 +2448,389 @@ router.get('/subjects/:id/details', authenticateToken, async (req, res) => {
   }
 });
 
+// ==========================================
+// BACKUP ROUTES
+// ==========================================
+
+// Hàm tạo bảng backup_history
+const createBackupHistoryTable = async (db) => {
+  try {
+    // Kiểm tra bảng đã tồn tại chưa
+    const [tables] = await db.query(`
+      SELECT TABLE_NAME 
+      FROM INFORMATION_SCHEMA.TABLES 
+      WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'backup_history'
+    `);
+    
+    // Nếu bảng đã tồn tại, kiểm tra xem có foreign key constraint không
+    if (tables.length > 0) {
+      try {
+        // Thử query để xem có lỗi không
+        await db.query('SELECT 1 FROM backup_history LIMIT 1');
+        return; // Bảng đã tồn tại và hoạt động tốt
+      } catch (err) {
+        // Nếu có lỗi, xóa bảng và tạo lại
+        console.log('Bảng backup_history có vấn đề, đang tạo lại...');
+        await db.query('DROP TABLE IF EXISTS backup_history');
+      }
+    }
+    
+    // Kiểm tra kiểu dữ liệu của user_id trong bảng users
+    let createdByType = 'INT';
+    try {
+      const [userTableInfo] = await db.query(`
+        SELECT COLUMN_TYPE 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'users' 
+        AND COLUMN_NAME = 'user_id'
+      `);
+      
+      if (userTableInfo.length > 0) {
+        const userIdType = userTableInfo[0].COLUMN_TYPE;
+        // Nếu là INT UNSIGNED, sử dụng INT UNSIGNED, nếu không thì dùng INT
+        createdByType = userIdType.includes('UNSIGNED') ? 'INT UNSIGNED' : 'INT';
+      }
+    } catch (err) {
+      console.log('Không thể kiểm tra kiểu dữ liệu user_id, sử dụng INT mặc định');
+    }
+    
+    // Thử tạo bảng với foreign key trước
+    try {
+      await db.query(`
+        CREATE TABLE backup_history (
+          backup_id INT AUTO_INCREMENT PRIMARY KEY,
+          backup_file VARCHAR(255) NOT NULL,
+          backup_size BIGINT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          created_by ${createdByType},
+          FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+    } catch (fkErr) {
+      // Nếu lỗi foreign key, tạo không có foreign key
+      if (fkErr.code === 'ER_FK_INCOMPATIBLE_COLUMNS' || fkErr.code === 'ER_CANNOT_ADD_FOREIGN') {
+        console.log('Không thể tạo foreign key, tạo bảng không có foreign key');
+        await db.query(`
+          CREATE TABLE backup_history (
+            backup_id INT AUTO_INCREMENT PRIMARY KEY,
+            backup_file VARCHAR(255) NOT NULL,
+            backup_size BIGINT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_by ${createdByType}
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+      } else {
+        throw fkErr;
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi tạo bảng backup_history:', err);
+    throw err;
+  }
+};
+
+// API tạo backup
+router.post('/backup/create', authenticateToken, async (req, res) => {
+  try {
+    const db = req.db;
+    const path = require('path');
+    const fs = require('fs').promises;
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    // Tạo bảng backup_history trước
+    await createBackupHistoryTable(db);
+    
+    // Lấy thông tin database từ env
+    const dbConfig = {
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'exam_system'
+    };
+    
+    // Tạo thư mục backup nếu chưa có
+    const backupDir = path.join(__dirname, '../../backups');
+    await fs.mkdir(backupDir, { recursive: true });
+    
+    // Tên file backup
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + '_' + 
+                      new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+    const backupFileName = `backup_${timestamp}.sql`;
+    const backupPath = path.join(backupDir, backupFileName);
+    
+    // Tạo backup database bằng mysqldump
+    const mysqldumpCmd = `mysqldump -h ${dbConfig.host} -u ${dbConfig.user} -p${dbConfig.password} ${dbConfig.database} > "${backupPath}"`;
+    
+    try {
+      await execAsync(mysqldumpCmd);
+      
+      // Lưu thông tin backup vào database
+      await db.query(
+        `INSERT INTO backup_history (backup_file, backup_size, created_at, created_by) 
+         VALUES (?, ?, NOW(), ?)`,
+        [backupFileName, (await fs.stat(backupPath)).size, req.user.id]
+      );
+      
+      res.json({ 
+        message: 'Tạo backup thành công',
+        backup_file: backupFileName,
+        backup_path: backupPath
+      });
+    } catch (execError) {
+      // Nếu mysqldump không có, tạo backup đơn giản bằng cách export data
+      console.log('mysqldump không khả dụng, sử dụng phương pháp backup đơn giản');
+      
+      // Tạo backup đơn giản (chỉ lưu thông tin)
+      const backupData = {
+        timestamp: new Date().toISOString(),
+        database: dbConfig.database,
+        tables: []
+      };
+      
+      // Lấy danh sách bảng
+      const [tables] = await db.query('SHOW TABLES');
+      for (const table of tables) {
+        const tableName = Object.values(table)[0];
+        const [rows] = await db.query(`SELECT * FROM ${tableName}`);
+        backupData.tables.push({
+          name: tableName,
+          data: rows
+        });
+      }
+      
+      // Lưu backup dưới dạng JSON
+      const jsonBackupPath = backupPath.replace('.sql', '.json');
+      await fs.writeFile(jsonBackupPath, JSON.stringify(backupData, null, 2));
+      
+      // Lưu thông tin backup vào database
+      await db.query(
+        `INSERT INTO backup_history (backup_file, backup_size, created_at, created_by) 
+         VALUES (?, ?, NOW(), ?)`,
+        [path.basename(jsonBackupPath), (await fs.stat(jsonBackupPath)).size, req.user.id || null]
+      );
+      
+      res.json({ 
+        message: 'Tạo backup thành công (JSON format)',
+        backup_file: path.basename(jsonBackupPath),
+        backup_path: jsonBackupPath
+      });
+    }
+  } catch (err) {
+    console.error('Lỗi tạo backup:', err);
+    res.status(500).json({ error: 'Lỗi tạo backup', details: err.message });
+  }
+});
+
+// API xem lịch sử backup
+router.get('/backup/history', authenticateToken, async (req, res) => {
+  try {
+    const db = req.db;
+    
+    // Tạo bảng backup_history nếu chưa có
+    await createBackupHistoryTable(db);
+    
+    const [backups] = await db.query(
+      `SELECT bh.*, u.full_name as created_by_name 
+       FROM backup_history bh 
+       LEFT JOIN users u ON bh.created_by = u.user_id 
+       ORDER BY bh.created_at DESC 
+       LIMIT 50`
+    );
+    
+    res.json(backups);
+  } catch (err) {
+    console.error('Lỗi lấy lịch sử backup:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// API khôi phục backup
+router.post('/backup/restore', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Vui lòng chọn file backup' });
+    }
+    
+    const db = req.db;
+    const path = require('path');
+    const fs = require('fs').promises;
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    const filePath = req.file.path;
+    const fileExt = path.extname(req.file.originalname).toLowerCase();
+    
+    // Lấy thông tin database từ env
+    const dbConfig = {
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'exam_system'
+    };
+    
+    if (fileExt === '.sql') {
+      // Khôi phục từ file SQL
+      const restoreCmd = `mysql -h ${dbConfig.host} -u ${dbConfig.user} -p${dbConfig.password} ${dbConfig.database} < "${filePath}"`;
+      await execAsync(restoreCmd);
+    } else if (fileExt === '.json') {
+      // Khôi phục từ file JSON
+      const backupData = JSON.parse(await fs.readFile(filePath, 'utf8'));
+      
+      // Xóa dữ liệu cũ (nếu có yêu cầu)
+      if (req.body.overwrite === 'true') {
+        for (const table of backupData.tables) {
+          await db.query(`TRUNCATE TABLE ${table.name}`);
+        }
+      }
+      
+      // Khôi phục dữ liệu
+      for (const table of backupData.tables) {
+        if (table.data && table.data.length > 0) {
+          // Xóa dữ liệu cũ
+          await db.query(`DELETE FROM ${table.name}`);
+          
+          // Insert dữ liệu mới
+          for (const row of table.data) {
+            const columns = Object.keys(row).join(', ');
+            const values = Object.values(row).map(() => '?').join(', ');
+            await db.query(
+              `INSERT INTO ${table.name} (${columns}) VALUES (${values})`,
+              Object.values(row)
+            );
+          }
+        }
+      }
+    } else {
+      await fs.unlink(filePath);
+      return res.status(400).json({ error: 'Định dạng file không được hỗ trợ' });
+    }
+    
+    // Xóa file upload
+    await fs.unlink(filePath);
+    
+    res.json({ message: 'Khôi phục backup thành công' });
+  } catch (err) {
+    console.error('Lỗi khôi phục backup:', err);
+    res.status(500).json({ error: 'Lỗi khôi phục backup', details: err.message });
+  }
+});
+
+// ==========================================
+// LOGS ROUTES
+// ==========================================
+
+// API xem log hệ thống
+router.get('/logs/view', authenticateToken, async (req, res) => {
+  try {
+    const path = require('path');
+    const fs = require('fs').promises;
+    
+    const logDir = path.join(__dirname, '../../logs');
+    const logFile = path.join(logDir, 'system.log');
+    
+    try {
+      const logContent = await fs.readFile(logFile, 'utf8');
+      res.setHeader('Content-Type', 'text/plain');
+      res.send(logContent);
+    } catch (err) {
+      // Nếu file log chưa có, tạo file mới
+      await fs.mkdir(logDir, { recursive: true });
+      await fs.writeFile(logFile, 'Log file created\n');
+      res.setHeader('Content-Type', 'text/plain');
+      res.send('Log file created\n');
+    }
+  } catch (err) {
+    console.error('Lỗi xem log:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// API xuất log
+router.get('/logs/export', authenticateToken, async (req, res) => {
+  try {
+    const path = require('path');
+    const fs = require('fs').promises;
+    
+    const logDir = path.join(__dirname, '../../logs');
+    const logFile = path.join(logDir, 'system.log');
+    
+    try {
+      const logContent = await fs.readFile(logFile, 'utf8');
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="logs-${new Date().toISOString().split('T')[0]}.txt"`);
+      res.send(logContent);
+    } catch (err) {
+      res.status(404).json({ error: 'File log không tồn tại' });
+    }
+  } catch (err) {
+    console.error('Lỗi xuất log:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// API xóa log cũ
+router.post('/logs/clear', authenticateToken, async (req, res) => {
+  try {
+    const path = require('path');
+    const fs = require('fs').promises;
+    
+    const logDir = path.join(__dirname, '../../logs');
+    const logFile = path.join(logDir, 'system.log');
+    
+    // Xóa file log
+    try {
+      await fs.unlink(logFile);
+    } catch (err) {
+      // File không tồn tại, không sao
+    }
+    
+    // Tạo file log mới
+    await fs.mkdir(logDir, { recursive: true });
+    await fs.writeFile(logFile, `Log cleared at ${new Date().toISOString()}\n`);
+    
+    res.json({ message: 'Xóa log cũ thành công' });
+  } catch (err) {
+    console.error('Lỗi xóa log:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// ==========================================
+// CACHE ROUTES
+// ==========================================
+
+// API xóa cache
+router.post('/cache/clear', authenticateToken, async (req, res) => {
+  try {
+    // Xóa cache trong memory (nếu có)
+    if (global.cache) {
+      global.cache.clear();
+    }
+    
+    // Xóa cache files (nếu có)
+    const path = require('path');
+    const fs = require('fs').promises;
+    const cacheDir = path.join(__dirname, '../../cache');
+    
+    try {
+      const files = await fs.readdir(cacheDir);
+      for (const file of files) {
+        await fs.unlink(path.join(cacheDir, file));
+      }
+    } catch (err) {
+      // Thư mục cache không tồn tại, không sao
+    }
+    
+    res.json({ message: 'Xóa cache thành công' });
+  } catch (err) {
+    console.error('Lỗi xóa cache:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
 
 module.exports = router;

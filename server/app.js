@@ -109,7 +109,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', (reason) => {
-    console.log(`❌ Client disconnected: ${socket.id}, Reason: ${reason}`);
+    console.log(` Client disconnected: ${socket.id}, Reason: ${reason}`);
   });
 });
 
@@ -139,7 +139,7 @@ pool.getConnection()
     conn.release();
   })
   .catch(err => {
-    console.error('❌ Database connection failed:', err.message);
+    console.error(' Database connection failed:', err.message);
   });
 
 app.locals.pool = pool;
@@ -202,7 +202,7 @@ app.use('/api/ai', aiRoutes);
 
 // 404 handler 
 app.use((req, res, next) => {
-  console.log(`❌ 404 - Route not found: ${req.method} ${req.path}`);
+  console.log(` 404 - Route not found: ${req.method} ${req.path}`);
   // Trả về JSON thay vì HTML
   res.status(404).json({ 
     error: 'Route not found',
@@ -213,7 +213,7 @@ app.use((req, res, next) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('❌ Error stack:', err.stack);
+  console.error(' Error stack:', err.stack);
   res.status(500).json({
     error: 'Something went wrong!',
     details: isProduction ? undefined : err.message,
@@ -228,7 +228,7 @@ setInterval(async () => {
       console.log(`🧹 Đã xóa ${result.affectedRows} OTP hết hạn`);
     }
   } catch (error) {
-    console.error('❌ Lỗi khi xóa OTP:', error.message);
+    console.error(' Lỗi khi xóa OTP:', error.message);
   }
 }, 60 * 60 * 1000); // Mỗi 1 giờ
 

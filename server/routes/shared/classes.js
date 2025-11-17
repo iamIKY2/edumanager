@@ -81,23 +81,43 @@ router.get('/:classId/detail', authMiddleware, roleMiddleware(['student', 'teach
       [classId]
     );
 
+    // Lấy thông báo từ bảng notifications
+    // Lấy tất cả thông báo của học sinh trong lớp này
     let announcements = [];
     try {
-      const [result] = await req.db.query(
-        `SELECT 
-            announcement_id,
-            title,
-            content,
-            created_at
-         FROM announcements
-         WHERE class_id = ?
-         ORDER BY created_at DESC
-         LIMIT 10`,
+      // Lấy danh sách student_id trong lớp
+      const [studentIds] = await req.db.query(
+        `SELECT student_id FROM class_students WHERE class_id = ?`,
         [classId]
       );
-      announcements = result || [];
+      
+      if (studentIds.length > 0) {
+        const studentIdList = studentIds.map(s => s.student_id);
+        const placeholders = studentIdList.map(() => '?').join(',');
+        
+        // Lấy thông báo của các học sinh trong lớp
+        // Lọc thông báo có related_type = 'Msg' hoặc NULL (thông báo từ giáo viên)
+        // và loại bỏ thông báo có related_type = 'Exam' hoặc 'Class' (thông báo hệ thống)
+        const [result] = await req.db.query(
+          `SELECT 
+              notification_id as announcement_id,
+              content as title,
+              content,
+              type,
+              created_at,
+              user_id as recipient_id
+           FROM notifications
+           WHERE user_id IN (${placeholders})
+             AND (related_type IS NULL OR related_type = 'Msg' OR related_type = '')
+           ORDER BY created_at DESC
+           LIMIT 20`,
+          studentIdList
+        );
+        announcements = result || [];
+      }
     } catch (err) {
-      console.log('Bảng announcements chưa tồn tại hoặc có lỗi');
+      console.error('Lỗi lấy thông báo từ notifications:', err);
+      console.log('Chi tiết lỗi:', err.message);
     }
 
     res.json({

@@ -313,16 +313,87 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
       const oldScore = oldScoreMap[grade.question_id] || 0;
       const newScore = parseFloat(grade.teacher_score || 0);
       
-      await req.db.query(
-        `UPDATE exam_attempt_answers
-         SET teacher_score = ?,
-             teacher_comment = ?,
-             is_graded = 1,
-             updated_by = ?,
-             updated_at = NOW()
+      console.log(`🔵 [Grading] Updating question ${grade.question_id}: oldScore=${oldScore}, newScore=${newScore}, teacher_score=${grade.teacher_score}`);
+      
+      // Đảm bảo giá trị là số hợp lệ
+      const teacherScoreValue = parseFloat(grade.teacher_score) || 0;
+      
+      // ⭐ SỬA: Sử dụng INSERT ... ON DUPLICATE KEY UPDATE để đảm bảo record được tạo nếu chưa tồn tại
+      // Kiểm tra xem record có tồn tại không (để log)
+      const [checkExists] = await req.db.query(
+        `SELECT attempt_id, question_id, teacher_score, is_graded 
+         FROM exam_attempt_answers 
          WHERE attempt_id = ? AND question_id = ?`,
-        [grade.teacher_score, grade.teacher_comment, teacherId, attemptId, grade.question_id]
+        [attemptId, grade.question_id]
       );
+      console.log(`🔍 [Grading] Check exists for question ${grade.question_id}:`, checkExists);
+      
+      // ⭐ SỬA: Sử dụng INSERT ... ON DUPLICATE KEY UPDATE cho cả hai trường hợp
+      // Điều này đảm bảo record được tạo nếu chưa tồn tại, hoặc cập nhật nếu đã tồn tại
+      try {
+        const upsertResult = await req.db.query(
+          `INSERT INTO exam_attempt_answers 
+           (attempt_id, question_id, teacher_score, teacher_comment, is_graded, updated_by, updated_at)
+           VALUES (?, ?, ?, ?, 1, ?, NOW())
+           ON DUPLICATE KEY UPDATE
+             teacher_score = VALUES(teacher_score),
+             teacher_comment = VALUES(teacher_comment),
+             is_graded = 1,
+             updated_by = VALUES(updated_by),
+             updated_at = NOW()`,
+          [attemptId, grade.question_id, teacherScoreValue, grade.teacher_comment || '', teacherId]
+        );
+        console.log(`✅ [Grading] Upsert result for question ${grade.question_id}:`, {
+          affectedRows: upsertResult[0]?.affectedRows,
+          insertId: upsertResult[0]?.insertId
+        });
+      } catch (upsertError) {
+        // Nếu ON DUPLICATE KEY UPDATE không hoạt động (không có unique key), thử UPDATE trước, nếu không có thì INSERT
+        console.log(`⚠️ [Grading] ON DUPLICATE KEY UPDATE failed, trying UPDATE then INSERT:`, upsertError.message);
+        
+        // Thử UPDATE trước
+        const [updateResult] = await req.db.query(
+          `UPDATE exam_attempt_answers
+           SET teacher_score = ?,
+               teacher_comment = ?,
+               is_graded = 1,
+               updated_by = ?,
+               updated_at = NOW()
+           WHERE attempt_id = ? AND question_id = ?`,
+          [teacherScoreValue, grade.teacher_comment || '', teacherId, attemptId, grade.question_id]
+        );
+        
+        // Nếu UPDATE không ảnh hưởng đến row nào, thì INSERT
+        if (updateResult.affectedRows === 0) {
+          console.log(`⚠️ [Grading] UPDATE affected 0 rows, trying INSERT for question ${grade.question_id}`);
+          try {
+            const insertResult = await req.db.query(
+              `INSERT INTO exam_attempt_answers 
+               (attempt_id, question_id, teacher_score, teacher_comment, is_graded, updated_by, updated_at)
+               VALUES (?, ?, ?, ?, 1, ?, NOW())`,
+              [attemptId, grade.question_id, teacherScoreValue, grade.teacher_comment || '', teacherId]
+            );
+            console.log(`✅ [Grading] Insert result for question ${grade.question_id}:`, insertResult);
+          } catch (insertError) {
+            console.error(`❌ [Grading] Failed to insert record for question ${grade.question_id}:`, insertError.message);
+            throw insertError;
+          }
+        } else {
+          console.log(`✅ [Grading] Update successful for question ${grade.question_id}:`, updateResult);
+        }
+      }
+      
+      // Xác nhận giá trị đã được cập nhật
+      const [verify] = await req.db.query(
+        `SELECT teacher_score, is_graded FROM exam_attempt_answers 
+         WHERE attempt_id = ? AND question_id = ?`,
+        [attemptId, grade.question_id]
+      );
+      if (verify && verify.length > 0) {
+        console.log(`✅ [Grading] Verified update for question ${grade.question_id}:`, verify[0]);
+      } else {
+        console.log(`⚠️ [Grading] Warning: Could not verify update for question ${grade.question_id}`);
+      }
       
       // Ghi audit log nếu điểm thay đổi
       if (oldScore !== newScore) {
@@ -336,20 +407,51 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
     }
 
     // Tính lại tổng điểm
+    // ⭐ ƯU TIÊN teacher_score NẾU CÓ (giáo viên đã chấm)
+    // Nếu không có teacher_score, mới dùng is_correct và points
+    // ⚠️ SỬA: Sử dụng LEFT JOIN để đảm bảo lấy được tất cả câu trả lời
     const [scores] = await req.db.query(
       `SELECT 
-        SUM(CASE 
-          WHEN eaa.is_correct = 1 THEN eq.points
-          WHEN eaa.teacher_score IS NOT NULL THEN eaa.teacher_score
-          ELSE 0
-        END) as total_score
+        COALESCE(SUM(
+          CASE 
+            WHEN eaa.teacher_score IS NOT NULL AND CAST(eaa.teacher_score AS DECIMAL(10,2)) > 0 
+              THEN CAST(eaa.teacher_score AS DECIMAL(10,2))
+            WHEN eaa.is_correct = 1 
+              THEN CAST(eq.points AS DECIMAL(10,2))
+            ELSE 0
+          END
+        ), 0) as total_score
        FROM exam_attempt_answers eaa
-       JOIN exam_questions eq ON eaa.question_id = eq.question_id
+       LEFT JOIN exam_questions eq ON eaa.question_id = eq.question_id
        WHERE eaa.attempt_id = ?`,
       [attemptId]
     );
 
-    const totalScore = parseFloat(scores[0].total_score || 0).toFixed(1);
+    const totalScore = parseFloat(scores[0]?.total_score || 0).toFixed(1);
+    
+    // Debug log để kiểm tra - Kiểm tra tất cả câu trả lời
+    const [debugScores] = await req.db.query(
+      `SELECT 
+        eaa.question_id,
+        eaa.is_correct,
+        eaa.teacher_score,
+        eaa.is_graded,
+        eq.points,
+        CASE 
+          WHEN eaa.teacher_score IS NOT NULL AND CAST(eaa.teacher_score AS DECIMAL(10,2)) > 0 
+            THEN CAST(eaa.teacher_score AS DECIMAL(10,2))
+          WHEN eaa.is_correct = 1 
+            THEN CAST(eq.points AS DECIMAL(10,2))
+          ELSE 0
+        END as calculated_score
+       FROM exam_attempt_answers eaa
+       LEFT JOIN exam_questions eq ON eaa.question_id = eq.question_id
+       WHERE eaa.attempt_id = ?`,
+      [attemptId]
+    );
+    console.log('🔍 [Grading] Debug scores:', JSON.stringify(debugScores, null, 2));
+    console.log('🔍 [Grading] Calculated totalScore:', totalScore);
+    console.log('🔍 [Grading] Scores query result:', scores);
 
     // Kiểm tra xem tất cả câu đã được chấm chưa
     const [pending] = await req.db.query(
@@ -385,6 +487,50 @@ router.post('/:attemptId/submit', authMiddleware, roleMiddleware(['teacher']), a
     );
 
     console.log('✅ Grading saved:', { totalScore, isFullyGraded });
+
+    // ⭐ CẬP NHẬT TRẠNG THÁI KHIẾU NẠI NẾU CÓ
+    // Nếu giáo viên sửa điểm, tự động cập nhật các khiếu nại đang "Pending" thành "Resolved"
+    try {
+      const [pendingComplaints] = await req.db.query(
+        `SELECT complaint_id FROM complaints 
+         WHERE exam_id = ? AND student_id = ? AND status = 'Pending'`,
+        [examId, studentId]
+      );
+
+      if (pendingComplaints && pendingComplaints.length > 0) {
+        console.log(`🔵 [Grading] Found ${pendingComplaints.length} pending complaint(s), updating to Resolved`);
+        
+        // Cập nhật tất cả khiếu nại đang chờ xử lý thành "Resolved"
+        const teacherResponse = `Điểm đã được chỉnh sửa. Lý do: ${reason.trim()}. Điểm mới: ${totalScore} điểm.`;
+        
+        await req.db.query(
+          `UPDATE complaints 
+           SET status = 'Resolved',
+               teacher_response = ?,
+               updated_at = NOW()
+           WHERE exam_id = ? AND student_id = ? AND status = 'Pending'`,
+          [teacherResponse, examId, studentId]
+        );
+
+        console.log(`✅ [Grading] Updated ${pendingComplaints.length} complaint(s) to Resolved status`);
+        
+        // Gửi thông báo cho học sinh về việc khiếu nại đã được xử lý
+        if (req.io && studentId) {
+          await createNotification(
+            req.db,
+            req.io,
+            studentId,
+            `Khiếu nại về bài thi "${examName}" đã được xử lý. Điểm đã được chỉnh sửa thành ${totalScore} điểm.`,
+            'Success',
+            examId,
+            'Exam'
+          );
+        }
+      }
+    } catch (complaintError) {
+      console.error('⚠️ [Grading] Error updating complaint status:', complaintError);
+      // Không throw error vì chấm điểm đã thành công
+    }
     console.log('🔵 [Grading] Status check - wasFullyGraded:', wasFullyGraded, 'isFullyGraded:', isFullyGraded);
     console.log('🔵 [Grading] Full condition check:', {
       isFullyGraded: isFullyGraded === 1,

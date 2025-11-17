@@ -851,58 +851,178 @@
 
             <!-- thông báo -->
             <div class="content-section" id="notifications">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Gửi thông báo</h2>
+                <!-- Tab chuyển đổi giữa "Gửi thông báo" và "Thông báo nhận được" -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <div class="class-tabs" style="border-bottom: 2px solid #e2e8f0; margin-bottom: 0;">
+                        <button class="tab active" data-tab="send-notification" onclick="switchNotificationTab('send')">
+                            📤 Gửi thông báo
+                        </button>
+                        <button class="tab" data-tab="received-notifications" onclick="switchNotificationTab('received')">
+                            📥 Thông báo nhận được (<span id="unreadNotificationCount">0</span>)
+                        </button>
+                        <button class="tab" data-tab="sent-history" onclick="switchNotificationTab('sent')">
+                            📜 Lịch sử đã gửi
+                        </button>
                     </div>
-                    <form onsubmit="handleSendNotification(event)" style="margin-top: 20px;">
-                        <div class="form-group">
-                            <label>Tiêu đề thông báo <span style="color: #f56565;">*</span></label>
-                            <input type="text" name="title" required placeholder="VD: Thông báo lịch thi cuối kỳ">
-                        </div>
-                        <div class="form-group">
-                            <label>Đối tượng nhận <span style="color: #f56565;">*</span></label>
-                            <select name="recipients" required>
-                                <option value="">Chọn đối tượng</option>
-                                <option value="all">Tất cả học sinh</option>
-                                <option value="class">Theo lớp</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Nội dung thông báo <span style="color: #f56565;">*</span></label>
-                            <textarea name="content" required placeholder="Nhập nội dung thông báo..." rows="5"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Mức độ ưu tiên</label>
-                            <select name="priority">
-                                <option value="normal">Bình thường</option>
-                                <option value="high">Cao</option>
-                                <option value="urgent">Khẩn cấp</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">📤 Gửi thông báo</button>
-                    </form>
                 </div>
 
-                <div class="card">
-                    <h2 class="card-title" style="margin-bottom: 20px;">Lịch sử thông báo</h2>
-                    <div class="notification-list">
-                        <div class="notification-item">
-                            <div class="notification-header">
-                                <span class="notification-title">Thông báo lịch thi cuối kỳ</span>
-                                <span class="notification-time">2 ngày trước</span>
+                <!-- Tab: Gửi thông báo -->
+                <div id="sendNotificationTab" class="notification-tab-content active">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">📤 Gửi thông báo cho học sinh</h2>
+                        </div>
+                        <form id="sendNotificationForm" onsubmit="handleSendNotification(event)" style="margin-top: 20px;">
+                            <div class="form-group">
+                                <label>Tiêu đề thông báo <span style="color: #f56565;">*</span></label>
+                                <input type="text" name="title" id="notificationTitle" required placeholder="VD: Thông báo lịch thi cuối kỳ">
                             </div>
-                            <div class="notification-content">
-                                Đã gửi đến tất cả học sinh - Mức độ: Cao
+                            
+                            <div class="form-group">
+                                <label>Đối tượng nhận <span style="color: #f56565;">*</span></label>
+                                <select name="recipients" id="notificationRecipients" required onchange="handleRecipientChange()">
+                                    <option value="">-- Chọn đối tượng --</option>
+                                    <option value="all">🌍 Tất cả học sinh</option>
+                                    <option value="class">🏫 Theo lớp học</option>
+                                    <option value="student">👤 Theo học sinh</option>
+                                </select>
+                            </div>
+
+                            <!-- Chọn lớp học (hiển thị khi chọn "Theo lớp") -->
+                            <div class="form-group" id="classSelectGroup" style="display: none;">
+                                <label>Chọn lớp học <span style="color: #f56565;">*</span></label>
+                                <select name="classId" id="notificationClassSelect" multiple style="min-height: 100px;">
+                                    <option value="">-- Đang tải danh sách lớp --</option>
+                                </select>
+                                <small style="color: #718096; display: block; margin-top: 5px;">
+                                    💡 Giữ Ctrl (Windows) hoặc Cmd (Mac) để chọn nhiều lớp
+                                </small>
+                            </div>
+
+                            <!-- Chọn học sinh (hiển thị khi chọn "Theo học sinh") -->
+                            <div class="form-group" id="studentSelectGroup" style="display: none;">
+                                <label>Chọn học sinh <span style="color: #f56565;">*</span></label>
+                                <select name="studentIds" id="notificationStudentSelect" multiple style="min-height: 150px;">
+                                    <option value="">-- Chọn lớp trước để hiển thị học sinh --</option>
+                                </select>
+                                <small style="color: #718096; display: block; margin-top: 5px;">
+                                    💡 Giữ Ctrl (Windows) hoặc Cmd (Mac) để chọn nhiều học sinh
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Nội dung thông báo <span style="color: #f56565;">*</span></label>
+                                <textarea name="content" id="notificationContent" required placeholder="Nhập nội dung thông báo chi tiết..." rows="6"></textarea>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div class="form-group">
+                                    <label>Mức độ ưu tiên</label>
+                                    <select name="priority" id="notificationPriority">
+                                        <option value="normal">🟢 Bình thường</option>
+                                        <option value="high">🟡 Cao</option>
+                                        <option value="urgent">🔴 Khẩn cấp</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Loại thông báo</label>
+                                    <select name="type" id="notificationType">
+                                        <option value="Info">ℹ️ Thông tin</option>
+                                        <option value="Warning">⚠️ Cảnh báo</option>
+                                        <option value="Success">✅ Thành công</option>
+                                        <option value="Error">❌ Lỗi</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+                                <button type="submit" class="btn btn-primary" id="sendNotificationBtn">
+                                    📤 Gửi thông báo
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="resetNotificationForm()">
+                                    🔄 Làm mới
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="previewNotification()">
+                                    👁️ Xem trước
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tab: Thông báo nhận được -->
+                <div id="receivedNotificationsTab" class="notification-tab-content" style="display: none;">
+                    <div class="card">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                            <h2 class="card-title">📥 Thông báo nhận được</h2>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button class="btn btn-secondary" onclick="markAllNotificationsAsRead()">
+                                    ✅ Đánh dấu tất cả đã đọc
+                                </button>
+                                <button class="btn btn-secondary" onclick="fetchNotifications()">
+                                    🔄 Làm mới
+                                </button>
                             </div>
                         </div>
-                        <div class="notification-item">
-                            <div class="notification-header">
-                                <span class="notification-title">Nhắc nhở nộp bài tập</span>
-                                <span class="notification-time">1 tuần trước</span>
+                        
+                        <div class="search-bar" style="margin-bottom: 15px;">
+                            <input type="text" class="search-input" id="searchReceivedNotifications" 
+                                   placeholder="🔍 Tìm kiếm thông báo..." 
+                                   oninput="filterReceivedNotifications()">
+                            <select id="filterNotificationType" onchange="filterReceivedNotifications()" 
+                                    style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                                <option value="all">Tất cả loại</option>
+                                <option value="Info">ℹ️ Thông tin</option>
+                                <option value="Warning">⚠️ Cảnh báo</option>
+                                <option value="Success">✅ Thành công</option>
+                                <option value="Error">❌ Lỗi</option>
+                            </select>
+                            <select id="filterNotificationRead" onchange="filterReceivedNotifications()" 
+                                    style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                                <option value="all">Tất cả</option>
+                                <option value="unread">📬 Chưa đọc</option>
+                                <option value="read">📭 Đã đọc</option>
+                            </select>
+                        </div>
+
+                        <div class="notification-list" id="receivedNotificationsList">
+                            <div style="text-align: center; padding: 40px; color: #718096;">
+                                <p>⏳ Đang tải thông báo...</p>
                             </div>
-                            <div class="notification-content">
-                                Đã gửi đến lớp Toán 10A1 - Mức độ: Bình thường
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Lịch sử đã gửi -->
+                <div id="sentHistoryTab" class="notification-tab-content" style="display: none;">
+                    <div class="card">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                            <h2 class="card-title">📜 Lịch sử thông báo đã gửi</h2>
+                            <button class="btn btn-secondary" onclick="loadSentNotifications()">
+                                🔄 Làm mới
+                            </button>
+                        </div>
+                        
+                        <div class="search-bar" style="margin-bottom: 15px;">
+                            <input type="text" class="search-input" id="searchSentNotifications" 
+                                   placeholder="🔍 Tìm kiếm thông báo đã gửi..." 
+                                   oninput="filterSentNotifications()">
+                            <select id="filterSentPriority" onchange="filterSentNotifications()" 
+                                    style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                                <option value="all">Tất cả mức độ</option>
+                                <option value="normal">🟢 Bình thường</option>
+                                <option value="high">🟡 Cao</option>
+                                <option value="urgent">🔴 Khẩn cấp</option>
+                            </select>
+                            <select id="filterSentClass" onchange="filterSentNotifications()" 
+                                    style="padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                                <option value="all">Tất cả lớp</option>
+                            </select>
+                        </div>
+
+                        <div id="sentNotificationsList" class="notification-list">
+                            <div style="text-align: center; padding: 40px; color: #718096;">
+                                <p>⏳ Đang tải lịch sử...</p>
                             </div>
                         </div>
                     </div>
@@ -1000,9 +1120,7 @@
             </div>
         </div>
     </div>
-    <!-- Thêm phần này vào CUỐI BODY của file teacher.html, trước thẻ đóng </body> -->
 
-<!-- ==================== AI EXAM MODAL ==================== -->
 
 <div id="aiExamModal" class="ai-modal">
     <div class="ai-modal-content">

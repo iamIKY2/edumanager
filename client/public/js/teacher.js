@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const role = localStorage.getItem('role')?.toLowerCase();
 
     if (!token || role !== 'teacher') {
-        showNotification('❌ Vui lòng đăng nhập để truy cập dashboard!', 'error');
+        showNotification(' Vui lòng đăng nhập để truy cập dashboard!', 'error');
         setTimeout(() => window.location.href = './login.html', 1500);
         return;
     }
@@ -175,11 +175,24 @@ async function handleAddExam(event) {
         renderDashboard();
         hideAddExam();
         
-        // Chuyển sang tab Bài thi
-        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        document.querySelector('.tab[data-tab="exams"]').classList.add('active');
-        document.getElementById('exams-tab').classList.add('active');
+        // ⭐ RELOAD DANH SÁCH BÀI THI Ở SECTION "Tạo bài thi" (nếu đang ở đó)
+        const examsSection = document.getElementById('exams');
+        if (examsSection && examsSection.classList.contains('active')) {
+            // Đang ở section "Tạo bài thi", reload lại danh sách
+            renderAllExams();
+        }
+        
+        // Chuyển sang tab Bài thi (chỉ khi đang ở trong lớp học)
+        const classDetail = document.getElementById('classDetail');
+        if (classDetail && classDetail.style.display !== 'none') {
+            // Đang ở trong chi tiết lớp học, chuyển sang tab Bài thi
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            const examsTab = document.querySelector('.tab[data-tab="exams"]');
+            const examsTabContent = document.getElementById('exams-tab');
+            if (examsTab) examsTab.classList.add('active');
+            if (examsTabContent) examsTabContent.classList.add('active');
+        }
         
         event.target.reset();
     } catch (error) {
@@ -484,7 +497,7 @@ function navigateTo(section) {
     }
 
     if (section === 'notifications') {
-        fetchNotifications();
+        onNavigateToNotifications();
     }
 
     if (section === 'statistics') {
@@ -2080,12 +2093,632 @@ async function updateChartType() {
     }
 }
 
-// Notifications
-function handleSendNotification(event) {
+// ==================== NOTIFICATIONS SECTION ====================
+
+// Biến lưu trữ dữ liệu
+let allReceivedNotifications = [];
+let allSentNotifications = [];
+let allClassesForNotification = [];
+
+// Chuyển đổi tab thông báo
+function switchNotificationTab(tab) {
+    // Ẩn tất cả tab
+    document.querySelectorAll('.notification-tab-content').forEach(t => {
+        t.style.display = 'none';
+    });
+    
+    // Cập nhật active tab button
+    document.querySelectorAll('[data-tab^="send"], [data-tab^="received"], [data-tab^="sent"]').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Hiển thị tab được chọn
+    if (tab === 'send') {
+        document.getElementById('sendNotificationTab').style.display = 'block';
+        document.querySelector('[data-tab="send-notification"]').classList.add('active');
+        loadClassesForNotification();
+    } else if (tab === 'received') {
+        document.getElementById('receivedNotificationsTab').style.display = 'block';
+        document.querySelector('[data-tab="received-notifications"]').classList.add('active');
+        fetchNotifications();
+    } else if (tab === 'sent') {
+        document.getElementById('sentHistoryTab').style.display = 'block';
+        document.querySelector('[data-tab="sent-history"]').classList.add('active');
+        loadSentNotifications();
+    }
+}
+
+// Load danh sách lớp cho form gửi thông báo
+async function loadClassesForNotification() {
+    const token = localStorage.getItem('token');
+    const classSelect = document.getElementById('notificationClassSelect');
+    
+    if (!classSelect) return;
+    
+    try {
+        const response = await fetch('http://localhost:3000/api/teacher/classes', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Lỗi tải danh sách lớp');
+        
+        const classes = await response.json();
+        allClassesForNotification = classes;
+        
+        classSelect.innerHTML = '<option value="">-- Chọn lớp --</option>';
+        classes.forEach(cls => {
+            const option = document.createElement('option');
+            option.value = cls.class_id;
+            option.textContent = `${cls.icon || '📚'} ${cls.class_name}`;
+            classSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Lỗi load classes:', error);
+        classSelect.innerHTML = '<option value="">❌ Lỗi tải danh sách lớp</option>';
+    }
+}
+
+// Xử lý thay đổi đối tượng nhận
+function handleRecipientChange() {
+    const recipients = document.getElementById('notificationRecipients').value;
+    const classSelectGroup = document.getElementById('classSelectGroup');
+    const studentSelectGroup = document.getElementById('studentSelectGroup');
+    
+    if (recipients === 'class') {
+        classSelectGroup.style.display = 'block';
+        studentSelectGroup.style.display = 'none';
+        loadClassesForNotification();
+    } else if (recipients === 'student') {
+        classSelectGroup.style.display = 'block';
+        studentSelectGroup.style.display = 'block';
+        loadClassesForNotification();
+        // Load học sinh khi chọn lớp
+        document.getElementById('notificationClassSelect').addEventListener('change', loadStudentsForNotification);
+    } else {
+        classSelectGroup.style.display = 'none';
+        studentSelectGroup.style.display = 'none';
+    }
+}
+
+// Load danh sách học sinh theo lớp
+async function loadStudentsForNotification() {
+    const classSelect = document.getElementById('notificationClassSelect');
+    const studentSelect = document.getElementById('notificationStudentSelect');
+    const token = localStorage.getItem('token');
+    
+    const selectedClasses = Array.from(classSelect.selectedOptions).map(opt => opt.value).filter(v => v);
+    
+    if (selectedClasses.length === 0) {
+        studentSelect.innerHTML = '<option value="">-- Chọn lớp trước --</option>';
+        return;
+    }
+    
+    try {
+        // Lấy học sinh từ tất cả lớp đã chọn
+        let allStudents = [];
+        for (const classId of selectedClasses) {
+            const response = await fetch(`http://localhost:3000/api/teacher/classes/${classId}/students`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                const students = await response.json();
+                allStudents = allStudents.concat(students);
+            }
+        }
+        
+        // Loại bỏ trùng lặp dựa trên user_id (vì student_id có thể là username)
+        const uniqueStudents = Array.from(new Map(allStudents.map(s => [s.user_id, s])).values());
+        
+        studentSelect.innerHTML = '<option value="">-- Chọn học sinh --</option>';
+        uniqueStudents.forEach(student => {
+            const option = document.createElement('option');
+            // Luôn dùng user_id, không dùng student_id (vì student_id có thể là username)
+            option.value = student.user_id;
+            option.textContent = `${student.full_name || student.username} (${student.username || student.email || ''})`;
+            studentSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Lỗi load students:', error);
+        studentSelect.innerHTML = '<option value="">❌ Lỗi tải danh sách học sinh</option>';
+    }
+}
+
+// Gửi thông báo
+async function handleSendNotification(event) {
     event.preventDefault();
-    const formData = new FormData(event.target);
-    showNotification('✅ Đã gửi thông báo thành công!');
-    event.target.reset();
+    const token = localStorage.getItem('token');
+    const form = event.target;
+    const sendBtn = document.getElementById('sendNotificationBtn');
+    
+    const title = document.getElementById('notificationTitle').value;
+    const content = document.getElementById('notificationContent').value;
+    const recipients = document.getElementById('notificationRecipients').value;
+    const priority = document.getElementById('notificationPriority').value;
+    const type = document.getElementById('notificationType').value;
+    
+    // Validate
+    if (!title || !content || !recipients) {
+        showNotification('❌ Vui lòng điền đầy đủ thông tin!', 'error');
+        return;
+    }
+    
+    let studentIds = [];
+    
+    if (recipients === 'all') {
+        // Lấy tất cả học sinh từ tất cả lớp của giáo viên
+        try {
+            const classesResponse = await fetch('http://localhost:3000/api/teacher/classes', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (classesResponse.ok) {
+                const classes = await classesResponse.json();
+                for (const cls of classes) {
+                    const studentsResponse = await fetch(`http://localhost:3000/api/teacher/classes/${cls.class_id}/students`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (studentsResponse.ok) {
+                        const students = await studentsResponse.json();
+                        // Luôn dùng user_id, không dùng student_id (vì student_id có thể là username)
+                        studentIds = studentIds.concat(students.map(s => s.user_id).filter(id => id));
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Lỗi lấy danh sách học sinh:', error);
+        }
+    } else if (recipients === 'class') {
+        const classSelect = document.getElementById('notificationClassSelect');
+        const selectedClasses = Array.from(classSelect.selectedOptions).map(opt => opt.value).filter(v => v);
+        
+        if (selectedClasses.length === 0) {
+            showNotification('❌ Vui lòng chọn ít nhất một lớp!', 'error');
+            return;
+        }
+        
+        // Lấy học sinh từ các lớp đã chọn
+        for (const classId of selectedClasses) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/teacher/classes/${classId}/students`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const students = await response.json();
+                    // Luôn dùng user_id, không dùng student_id (vì student_id có thể là username)
+                    studentIds = studentIds.concat(students.map(s => s.user_id).filter(id => id));
+                }
+            } catch (error) {
+                console.error(`Lỗi lấy học sinh lớp ${classId}:`, error);
+            }
+        }
+    } else if (recipients === 'student') {
+        const studentSelect = document.getElementById('notificationStudentSelect');
+        studentIds = Array.from(studentSelect.selectedOptions).map(opt => opt.value).filter(v => v);
+        
+        if (studentIds.length === 0) {
+            showNotification('❌ Vui lòng chọn ít nhất một học sinh!', 'error');
+            return;
+        }
+        
+        // Debug: Log studentIds để kiểm tra
+        console.log('📋 Selected student IDs:', studentIds);
+    }
+    
+    if (studentIds.length === 0) {
+        showNotification('❌ Không tìm thấy học sinh nào để gửi thông báo!', 'error');
+        return;
+    }
+    
+    // Loại bỏ trùng lặp và filter các giá trị hợp lệ (user_id phải là số hoặc chuỗi số)
+    studentIds = [...new Set(studentIds.filter(id => id && (typeof id === 'number' || /^\d+$/.test(String(id)))))];
+    
+    if (studentIds.length === 0) {
+        showNotification('❌ Không có học sinh hợp lệ để gửi thông báo!', 'error');
+        return;
+    }
+    
+    console.log(`📤 Sending notification to ${studentIds.length} students:`, studentIds);
+    
+    // Disable button
+    sendBtn.disabled = true;
+    sendBtn.textContent = '⏳ Đang gửi...';
+    
+    try {
+        // Gửi thông báo đến từng học sinh
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (const studentId of studentIds) {
+            try {
+                const response = await fetch('http://localhost:3000/api/notifications/send', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        recipient_id: studentId,
+                        title: title,
+                        content: content,
+                        type: type,
+                        priority: priority
+                    })
+                });
+                
+                if (response.ok) {
+                    successCount++;
+                } else {
+                    const errorData = await response.json().catch(() => ({ error: 'Lỗi không xác định' }));
+                    console.error(`Lỗi gửi thông báo cho học sinh ${studentId}:`, errorData.error || errorData.message);
+                    failCount++;
+                }
+            } catch (error) {
+                console.error(`Lỗi gửi thông báo cho học sinh ${studentId}:`, error);
+                failCount++;
+            }
+        }
+        
+        if (successCount > 0) {
+            showNotification(`✅ Đã gửi thông báo thành công đến ${successCount} học sinh${failCount > 0 ? ` (${failCount} lỗi)` : ''}!`, 'success');
+            form.reset();
+            resetNotificationForm();
+            loadSentNotifications(); // Refresh lịch sử
+        } else {
+            showNotification(`❌ Gửi thông báo thất bại!`, 'error');
+        }
+    } catch (error) {
+        console.error('Lỗi gửi thông báo:', error);
+        showNotification(`❌ Lỗi: ${error.message}`, 'error');
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = '📤 Gửi thông báo';
+    }
+}
+
+// Reset form thông báo
+function resetNotificationForm() {
+    document.getElementById('sendNotificationForm').reset();
+    document.getElementById('classSelectGroup').style.display = 'none';
+    document.getElementById('studentSelectGroup').style.display = 'none';
+    document.getElementById('notificationClassSelect').innerHTML = '<option value="">-- Chọn lớp --</option>';
+    document.getElementById('notificationStudentSelect').innerHTML = '<option value="">-- Chọn lớp trước --</option>';
+}
+
+// Xem trước thông báo
+function previewNotification() {
+    const title = document.getElementById('notificationTitle').value;
+    const content = document.getElementById('notificationContent').value;
+    const priority = document.getElementById('notificationPriority').value;
+    const type = document.getElementById('notificationType').value;
+    
+    if (!title || !content) {
+        showNotification('❌ Vui lòng nhập tiêu đề và nội dung để xem trước!', 'error');
+        return;
+    }
+    
+    const priorityLabels = {
+        'normal': '🟢 Bình thường',
+        'high': '🟡 Cao',
+        'urgent': '🔴 Khẩn cấp'
+    };
+    
+    const typeLabels = {
+        'Info': 'ℹ️ Thông tin',
+        'Warning': '⚠️ Cảnh báo',
+        'Success': '✅ Thành công',
+        'Error': '❌ Lỗi'
+    };
+    
+    alert(`XEM TRƯỚC THÔNG BÁO\n\n` +
+          `Tiêu đề: ${title}\n\n` +
+          `Nội dung: ${content}\n\n` +
+          `Mức độ: ${priorityLabels[priority] || priority}\n` +
+          `Loại: ${typeLabels[type] || type}`);
+}
+
+// Cập nhật renderNotifications để hiển thị trong tab mới
+function renderNotifications(notifications = []) {
+    allReceivedNotifications = notifications;
+    const notificationList = document.getElementById('receivedNotificationsList');
+    
+    if (!notificationList) {
+        // Fallback cho phần cũ
+        const oldList = document.querySelector('#notifications .notification-list');
+        if (oldList) {
+            renderNotificationsOld(notifications, oldList);
+        }
+        return;
+    }
+    
+    if (notifications.length === 0) {
+        notificationList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📢</div>
+                <div class="empty-state-text">Chưa có thông báo nào</div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Cập nhật số lượng chưa đọc
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const unreadCountElement = document.getElementById('unreadNotificationCount');
+    if (unreadCountElement) {
+        unreadCountElement.textContent = unreadCount;
+    }
+    
+    notificationList.innerHTML = notifications.map(n => {
+        const priorityClass = n.is_read ? '' : ' unread';
+        const typeIcon = {
+            'Info': 'ℹ️',
+            'Warning': '⚠️',
+            'Success': '✅',
+            'Error': '❌'
+        }[n.type] || '📢';
+        
+        return `
+            <div class="notification-item${priorityClass}" onclick="markNotificationAsRead(${n.notification_id})">
+                <div class="notification-header">
+                    <span class="notification-title">${typeIcon} ${n.content}</span>
+                    <span class="notification-time">${formatTimeAgo(n.created_at)}</span>
+                </div>
+                <div class="notification-content">
+                    <span class="notification-type">${n.type || 'Info'}</span>
+                    ${n.related_type && n.related_id ? ` • ${n.related_type}: ${n.related_id}` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    filterReceivedNotifications(); // Áp dụng filter hiện tại
+}
+
+// Render cho phần cũ (backward compatibility)
+function renderNotificationsOld(notifications = [], container) {
+    if (notifications.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📢</div>
+                <div class="empty-state-text">Chưa có thông báo nào</div>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = notifications.map(n => `
+        <div class="notification-item${n.is_read ? '' : ' unread'}" onclick="markNotificationAsRead(${n.notification_id})">
+            <div class="notification-header">
+                <span class="notification-title">${n.content}</span>
+                <span class="notification-time">${new Date(n.created_at).toLocaleString('vi-VN')}</span>
+            </div>
+            <div class="notification-content">
+                ${n.related_type}: ${n.related_id}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Filter thông báo nhận được
+function filterReceivedNotifications() {
+    const searchTerm = document.getElementById('searchReceivedNotifications')?.value.toLowerCase() || '';
+    const typeFilter = document.getElementById('filterNotificationType')?.value || 'all';
+    const readFilter = document.getElementById('filterNotificationRead')?.value || 'all';
+    
+    const filtered = allReceivedNotifications.filter(n => {
+        const matchSearch = !searchTerm || n.content.toLowerCase().includes(searchTerm);
+        const matchType = typeFilter === 'all' || n.type === typeFilter;
+        const matchRead = readFilter === 'all' || 
+                         (readFilter === 'unread' && !n.is_read) ||
+                         (readFilter === 'read' && n.is_read);
+        
+        return matchSearch && matchType && matchRead;
+    });
+    
+    const notificationList = document.getElementById('receivedNotificationsList');
+    if (!notificationList) return;
+    
+    if (filtered.length === 0) {
+        notificationList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🔍</div>
+                <div class="empty-state-text">Không tìm thấy thông báo nào</div>
+            </div>
+        `;
+        return;
+    }
+    
+    notificationList.innerHTML = filtered.map(n => {
+        const priorityClass = n.is_read ? '' : ' unread';
+        const typeIcon = {
+            'Info': 'ℹ️',
+            'Warning': '⚠️',
+            'Success': '✅',
+            'Error': '❌'
+        }[n.type] || '📢';
+        
+        return `
+            <div class="notification-item${priorityClass}" onclick="markNotificationAsRead(${n.notification_id})">
+                <div class="notification-header">
+                    <span class="notification-title">${typeIcon} ${n.content}</span>
+                    <span class="notification-time">${formatTimeAgo(n.created_at)}</span>
+                </div>
+                <div class="notification-content">
+                    <span class="notification-type">${n.type || 'Info'}</span>
+                    ${n.related_type && n.related_id ? ` • ${n.related_type}: ${n.related_id}` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Đánh dấu tất cả thông báo đã đọc
+async function markAllNotificationsAsRead() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('http://localhost:3000/api/notifications/mark-all-read', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+            showNotification('✅ Đã đánh dấu tất cả thông báo đã đọc!', 'success');
+            fetchNotifications();
+        } else {
+            throw new Error('Lỗi đánh dấu thông báo');
+        }
+    } catch (error) {
+        console.error('Lỗi markAllNotificationsAsRead:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+    }
+}
+
+// Load lịch sử thông báo đã gửi
+async function loadSentNotifications() {
+    const token = localStorage.getItem('token');
+    const sentList = document.getElementById('sentNotificationsList');
+    
+    if (!sentList) return;
+    
+    sentList.innerHTML = '<div style="text-align: center; padding: 40px; color: #718096;"><p>⏳ Đang tải lịch sử...</p></div>';
+    
+    try {
+        // Tạm thời lấy từ thông báo nhận được (vì chưa có API riêng)
+        // TODO: Tạo API endpoint riêng cho lịch sử gửi thông báo
+        const response = await fetch('http://localhost:3000/api/notifications', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Lỗi tải lịch sử');
+        
+        const notifications = await response.json();
+        allSentNotifications = notifications; // Tạm thời dùng chung
+        
+        if (notifications.length === 0) {
+            sentList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📜</div>
+                    <div class="empty-state-text">Chưa có thông báo nào đã gửi</div>
+                </div>
+            `;
+            return;
+        }
+        
+        renderSentNotifications(notifications);
+    } catch (error) {
+        console.error('Lỗi loadSentNotifications:', error);
+        sentList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">❌</div>
+                <div class="empty-state-text">Lỗi tải lịch sử: ${error.message}</div>
+            </div>
+        `;
+    }
+}
+
+// Render lịch sử đã gửi
+function renderSentNotifications(notifications) {
+    const sentList = document.getElementById('sentNotificationsList');
+    if (!sentList) return;
+    
+    sentList.innerHTML = notifications.map(n => {
+        const typeIcon = {
+            'Info': 'ℹ️',
+            'Warning': '⚠️',
+            'Success': '✅',
+            'Error': '❌'
+        }[n.type] || '📢';
+        
+        return `
+            <div class="notification-item">
+                <div class="notification-header">
+                    <span class="notification-title">${typeIcon} ${n.content}</span>
+                    <span class="notification-time">${formatTimeAgo(n.created_at)}</span>
+                </div>
+                <div class="notification-content">
+                    <span class="notification-type">${n.type || 'Info'}</span>
+                    ${n.related_type && n.related_id ? ` • ${n.related_type}: ${n.related_id}` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    filterSentNotifications();
+}
+
+// Filter thông báo đã gửi
+function filterSentNotifications() {
+    const searchTerm = document.getElementById('searchSentNotifications')?.value.toLowerCase() || '';
+    const priorityFilter = document.getElementById('filterSentPriority')?.value || 'all';
+    
+    const filtered = allSentNotifications.filter(n => {
+        const matchSearch = !searchTerm || n.content.toLowerCase().includes(searchTerm);
+        // Tạm thời không có priority trong notification, sẽ cần cập nhật sau
+        return matchSearch;
+    });
+    
+    const sentList = document.getElementById('sentNotificationsList');
+    if (!sentList) return;
+    
+    if (filtered.length === 0) {
+        sentList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🔍</div>
+                <div class="empty-state-text">Không tìm thấy thông báo nào</div>
+            </div>
+        `;
+        return;
+    }
+    
+    sentList.innerHTML = filtered.map(n => {
+        const typeIcon = {
+            'Info': 'ℹ️',
+            'Warning': '⚠️',
+            'Success': '✅',
+            'Error': '❌'
+        }[n.type] || '📢';
+        
+        return `
+            <div class="notification-item">
+                <div class="notification-header">
+                    <span class="notification-title">${typeIcon} ${n.content}</span>
+                    <span class="notification-time">${formatTimeAgo(n.created_at)}</span>
+                </div>
+                <div class="notification-content">
+                    <span class="notification-type">${n.type || 'Info'}</span>
+                    ${n.related_type && n.related_id ? ` • ${n.related_type}: ${n.related_id}` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Format thời gian (ví dụ: "2 giờ trước")
+function formatTimeAgo(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Vừa xong';
+    if (diffMins < 60) return `${diffMins} phút trước`;
+    if (diffHours < 24) return `${diffHours} giờ trước`;
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    
+    return date.toLocaleDateString('vi-VN', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Hàm này sẽ được gọi từ navigateTo hiện có
+function onNavigateToNotifications() {
+    fetchNotifications();
+    loadClassesForNotification();
 }
 
 function showNotification(message, type = 'success') {
@@ -2956,14 +3589,22 @@ function showGradingModal(data) {
         return;
     }
     
+    // ⭐ SỬA: Lấy cả câu đã chấm và chưa chấm để có thể sửa điểm
     const ungraded = data.answers.filter(a => 
         !a.is_graded && (a.question_type === 'Essay' || a.question_type === 'FillInBlank')
+    );
+    
+    // Lấy tất cả câu hỏi tự luận và điền khẩu (kể cả đã chấm) để có thể sửa điểm
+    const allGradableQuestions = data.answers.filter(a => 
+        a.question_type === 'Essay' || a.question_type === 'FillInBlank'
     );
     
     // Cập nhật title
     const modalTitle = modal.querySelector('#gradingModalTitle');
     if (modalTitle) {
-        modalTitle.textContent = `✍️ Chấm bài: ${data.exam_name}`;
+        // Nếu đã chấm hết, hiển thị "Sửa điểm", nếu chưa thì "Chấm bài"
+        const titleText = ungraded.length === 0 ? '✏️ Sửa điểm' : '✍️ Chấm bài';
+        modalTitle.textContent = `${titleText}: ${data.exam_name}`;
     }
     
     // Cập nhật thông tin học sinh và bài thi
@@ -3057,9 +3698,10 @@ function showGradingModal(data) {
         // Cập nhật onsubmit của form
         gradingForm.onsubmit = (e) => submitGrading(e, data.attempt_id);
         
+        // ⭐ SỬA: Hiển thị TẤT CẢ câu hỏi tự luận/điền khẩu (kể cả đã chấm) để có thể sửa điểm
         // Cập nhật danh sách câu hỏi
         questionsList.innerHTML = `
-            ${ungraded.map((answer, index) => `
+            ${allGradableQuestions.map((answer, index) => `
                 <div class="card" style="margin-bottom: 20px; border-left: 4px solid #667eea;">
                     <h4 style="margin-bottom: 15px; color: #2d3748;">
                         Câu ${index + 1}: ${answer.question_content}
@@ -3099,9 +3741,15 @@ function showGradingModal(data) {
                             step="0.5"
                             class="input-field"
                             placeholder="VD: 0, 0.5, 1, 1.5..."
+                            value="${answer.teacher_score || ''}"
                             required
                             style="max-width: 150px;"
                         >
+                        ${answer.teacher_score !== null && answer.teacher_score !== undefined ? `
+                            <small style="color: #48bb78; display: block; margin-top: 5px;">
+                                💡 Điểm hiện tại: ${answer.teacher_score}/${answer.points}
+                            </small>
+                        ` : ''}
                     </div>
                     
                     <div class="form-group">
@@ -3111,23 +3759,29 @@ function showGradingModal(data) {
                             rows="3" 
                             class="input-field"
                             placeholder="Nhập nhận xét cho học sinh..."
-                        ></textarea>
+                        >${answer.teacher_comment || ''}</textarea>
                     </div>
                 </div>
             `).join('')}
             
-            ${ungraded.length === 0 ? `
+            ${allGradableQuestions.length === 0 ? `
                 <div class="empty-state">
                     <div class="empty-state-icon">✅</div>
-                    <div class="empty-state-text">Tất cả câu hỏi đã được chấm</div>
+                    <div class="empty-state-text">Không có câu hỏi tự luận hoặc điền khẩu</div>
                 </div>
             ` : ''}
             
-            ${ungraded.length > 0 ? `
+            ${allGradableQuestions.length > 0 ? `
                 <div class="card" style="background: #fff5f5; border-left: 4px solid #f56565; margin-top: 20px;">
-                    <h4 style="margin-bottom: 10px; color: #2d3748;">📝 Lý do chỉnh sửa điểm <span style="color: #f56565;">*</span></h4>
+                    <h4 style="margin-bottom: 10px; color: #2d3748;">
+                        📝 ${ungraded.length === 0 ? 'Lý do chỉnh sửa điểm' : 'Lý do chấm điểm'} 
+                        <span style="color: #f56565;">*</span>
+                    </h4>
                     <p style="color: #718096; font-size: 14px; margin-bottom: 15px;">
-                        Vui lòng nhập lý do khi chỉnh sửa điểm. Lý do này sẽ được ghi lại trong lịch sử và học sinh có thể xem.
+                        ${ungraded.length === 0 
+                            ? 'Vui lòng nhập lý do khi chỉnh sửa điểm. Lý do này sẽ được ghi lại trong lịch sử và học sinh có thể xem.'
+                            : 'Vui lòng nhập lý do khi chấm điểm. Lý do này sẽ được ghi lại trong lịch sử và học sinh có thể xem.'
+                        }
                     </p>
                     <div class="form-group">
                         <textarea 
@@ -3135,7 +3789,7 @@ function showGradingModal(data) {
                             name="reason" 
                             rows="3" 
                             class="input-field"
-                            placeholder="VD: Điều chỉnh điểm do học sinh trình bày tốt hơn mong đợi..."
+                            placeholder="VD: ${ungraded.length === 0 ? 'Điều chỉnh điểm do học sinh trình bày tốt hơn mong đợi...' : 'Học sinh trả lời đúng và trình bày rõ ràng...'}"
                             required
                             style="width: 100%;"
                         ></textarea>
@@ -3201,7 +3855,17 @@ async function submitGrading(event, attemptId) {
         showNotification('✅ Đã lưu điểm thành công!', 'success');
         closeGradingModal();
         
+        // ⭐ RELOAD CẢ HAI TAB: Cần chấm và Lịch sử đã chấm
         await loadGradingSection();
+        
+        // Kiểm tra xem đang ở tab nào và reload tab đó
+        const pendingTab = document.getElementById('pendingGradingTab');
+        const historyTab = document.getElementById('gradedHistoryTab');
+        
+        if (historyTab && historyTab.style.display !== 'none') {
+            // Đang ở tab lịch sử, reload lại
+            await loadGradedHistory();
+        }
         
     } catch (error) {
         console.error('❌ Error:', error);
@@ -3401,6 +4065,9 @@ async function loadGradedHistory() {
                 <div class="exam-actions" style="display: flex; gap: 10px;">
                     <button class="btn btn-secondary" onclick="startGrading(${attempt.attempt_id}, ${attempt.exam_id})" style="padding: 10px 20px; background: #718096; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                         👁️ Xem lại
+                    </button>
+                    <button class="btn btn-primary" onclick="startGrading(${attempt.attempt_id}, ${attempt.exam_id})" style="padding: 10px 20px; background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        ✏️ Sửa điểm
                     </button>
                 </div>
             </div>
@@ -4035,7 +4702,11 @@ console.log(`📤 [Manual] Sending question ${i + 1}:`, JSON.stringify(requestBo
         //  BƯỚC 5: Cleanup và reload
         manualExamQuestions = [];
         hideManualExamCreation();
+        
+        // ⭐ RELOAD TẤT CẢ DANH SÁCH BÀI THI
         await renderAllExams(); 
+        
+        // Reload trong lớp học nếu đang xem lớp đó
         if (appData.currentClassId === classId) {
             const examsResponse = await fetch(`http://localhost:3000/api/teacher/classes/${classId}/exams`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -4047,6 +4718,9 @@ console.log(`📤 [Manual] Sending question ${i + 1}:`, JSON.stringify(requestBo
                 renderExams();
             }
         }
+        
+        // ⭐ ĐẢM BẢO GIỮ NGUYÊN TAB HIỆN TẠI (không reload trang)
+        // Không làm gì cả, chỉ reload dữ liệu
         
     } catch (err) {
         console.error('❌ [Manual] Fatal error:', err);
@@ -4283,7 +4957,12 @@ async function createExamFromQuestionBank() {
         
         showNotification('✅ Đã tạo đề thi từ ngân hàng!', 'success');
         hideQuestionBankView();
+        
+        // ⭐ RELOAD DANH SÁCH BÀI THI VÀ GIỮ NGUYÊN TAB
         await renderAllExams();
+        
+        // Reset selection
+        selectedQuestionsFromBank.clear();
         
     } catch (err) {
         console.error(err);
@@ -4988,7 +5667,7 @@ function copyExamCode() {
     const copySuccessMsg = document.getElementById('copySuccessMsg');
     
     if (!examCode) {
-        showNotification('❌ Không tìm thấy mã code!', 'error');
+        showNotification(' Không tìm thấy mã code!', 'error');
         return;
     }
     
@@ -5012,7 +5691,7 @@ function copyExamCode() {
             }
         }).catch(err => {
             console.error('Lỗi copy:', err);
-            showNotification('❌ Không thể copy mã code. Vui lòng copy thủ công!', 'error');
+            showNotification(' Không thể copy mã code. Vui lòng copy thủ công!', 'error');
         });
     } else {
         // Fallback cho trình duyệt cũ
@@ -5031,7 +5710,7 @@ function copyExamCode() {
                 }, 3000);
             }
         } catch (err) {
-            showNotification('❌ Không thể copy mã code. Vui lòng copy thủ công!', 'error');
+            showNotification(' Không thể copy mã code. Vui lòng copy thủ công!', 'error');
         }
         document.body.removeChild(textArea);
     }
@@ -5193,7 +5872,7 @@ async function loadClassesForAI() {
         }
     } catch (error) {
         console.error('Error loading classes:', error);
-        showAIAlert(`❌ ${error.message}`, 'error');
+        showAIAlert(` ${error.message}`, 'error');
     }
 }
 
@@ -5278,11 +5957,11 @@ async function generateAIExam() {
         }
 
         displayAIResults(aiGeneratedQuestions);
-        showAIAlert(`✅ Đã tạo thành công ${aiGeneratedQuestions.length} câu hỏi!`, 'success');
+        showAIAlert(` Đã tạo thành công ${aiGeneratedQuestions.length} câu hỏi!`, 'success');
 
     } catch (error) {
         console.error('Error:', error);
-        showAIAlert(`❌ ${error.message}`, 'error');
+        showAIAlert(` ${error.message}`, 'error');
         document.getElementById('aiExamForm').style.display = 'block';
     } finally {
         document.getElementById('aiLoading').classList.remove('active');
@@ -5366,13 +6045,13 @@ async function saveAIExam() {
     const token = localStorage.getItem('token');
 
     if (!token) {
-        showAIAlert('❌ Vui lòng đăng nhập lại!', 'error');
+        showAIAlert(' Vui lòng đăng nhập lại!', 'error');
         return;
     }
 
     // Kiểm tra classId
     if (!selectedClassForAI) {
-        showAIAlert('❌ Vui lòng chọn lớp học để gắn bài thi!', 'error');
+        showAIAlert(' Vui lòng chọn lớp học để gắn bài thi!', 'error');
         return;
     }
 
@@ -5387,7 +6066,7 @@ async function saveAIExam() {
 
         // Validate ngày giờ
         if (!examDate || !examTime) {
-            showAIAlert('❌ Vui lòng chọn ngày và giờ thi!', 'error');
+            showAIAlert(' Vui lòng chọn ngày và giờ thi!', 'error');
             return;
         }
 
@@ -5395,7 +6074,7 @@ async function saveAIExam() {
         const examDateTime = new Date(`${examDate}T${examTime}`);
         const now = new Date();
         if (examDateTime <= now) {
-            showAIAlert('❌ Ngày và giờ thi phải trong tương lai!', 'error');
+            showAIAlert(' Ngày và giờ thi phải trong tương lai!', 'error');
             return;
         }
         
@@ -5515,7 +6194,7 @@ async function saveAIExam() {
         }
 
         if (successCount > 0) {
-            showAIAlert(`✅ Đã lưu thành công ${successCount}/${aiGeneratedQuestions.length} câu hỏi!${errorCount > 0 ? ` (${errorCount} lỗi)` : ''}`, 'success');
+            showAIAlert(` Đã lưu thành công ${successCount}/${aiGeneratedQuestions.length} câu hỏi!${errorCount > 0 ? ` (${errorCount} lỗi)` : ''}`, 'success');
             
             // Hiển thị mã code nếu có
             if (examCode) {
@@ -5526,14 +6205,16 @@ async function saveAIExam() {
                 }, 500);
             }
             
-            setTimeout(() => {
+            setTimeout(async () => {
                 closeAIModal();
-                if (typeof loadExams === 'function') {
-                    loadExams();
+                if (typeof renderAllExams === 'function') {
+                    await renderAllExams();
+                } else if (typeof loadAllExams === 'function') {
+                    await loadAllExams();
+                } else if (typeof loadExams === 'function') {
+                    await loadExams();
                 }
-                if (typeof loadAllExams === 'function') {
-                    loadAllExams();
-                }
+                
             }, 2000);
         } else {
             throw new Error('Không thể lưu bất kỳ câu hỏi nào');
@@ -5561,7 +6242,7 @@ function downloadAIJSON() {
     a.click();
     URL.revokeObjectURL(url);
 
-    showAIAlert('✅ Đã tải xuống file JSON!', 'success');
+    showAIAlert(' Đã tải xuống file JSON!', 'success');
 }
 
 // Hiển thị thông báo
