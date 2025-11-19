@@ -74,9 +74,35 @@
                 <button class="btn btn-sm btn-outline-secondary" id="toggleDarkMode" title="Chuyển đổi giao diện sáng/tối">
                     <i class="bi bi-moon-fill" id="darkModeIcon"></i>
                 </button>
-                <button class="btn btn-sm btn-primary" id="exportReport">
-                    <i class="bi bi-download"></i> Xuất báo cáo
-                </button>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="exportReportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-download"></i> Xuất báo cáo
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportReportDropdown">
+                        <li>
+                            <a class="dropdown-item" href="#" id="headerExportExcel">
+                                <i class="bi bi-file-earmark-excel text-success"></i> Xuất Excel
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" id="headerExportPDF">
+                                <i class="bi bi-file-earmark-pdf text-danger"></i> Xuất PDF
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#" id="headerPrintReport">
+                                <i class="bi bi-printer text-primary"></i> In báo cáo
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#" id="goToReportsSection">
+                                <i class="bi bi-graph-up"></i> Xem báo cáo chi tiết
+                            </a>
+                        </li>
+                    </ul>
+                </div>
                 <div class="user-avatar">AD</div>
             </div>
         </div>
@@ -549,6 +575,50 @@
                 </button>
             </div>
         </div>
+        
+        <!-- Bộ lọc -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label class="form-label small">Tìm kiếm</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="questionSearchInput" placeholder="Tìm kiếm câu hỏi...">
+                    <button class="btn btn-outline-secondary" type="button" onclick="loadQuestionsData(1)">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Môn học</label>
+                <select class="form-select" id="questionSubjectFilter">
+                    <option value="all">Tất cả</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Mức độ</label>
+                <select class="form-select" id="questionDifficultyFilter">
+                    <option value="all">Tất cả</option>
+                    <option value="Easy">Dễ</option>
+                    <option value="Medium">Trung bình</option>
+                    <option value="Hard">Khó</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Loại câu hỏi</label>
+                <select class="form-select" id="questionTypeFilter">
+                    <option value="all">Tất cả</option>
+                    <option value="Multiple Choice">Trắc nghiệm</option>
+                    <option value="True/False">Đúng/Sai</option>
+                    <option value="Short Answer">Tự luận ngắn</option>
+                    <option value="Essay">Tự luận</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-outline-secondary w-100" onclick="loadQuestionsData(1)">
+                    <i class="bi bi-arrow-clockwise"></i> Làm mới
+                </button>
+            </div>
+        </div>
+        
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
@@ -562,9 +632,14 @@
                         <th>Thao tác</th>
                     </tr>
                 </thead>
-                <tbody id="questionsTableBody"></tbody>
+                <tbody id="questionsTableBody">
+                    <tr><td colspan="7" class="text-center">Đang tải dữ liệu...</td></tr>
+                </tbody>
             </table>
         </div>
+        
+        <!-- Pagination -->
+        <nav class="mt-4" id="questionsPagination"></nav>
     </div>
 </div>
 
@@ -614,35 +689,6 @@
         </div>
     </div>
 </div>
-        <div id="questions-section" class="content-section">
-            <div class="table-card">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h6 class="chart-title mb-0">Ngân Hàng Câu Hỏi</h6>
-                    <button class="btn btn-primary" id="addQuestionBtn">
-                        <i class="bi bi-plus-lg"></i> Thêm câu hỏi
-                    </button>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px;">ID</th>
-                                <th>Nội dung câu hỏi</th>
-                                <th>Môn học</th>
-                                <th>Mức độ</th>
-                                <th>Loại</th>
-                                <th>Tỷ lệ đúng</th>
-                                <th>Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Data will be loaded here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
 
       <div id="subjects-section" class="content-section">
     <!-- Danh sách môn học (mặc định) -->
@@ -956,6 +1002,100 @@
                 <li class="page-item disabled"><a class="page-link" href="#">Trước</a></li>
                 <li class="page-item active"><a class="page-link" href="#">1</a></li>
                 <li class="page-item"><a class="page-link" href="#">Sau</a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Lịch sử sửa điểm của giáo viên -->
+    <div class="table-card mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h6 class="chart-title mb-0">
+                <i class="bi bi-pencil-square"></i> Lịch sử sửa điểm của giáo viên
+            </h6>
+            <div class="d-flex gap-2">
+                <input type="date" class="form-control form-control-sm" id="scoreHistoryStartDate" style="width: 150px;">
+                <input type="date" class="form-control form-control-sm" id="scoreHistoryEndDate" style="width: 150px;">
+                <button class="btn btn-sm btn-primary" onclick="loadScoreHistory()">
+                    <i class="bi bi-search"></i> Tìm kiếm
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="resetScoreHistoryFilter()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Giáo viên</th>
+                        <th>Học sinh</th>
+                        <th>Bài thi</th>
+                        <th>Môn học</th>
+                        <th>Câu hỏi</th>
+                        <th>Điểm cũ</th>
+                        <th>Điểm mới</th>
+                        <th>Tổng điểm cũ</th>
+                        <th>Tổng điểm mới</th>
+                        <th>Lý do</th>
+                    </tr>
+                </thead>
+                <tbody id="scoreHistoryTableBody">
+                    <tr><td colspan="11" class="text-center">Đang tải dữ liệu...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <nav class="mt-3">
+            <ul class="pagination justify-content-center" id="scoreHistoryPagination">
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Lịch sử khiếu nại của học sinh -->
+    <div class="table-card mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h6 class="chart-title mb-0">
+                <i class="bi bi-exclamation-circle"></i> Lịch sử khiếu nại của học sinh
+            </h6>
+            <div class="d-flex gap-2">
+                <select class="form-select form-select-sm" id="complaintStatusFilter" style="width: 150px;">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="Pending">Đang chờ</option>
+                    <option value="Resolved">Đã xử lý</option>
+                    <option value="Rejected">Từ chối</option>
+                </select>
+                <input type="date" class="form-control form-control-sm" id="complaintHistoryStartDate" style="width: 150px;">
+                <input type="date" class="form-control form-control-sm" id="complaintHistoryEndDate" style="width: 150px;">
+                <button class="btn btn-sm btn-primary" onclick="loadComplaintsHistory()">
+                    <i class="bi bi-search"></i> Tìm kiếm
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="resetComplaintHistoryFilter()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Học sinh</th>
+                        <th>Bài thi</th>
+                        <th>Môn học</th>
+                        <th>Điểm</th>
+                        <th>Nội dung khiếu nại</th>
+                        <th>Trạng thái</th>
+                        <th>Phản hồi giáo viên</th>
+                        <th>Giáo viên</th>
+                    </tr>
+                </thead>
+                <tbody id="complaintsHistoryTableBody">
+                    <tr><td colspan="9" class="text-center">Đang tải dữ liệu...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <nav class="mt-3">
+            <ul class="pagination justify-content-center" id="complaintsHistoryPagination">
             </ul>
         </nav>
     </div>
@@ -1788,6 +1928,30 @@
                     </div>
                     <div class="modal-body">
                         <div id="examDetailContent">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Đang tải...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Xem Chi Tiết Người Dùng -->
+        <div class="modal fade" id="viewUserModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Chi Tiết Người Dùng</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="userDetailContent">
                             <div class="text-center py-5">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Đang tải...</span>

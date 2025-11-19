@@ -9,6 +9,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="/client/public/images/edu.png">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root {
       --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -110,6 +111,73 @@
       right: 20px;
       z-index: 1050;
     }
+    #googleSignInContainer {
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+    #googleSignInContainer > div {
+      width: 100%;
+    }
+    /* Style cho Google button được render */
+    #googleSignInContainer iframe {
+      width: 100% !important;
+    }
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      margin: 1.5rem 0;
+      color: var(--text-light);
+    }
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .divider span {
+      padding: 0 1rem;
+    }
+    .role-selection-modal .modal-content {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      color: white;
+    }
+    .role-selection-modal .modal-header {
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .role-selection-modal .modal-body {
+      padding: 2rem;
+    }
+    .role-option {
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid var(--glass-border);
+      border-radius: 15px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 1rem;
+    }
+    .role-option:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: white;
+      transform: translateY(-3px);
+    }
+    .role-option.selected {
+      background: var(--secondary-gradient);
+      border-color: white;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    .role-option i {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    .role-option h5 {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
     @media (max-width: 576px) {
       .login-container {
         margin: 1rem;
@@ -142,14 +210,226 @@
         <i class="fas fa-sign-in-alt me-2"></i>Đăng nhập
       </button>
     </form>
+    
+    <div class="divider">
+      <span>hoặc</span>
+    </div>
+    
+    <div id="googleSignInContainer" style="display: flex; justify-content: center; margin-bottom: 1rem;">
+      <div id="googleSignInButton"></div>
+    </div>
+    
     <p class="text-center text-light mt-3">Chưa có tài khoản? <a href="register.html" class="text-warning">Đăng ký</a></p>
     <p class="text-center text-light"><a href="forgot_password.html" class="text-warning">Quên mật khẩu?</a></p>
+  </div>
+
+  <!-- Modal chọn role -->
+  <div class="modal fade role-selection-modal" id="roleSelectionModal" tabindex="-1" aria-labelledby="roleSelectionModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="roleSelectionModalLabel">
+            <i class="fas fa-user-tag me-2"></i>Chọn vai trò của bạn
+          </h5>
+        </div>
+        <div class="modal-body">
+          <p class="text-center mb-4">Vui lòng chọn vai trò phù hợp với bạn:</p>
+          <div class="role-option" data-role="student">
+            <div class="text-center">
+              <i class="fas fa-user-graduate"></i>
+              <h5>Học sinh</h5>
+              <p class="mb-0">Tham gia các lớp học và làm bài kiểm tra</p>
+            </div>
+          </div>
+          <div class="role-option" data-role="teacher">
+            <div class="text-center">
+              <i class="fas fa-chalkboard-teacher"></i>
+              <h5>Giáo viên</h5>
+              <p class="mb-0">Tạo lớp học, bài kiểm tra và quản lý học sinh</p>
+            </div>
+          </div>
+          <button type="button" id="confirmRoleButton" class="btn btn-gradient w-100 mt-3" disabled>
+            <i class="fas fa-check me-2"></i>Xác nhận
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
   <script>
     AOS.init({ duration: 800, once: true });
+
+    // Google OAuth Configuration
+    const GOOGLE_CLIENT_ID = '1028134720370-jgqmf3pg0p25vjgmhtgj9a4q2rid4t4e.apps.googleusercontent.com';
+    let googleToken = null;
+    let pendingUserInfo = null;
+
+    // Xử lý khi người dùng đăng nhập bằng Google
+    async function handleGoogleSignIn(response) {
+      try {
+        googleToken = response.credential;
+        console.log('🔐 Google Sign-In token nhận được');
+        showToast('Đang xử lý đăng nhập Google...', 'info');
+
+        // Gửi token lên server
+        const res = await fetch('http://localhost:3000/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: googleToken })
+        });
+
+        const data = await res.json();
+        console.log('📥 Phản hồi từ server:', data);
+
+        if (data.needsRoleSelection) {
+          // User mới - hiển thị modal chọn role
+          console.log('🆕 User mới - Hiển thị modal chọn role');
+          pendingUserInfo = data.userInfo;
+          showRoleSelectionModal();
+        } else if (data.success) {
+          // User đã tồn tại - đăng nhập thành công
+          console.log('✅ User đã tồn tại - Đăng nhập thành công với role:', data.role);
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('role', data.role);
+          showToast('Đăng nhập Google thành công!', 'success');
+          
+          setTimeout(() => {
+            redirectByRole(data.role);
+          }, 1000);
+        } else {
+          console.error('❌ Lỗi đăng nhập:', data.error);
+          showToast(data.error || 'Đăng nhập Google thất bại!', 'danger');
+        }
+      } catch (err) {
+        console.error('❌ Lỗi đăng nhập Google:', err);
+        showToast('Lỗi kết nối server! Vui lòng thử lại.', 'danger');
+      }
+    }
+
+    // Khởi tạo Google Sign-In khi trang load
+    window.onload = function() {
+      // Đợi Google API load xong
+      function initGoogleSignIn() {
+        if (typeof google !== 'undefined' && google.accounts) {
+          google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleSignIn
+          });
+
+          // Render Google Sign-In button chính thức
+          const container = document.getElementById('googleSignInButton');
+          if (container) {
+            google.accounts.id.renderButton(container, {
+              theme: 'outline',
+              size: 'large',
+              width: '100%',
+              text: 'signin_with',
+              locale: 'vi'
+            });
+          }
+        } else {
+          // Retry sau 100ms nếu Google API chưa load
+          setTimeout(initGoogleSignIn, 100);
+        }
+      }
+      
+      initGoogleSignIn();
+    };
+
+    // Hiển thị modal chọn role
+    function showRoleSelectionModal() {
+      const modal = new bootstrap.Modal(document.getElementById('roleSelectionModal'));
+      modal.show();
+      
+      // Reset selection
+      document.querySelectorAll('.role-option').forEach(option => {
+        option.classList.remove('selected');
+      });
+      document.getElementById('confirmRoleButton').disabled = true;
+    }
+
+    // Xử lý chọn role
+    document.querySelectorAll('.role-option').forEach(option => {
+      option.addEventListener('click', () => {
+        document.querySelectorAll('.role-option').forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        document.getElementById('confirmRoleButton').disabled = false;
+      });
+    });
+
+    // Xử lý xác nhận role
+    document.getElementById('confirmRoleButton').addEventListener('click', async () => {
+      const selectedRole = document.querySelector('.role-option.selected')?.dataset.role;
+      
+      if (!selectedRole || !googleToken) {
+        showToast('Vui lòng chọn vai trò!', 'danger');
+        return;
+      }
+
+      const confirmButton = document.getElementById('confirmRoleButton');
+      confirmButton.disabled = true;
+      confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý...';
+
+      try {
+        const res = await fetch('http://localhost:3000/api/auth/google/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: googleToken,
+            role: selectedRole,
+            fullName: pendingUserInfo?.name,
+            username: pendingUserInfo?.email?.split('@')[0]
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          // Đóng modal
+          const modal = bootstrap.Modal.getInstance(document.getElementById('roleSelectionModal'));
+          modal.hide();
+
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('role', data.role);
+          showToast('Đăng ký Google thành công!', 'success');
+
+          setTimeout(() => {
+            redirectByRole(data.role);
+          }, 1000);
+        } else {
+          showToast(data.error || 'Đăng ký thất bại!', 'danger');
+          confirmButton.disabled = false;
+          confirmButton.innerHTML = '<i class="fas fa-check me-2"></i>Xác nhận';
+        }
+      } catch (err) {
+        console.error('Lỗi hoàn tất đăng ký:', err);
+        showToast('Lỗi kết nối server! Vui lòng thử lại.', 'danger');
+        confirmButton.disabled = false;
+        confirmButton.innerHTML = '<i class="fas fa-check me-2"></i>Xác nhận';
+      }
+    });
+
+    // Chuyển hướng theo role
+    function redirectByRole(role) {
+      const roleLower = role ? role.toLowerCase() : '';
+      switch (roleLower) {
+        case 'student':
+          window.location.href = './student_dashboard.html';
+          break;
+        case 'teacher':
+          window.location.href = './teacher_dashboard.html';
+          break;
+        case 'admin':
+          window.location.href = './admin.html';
+          break;
+        default:
+          showToast('Vai trò không hợp lệ! Vui lòng liên hệ hỗ trợ.', 'danger');
+          localStorage.removeItem('token');
+          localStorage.removeItem('role');
+      }
+    }
 
     // Hiển thị toast
     function showToast(message, type = 'danger') {
@@ -242,30 +522,7 @@
 
           // Chuyển trang theo role
           setTimeout(() => {
-            const role = data.role ? data.role.toLowerCase() : '';
-            console.log('Vai trò nhận được:', role); 
-            console.log('Token:', data.token); 
-            if (role && data.token) {
-              switch (role) {
-                case 'student':
-                  window.location.href = './student_dashboard.html'; 
-                  break;
-                case 'teacher':
-                  window.location.href = './teacher_dashboard.html';
-                  break;
-                case 'admin':
-                  window.location.href = './admin.html';
-                  break;
-                default:
-                  showToast('Vai trò không hợp lệ! Vui lòng liên hệ hỗ trợ.', 'danger');
-                  localStorage.removeItem('token');
-                  localStorage.removeItem('role');
-              }
-            } else {
-              showToast('Dữ liệu đăng nhập không hợp lệ!', 'danger');
-              localStorage.removeItem('token');
-              localStorage.removeItem('role');
-            }
+            redirectByRole(data.role);
           }, 1000);
         }
       } catch (err) {

@@ -71,9 +71,11 @@ body {
     color: white;
 }
 
-.menu-item i {
+.menu-item i,
+.menu-item .menu-icon {
     margin-right: 10px;
     font-size: 1.2rem;
+    color: inherit;
 }
 
 /* MAIN CONTENT */
@@ -97,12 +99,42 @@ body {
     border-radius: 15px;
     padding: 20px;
     margin-bottom: 20px;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    flex-wrap: wrap;
     gap: 15px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+}
+
+.header-center {
+    text-align: center;
+    justify-self: center;
+}
+
+.header-right {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    justify-self: end;
+}
+
+@media (max-width: 768px) {
+    .header {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .header-center {
+        order: 2;
+    }
+    .header-right {
+        order: 3;
+        justify-self: center;
+    }
 }
 
 .menu-toggle {
@@ -885,127 +917,740 @@ body {
 .risk-medium { background: #ffa502 !important; }
 .risk-low { background: #48bb78 !important; }
 
-/* RESPONSIVE */
+/* ============================================
+   SIDEBAR OVERLAY (MOBILE)
+   ============================================ */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    pointer-events: none; /* Không chặn click khi không active */
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+    pointer-events: auto; /* Chỉ chặn click khi active */
+}
+
+/* Đảm bảo sidebar luôn trên overlay */
+.sidebar {
+    z-index: 1000;
+}
+
+/* Đảm bảo main content có thể click được */
+.main-content {
+    position: relative;
+    z-index: 1;
+}
+
+/* Trên desktop, overlay không hiển thị */
+@media (min-width: 769px) {
+    .sidebar-overlay {
+        display: none !important;
+        pointer-events: none !important;
+    }
+}
+
+/* ============================================
+   RESPONSIVE - TABLET & SMALL DESKTOP
+   ============================================ */
 @media (max-width: 1024px) {
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
     }
     
     .cheating-stats-grid {
         grid-template-columns: repeat(2, 1fr) !important;
     }
+    
+    .class-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .card {
+        padding: 20px;
+    }
 }
 
+/* ============================================
+   RESPONSIVE - TABLET & MOBILE LANDSCAPE
+   ============================================ */
 @media (max-width: 768px) {
+    /* Sidebar */
     .sidebar {
+        width: 280px;
         transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1000;
     }
 
     .sidebar.open {
         transform: translateX(0);
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
     }
 
+    .sidebar-overlay {
+        display: block;
+    }
+
+    /* Main Content */
     .main-content {
         margin-left: 0;
+        width: 100%;
+        padding: 12px;
+    }
+
+    /* Header */
+    .header {
+        padding: 12px 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
     }
 
     .menu-toggle {
         display: block;
-    }
-
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .class-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .header {
-        padding: 15px;
+        font-size: 1.4rem;
+        padding: 8px;
+        margin-right: 10px;
     }
 
     .header-title {
+        font-size: 1.4rem;
+        flex: 1;
+    }
+
+    #welcomeMessage {
+        font-size: 14px !important;
+        margin-top: 8px;
+        width: 100%;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        padding: 18px;
+        border-radius: 10px;
+    }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+    }
+
+    /* Cards */
+    .card {
+        padding: 18px;
+        margin-bottom: 15px;
+        border-radius: 10px;
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .card-title {
         font-size: 1.3rem;
     }
 
+    /* Class Grid */
+    .class-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .class-card {
+        padding: 18px;
+    }
+
+    /* Student List */
     .student-item {
         flex-direction: column;
-        align-items: start;
-        gap: 10px;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 15px;
     }
 
     .student-actions {
         width: 100%;
         justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Exam List */
+    .exam-item {
+        padding: 15px;
+    }
+
+    .exam-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
     }
 
     .exam-actions {
         width: 100%;
+        flex-direction: column;
+        gap: 8px;
     }
 
     .exam-actions .btn {
-        flex: 1;
+        width: 100%;
+        margin: 0;
     }
-    
+
+    /* Forms */
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        padding: 10px;
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 10px 18px;
+        font-size: 0.9rem;
+        width: 100%;
+        margin: 0 0 8px 0;
+    }
+
+    .btn-small {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+    }
+
+    /* Search Bar */
+    .search-bar {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px;
+    }
+
+    /* Tabs */
+    .class-tabs {
+        flex-wrap: wrap;
+        gap: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+
+    /* Tables */
     .cheating-filters {
         flex-direction: column !important;
         align-items: stretch !important;
+        gap: 10px !important;
     }
     
     .cheating-filters select,
     .cheating-filters button {
         min-width: auto !important;
         width: 100% !important;
+        padding: 10px !important;
     }
     
     .cheating-stats-grid {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
     }
     
     .cheating-table {
         font-size: 0.85rem !important;
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     
     .cheating-table th,
     .cheating-table td {
-        padding: 8px 10px !important;
+        padding: 10px 8px !important;
+        white-space: nowrap;
+    }
+
+    /* Modals */
+    .modal {
+        padding: 10px;
+    }
+
+    .modal-content {
+        width: 95%;
+        max-width: 100%;
+        max-height: 95vh;
+        border-radius: 12px;
+    }
+
+    .modal-header {
+        padding: 18px 20px;
+    }
+
+    .modal-header h3 {
+        font-size: 1.3rem;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    /* AI Modal */
+    .ai-modal-content {
+        width: 95%;
+        max-width: 100%;
+        border-radius: 15px;
+    }
+
+    .ai-modal-header {
+        padding: 20px;
+    }
+
+    .ai-modal-header h2 {
+        font-size: 1.3rem;
+    }
+
+    .ai-modal-body {
+        padding: 20px;
+    }
+
+    .ai-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ai-checkbox-group {
+        grid-template-columns: 1fr;
+    }
+
+    .ai-actions {
+        flex-direction: column;
+    }
+
+    .ai-btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    /* Notification List */
+    .notification-item {
+        padding: 12px;
+    }
+
+    /* Question Grid */
+    .question-item {
+        padding: 15px;
+    }
+
+    /* Back Button */
+    .back-btn {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+
+    /* Toast */
+    .toast {
+        right: 10px;
+        left: 10px;
+        max-width: calc(100% - 20px);
+        padding: 12px 16px;
     }
 }
 
+/* ============================================
+   RESPONSIVE - MOBILE PORTRAIT
+   ============================================ */
 @media (max-width: 480px) {
+    /* Main Content */
     .main-content {
         padding: 10px;
     }
 
-    .card {
-        padding: 15px;
+    /* Header */
+    .header {
+        padding: 10px 12px;
+        margin-bottom: 12px;
+    }
+
+    .header-title {
+        font-size: 1.2rem;
+    }
+
+    .menu-toggle {
+        font-size: 1.3rem;
+        padding: 6px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
     }
 
     .stat-card {
-        padding: 20px;
+        padding: 15px;
     }
 
-    .search-bar {
-        flex-direction: column;
+    .stat-icon {
+        font-size: 2.2rem;
     }
 
-    .search-input {
-        width: 100%;
+    .stat-number {
+        font-size: 1.8rem;
     }
 
+    /* Cards */
+    .card {
+        padding: 15px;
+        margin-bottom: 12px;
+    }
+
+    .card-title {
+        font-size: 1.2rem;
+    }
+
+    /* Class Info */
     .class-info {
+        grid-template-columns: 1fr;
+        gap: 8px;
         font-size: 0.85rem;
     }
 
     .class-info-value {
         font-size: 1rem;
     }
+
+    /* Forms */
+    .form-group label {
+        font-size: 0.9rem;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        padding: 10px;
+        font-size: 16px;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 10px 16px;
+        font-size: 0.85rem;
+    }
+
+    /* Sidebar */
+    .sidebar {
+        width: 100%;
+        max-width: 320px;
+    }
+
+    .sidebar-header {
+        padding: 18px;
+    }
+
+    .sidebar-header h2 {
+        font-size: 1.3rem;
+    }
+
+    .menu-item {
+        padding: 12px 18px;
+        margin: 4px 12px;
+        font-size: 0.95rem;
+    }
+
+    /* Exam Meta */
+    .exam-meta {
+        flex-direction: column;
+        gap: 8px;
+        font-size: 0.85rem;
+    }
+
+    /* Student Avatar */
+    .student-avatar {
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+    }
+
+    /* Cheating Stats */
+    .cheating-stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .cheating-stats-card {
+        padding: 12px !important;
+    }
+
+    /* Tables */
+    .cheating-table {
+        font-size: 0.8rem !important;
+    }
+
+    .cheating-table th,
+    .cheating-table td {
+        padding: 8px 6px !important;
+    }
+
+    /* Modals */
+    .modal-content {
+        width: 98%;
+        max-height: 98vh;
+    }
+
+    .modal-header {
+        padding: 15px;
+    }
+
+    .modal-header h3 {
+        font-size: 1.2rem;
+    }
+
+    .modal-body {
+        padding: 15px;
+    }
+
+    /* AI Modal */
+    .ai-modal-content {
+        width: 98%;
+        border-radius: 12px;
+    }
+
+    .ai-modal-header {
+        padding: 18px;
+    }
+
+    .ai-modal-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .ai-modal-body {
+        padding: 18px;
+    }
+
+    .ai-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .ai-stat-card {
+        padding: 12px;
+    }
+
+    .ai-stat-number {
+        font-size: 1.5rem;
+    }
+
+    /* Tabs */
+    .tab {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+        padding: 40px 15px;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+    }
+
+    .empty-state-text {
+        font-size: 1.1rem;
+    }
+
+    /* Question Options */
+    .question-options {
+        gap: 8px;
+    }
+
+    .question-option {
+        padding: 8px;
+        font-size: 0.9rem;
+    }
+
+    /* Grading Modal */
+    #gradingModal .modal-content {
+        width: 98%;
+        max-height: 98vh;
+    }
+
+    /* Notification Badge */
+    .notification-badge {
+        font-size: 20px;
+    }
+
+    /* Theme Toggle */
+    .theme-toggle {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
 }
-/* Exam Detail and Edit Form */
-.exam-meta p {
-    margin: 8px 0;
-    font-size: 16px;
+
+/* ============================================
+   RESPONSIVE - EXTRA SMALL MOBILE
+   ============================================ */
+@media (max-width: 360px) {
+    .main-content {
+        padding: 8px;
+    }
+
+    .header {
+        padding: 8px 10px;
+    }
+
+    .header-title {
+        font-size: 1.1rem;
+    }
+
+    .card {
+        padding: 12px;
+    }
+
+    .card-title {
+        font-size: 1.1rem;
+    }
+
+    .stat-card {
+        padding: 12px;
+    }
+
+    .stat-number {
+        font-size: 1.6rem;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+    }
+
+    .btn {
+        padding: 8px 14px;
+        font-size: 0.8rem;
+    }
+
+    .sidebar {
+        max-width: 280px;
+    }
+
+    .modal-content {
+        width: 100%;
+        border-radius: 0;
+        max-height: 100vh;
+    }
+
+    .ai-modal-content {
+        width: 100%;
+        border-radius: 0;
+    }
+}
+    /* Exam Detail and Edit Form */
+    .exam-meta p {
+        margin: 8px 0;
+        font-size: 16px;
+    }
+
+    /* Exam Detail Info Grid */
+    #examDetailContentClass > div[style*="grid"] {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* Class Info Grid */
+    .class-info {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ============================================
+   MOBILE SPECIFIC FIXES
+   ============================================ */
+@media (max-width: 768px) {
+    /* Exam Detail Content */
+    #examDetailContentClass {
+        padding: 15px !important;
+    }
+
+    #examDetailContentClass > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* Fix inline styles in exam detail */
+    #examDetailContentClass div[style*="display: grid"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Notification tabs */
+    .notification-tab-content {
+        padding: 0;
+    }
+
+    /* Card header buttons */
+    .card-header .btn {
+        width: auto;
+        margin: 4px 0;
+    }
+
+    /* Stats in exam detail */
+    #examDetailContentClass p {
+        font-size: 0.9rem;
+        margin: 8px 0;
+    }
+
+    /* Question list in exam detail */
+    #examDetailQuestions {
+        padding: 0;
+    }
+
+    /* Form groups in mobile */
+    .form-group select[multiple] {
+        min-height: 120px;
+    }
+
+    /* Notification form */
+    #notificationClassSelect,
+    #notificationStudentSelect {
+        min-height: 100px;
+    }
 }
 
 .question-list {
@@ -1432,180 +2077,1123 @@ body {
 }
 
 /* ============================================
-   🌙 DARK MODE STYLES
+   🚪 LOGOUT BUTTON
+   ============================================ */
+.logout-btn {
+    background: #f56565 !important;
+    color: white !important;
+    border: none !important;
+    padding: 10px !important;
+    border-radius: 50% !important;
+    cursor: pointer !important;
+    font-size: 1.3rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 45px !important;
+    height: 45px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(245, 101, 101, 0.3) !important;
+}
+
+.logout-btn:hover {
+    background: #e53e3e !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(245, 101, 101, 0.5) !important;
+}
+
+.logout-btn:active {
+    transform: translateY(0) !important;
+}
+
+body.dark-mode .logout-btn {
+    background: #e53e3e !important;
+}
+
+body.dark-mode .logout-btn:hover {
+    background: #c53030 !important;
+}
+
+/* ============================================
+   🌙 DARK MODE STYLES - PROFESSIONAL COLOR SCHEME
    ============================================ */
 body.dark-mode {
-    background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+    background: #0D1117;
+    color: #E4E4E7;
 }
 
 body.dark-mode .sidebar {
-    background: #2d3748;
-    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.5);
-    border-right: 1px solid #4a5568;
+    background: #111827;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.8);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 body.dark-mode .sidebar-header {
-    background: linear-gradient(135deg, #4c51bf, #6b46c1);
-    border-bottom: 2px solid #4a5568;
+    background: linear-gradient(135deg, #7C3AED, #A78BFA);
+    border-bottom: 2px solid #334155;
 }
 
 body.dark-mode .sidebar-header h2,
 body.dark-mode .sidebar-header p {
-    color: #e2e8f0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .menu-item {
-    color: #cbd5e0;
+    color: #CBD5E1;
+}
+
+body.dark-mode .menu-item .menu-icon,
+body.dark-mode .menu-item i {
+    color: #CBD5E1;
 }
 
 body.dark-mode .menu-item:hover {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    color: #FFFFFF;
+}
+
+body.dark-mode .menu-item:hover .menu-icon,
+body.dark-mode .menu-item:hover i {
+    color: #FFFFFF;
 }
 
 body.dark-mode .menu-item.active {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
+    background: linear-gradient(135deg, #A78BFA, #C084FC);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.3);
+}
+
+body.dark-mode .menu-item.active .menu-icon,
+body.dark-mode .menu-item.active i {
+    color: #FFFFFF;
 }
 
 body.dark-mode .header {
-    background: rgba(45, 55, 72, 0.95);
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 body.dark-mode .header-title {
-    color: #e2e8f0;
+    color: #E4E4E7;
 }
 
 body.dark-mode #welcomeMessage {
-    color: #cbd5e0 !important;
+    color: #E4E4E7 !important;
     text-align: center;
 }
 
 body.dark-mode .card {
-    background: rgba(45, 55, 72, 0.95);
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 body.dark-mode .stat-card {
-    background: rgba(45, 55, 72, 0.95);
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .stat-card:hover {
+    border-color: #A78BFA;
+    box-shadow: 0 6px 16px rgba(167, 139, 250, 0.3);
 }
 
 body.dark-mode .stat-number {
-    color: #e2e8f0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .stat-label {
-    color: #a0aec0;
+    color: #A1A1AA;
 }
 
 body.dark-mode .card-title {
-    color: #e2e8f0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .class-card {
-    background: #2d3748;
-    border-left-color: #667eea;
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 4px solid #A78BFA;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .class-card:hover {
+    border-color: #A78BFA;
+    box-shadow: 0 6px 16px rgba(167, 139, 250, 0.3);
 }
 
 body.dark-mode .class-name {
-    color: #e2e8f0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .class-subject {
-    color: #a0aec0;
+    color: #A1A1AA;
 }
 
 body.dark-mode .class-info-label {
-    color: #a0aec0;
+    color: #A1A1AA;
 }
 
 body.dark-mode .class-info-value {
-    color: #e2e8f0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .student-item {
-    background: #2d3748;
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .student-item:hover {
+    border-color: #A78BFA;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
 }
 
 body.dark-mode .student-details h4 {
-    color: #e2e8f0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .student-details p {
-    color: #a0aec0;
+    color: #A1A1AA;
 }
 
 body.dark-mode .exam-item {
-    background: #2d3748;
-    border-left-color: #667eea;
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 4px solid #A78BFA;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .exam-item:hover {
+    border-color: #A78BFA;
+    box-shadow: 0 6px 16px rgba(167, 139, 250, 0.3);
 }
 
 body.dark-mode .exam-title {
-    color: #e2e8f0;
+    color: #E4E4E7;
+    font-weight: 600;
 }
 
 body.dark-mode .exam-meta {
-    color: #a0aec0;
+    color: #A1A1AA;
+}
+
+body.dark-mode .exam-meta p,
+body.dark-mode .exam-meta span {
+    color: #A1A1AA;
+}
+
+/* Exam Actions Dark Mode */
+body.dark-mode .exam-actions {
+    border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .exam-actions .btn {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Exam Status Badges Dark Mode */
+body.dark-mode .exam-status {
+    font-weight: 600;
+}
+
+body.dark-mode .status-active {
+    background: rgba(52, 211, 153, 0.2);
+    color: #4ADE80;
+    border: 1px solid rgba(52, 211, 153, 0.4);
+}
+
+body.dark-mode .status-completed {
+    background: rgba(96, 165, 250, 0.2);
+    color: #60A5FA;
+    border: 1px solid rgba(96, 165, 250, 0.4);
+}
+
+body.dark-mode .status-upcoming {
+    background: rgba(251, 191, 36, 0.2);
+    color: #FBBF24;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+body.dark-mode .status-draft {
+    background: rgba(167, 139, 250, 0.2);
+    color: #A78BFA;
+    border: 1px solid rgba(167, 139, 250, 0.4);
 }
 
 body.dark-mode .question-item {
-    background: #2d3748;
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 body.dark-mode .question-content {
-    color: #e2e8f0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .notification-item {
-    background: #2d3748;
-    border-left-color: #667eea;
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 4px solid #A78BFA;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .notification-item:hover {
+    border-color: #A78BFA;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
 }
 
 body.dark-mode .notification-title {
-    color: #e2e8f0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .notification-content {
-    color: #a0aec0;
+    color: #A1A1AA;
 }
 
 body.dark-mode .form-group label {
-    color: #cbd5e0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .form-group input,
 body.dark-mode .form-group textarea,
 body.dark-mode .form-group select {
-    background: #1a202c;
-    color: #e2e8f0;
-    border-color: #4a5568;
+    background: #0D1117;
+    color: #E4E4E7;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .form-group input:focus,
+body.dark-mode .form-group textarea:focus,
+body.dark-mode .form-group select:focus {
+    border-color: #A78BFA;
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
 }
 
 body.dark-mode .search-input {
-    background: #1a202c;
-    color: #e2e8f0;
-    border-color: #4a5568;
+    background: #0D1117;
+    color: #E4E4E7;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .search-input:focus {
+    border-color: #A78BFA;
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
 }
 
 body.dark-mode .theme-toggle {
-    background: #2d3748;
-    border-color: #4a5568;
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .theme-toggle:hover {
+    background: #334155;
+    border-color: #A78BFA;
 }
 
 body.dark-mode .empty-state-text {
-    color: #cbd5e0;
+    color: #E4E4E7;
 }
 
 body.dark-mode .empty-state-subtext {
-    color: #a0aec0;
+    color: #A1A1AA;
 }
 
 body.dark-mode .modal-content {
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #E4E4E7;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+}
+
+body.dark-mode .close {
+    color: #A1A1AA;
+}
+
+body.dark-mode .close:hover {
+    color: #E4E4E7;
+}
+
+/* Buttons Dark Mode */
+body.dark-mode .btn-primary,
+body.dark-mode button.btn-primary,
+body.dark-mode .btn.btn-primary {
+    background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+    color: #E4E4E7;
+    border: none;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+body.dark-mode .btn-primary:hover,
+body.dark-mode button.btn-primary:hover,
+body.dark-mode .btn.btn-primary:hover {
+    background: linear-gradient(135deg, #4338CA 0%, #5B5FEF 100%);
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+    transform: translateY(-1px);
+}
+
+/* Button "Xem chi tiết" specific */
+body.dark-mode button[onclick*="viewStudentCheatingDetail"],
+body.dark-mode button[onclick*="viewResult"],
+body.dark-mode button[onclick*="viewCheatingDetail"],
+body.dark-mode .btn[class*="btn-primary"][onclick*="chi tiết"] {
+    background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%) !important;
+    color: #E4E4E7 !important;
+}
+
+body.dark-mode button[onclick*="viewStudentCheatingDetail"]:hover,
+body.dark-mode button[onclick*="viewResult"]:hover,
+body.dark-mode button[onclick*="viewCheatingDetail"]:hover,
+body.dark-mode .btn[class*="btn-primary"][onclick*="chi tiết"]:hover {
+    background: linear-gradient(135deg, #4338CA 0%, #5B5FEF 100%) !important;
+}
+
+body.dark-mode .btn-secondary {
+    background: #111827;
+    color: #E4E4E7;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #E4E4E7;
+}
+
+body.dark-mode .btn-success {
+    background: #34D399;
+    color: #0D1117;
+    box-shadow: 0 4px 12px rgba(52, 211, 153, 0.3);
+}
+
+body.dark-mode .btn-success:hover {
+    background: #4ADE80;
+    box-shadow: 0 6px 16px rgba(52, 211, 153, 0.4);
+}
+
+body.dark-mode .btn-danger {
+    background: #F87171;
+    color: #0D1117;
+    box-shadow: 0 4px 12px rgba(248, 113, 113, 0.3);
+}
+
+body.dark-mode .btn-danger:hover {
+    background: #FB7185;
+    box-shadow: 0 6px 16px rgba(248, 113, 113, 0.4);
+}
+
+/* Tabs Dark Mode */
+body.dark-mode .tab {
+    color: #A1A1AA;
+}
+
+body.dark-mode .tab:hover {
+    color: #A78BFA;
+    background: rgba(167, 139, 250, 0.1);
+}
+
+body.dark-mode .tab.active {
+    color: #A78BFA;
+    border-bottom-color: #A78BFA;
+    font-weight: 600;
+}
+
+body.dark-mode .class-tabs {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Back Button Dark Mode */
+body.dark-mode .back-btn {
+    background: #111827;
+    color: #E4E4E7;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .back-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #E4E4E7;
+    border-color: #A78BFA;
+}
+
+/* Card Header Dark Mode */
+body.dark-mode .card-header {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Tables Dark Mode */
+body.dark-mode table {
+    color: #E4E4E7;
+}
+
+body.dark-mode thead {
+    background: #0D1117;
+}
+
+body.dark-mode th {
+    color: #E4E4E7;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    font-weight: 600;
+}
+
+body.dark-mode td {
+    color: #E4E4E7;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode tbody tr {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+body.dark-mode tr:hover td {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .cheating-table th {
+    background: #0D1117 !important;
+    color: #E4E4E7 !important;
+    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+    font-weight: 600;
+}
+
+/* Override inline styles for table header in dark mode */
+body.dark-mode .cheating-table thead tr[style*="background:#f7fafc"] {
+    background: #0D1117 !important;
+}
+
+body.dark-mode .cheating-table thead th {
+    color: #E4E4E7 !important;
+    background: #0D1117 !important;
+}
+
+body.dark-mode .cheating-table thead tr[style*="border-bottom:2px solid #e2e8f0"] {
+    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+body.dark-mode .cheating-table td {
+    color: #E4E4E7;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .cheating-table tbody tr {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+body.dark-mode .cheating-table tr:hover td {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Toast Dark Mode */
+body.dark-mode .toast {
+    background: #1E293B;
+    color: #E5E7EB;
+    border-left: 4px solid #A78BFA;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .toast.error {
+    background: #1E293B;
+    border-left-color: #F87171;
+    color: #FCA5A5;
+}
+
+body.dark-mode .toast.info {
+    background: #1E293B;
+    border-left-color: #60A5FA;
+    color: #93C5FD;
+}
+
+body.dark-mode .toast.success {
+    background: #1E293B;
+    border-left-color: #4ADE80;
+    color: #86EFAC;
+}
+
+/* Cheating Stats Cards Dark Mode */
+body.dark-mode .cheating-stats-card {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Override inline styles for cheating stats cards in dark mode - PROFESSIONAL COLORS */
+body.dark-mode .cheating-stats-card {
+    color: #F3F4F6 !important;
+}
+
+body.dark-mode .cheating-stats-card[style*="background:#4a5568"],
+body.dark-mode .cheating-stats-card[style*="background: #4a5568"] {
+    background: #1E293B !important;
+    border: 1px solid #475569 !important;
+    color: #E5E7EB !important;
+}
+
+body.dark-mode .cheating-stats-card[style*="background:#dc3545"],
+body.dark-mode .cheating-stats-card[style*="background: #dc3545"] {
+    background: #7F1D1D !important;
+    border: 1px solid #991B1B !important;
+    color: #FCA5A5 !important;
+}
+
+body.dark-mode .cheating-stats-card[style*="background:#ffc107"],
+body.dark-mode .cheating-stats-card[style*="background: #ffc107"] {
+    background: #78350F !important;
+    border: 1px solid #92400E !important;
+    color: #FDE68A !important;
+}
+
+body.dark-mode .cheating-stats-card[style*="background:#17a2b8"],
+body.dark-mode .cheating-stats-card[style*="background: #17a2b8"] {
+    background: #164E63 !important;
+    border: 1px solid #155E75 !important;
+    color: #67E8F9 !important;
+}
+
+/* Override ALL text inside cheating stats cards - FORCE WHITE/BRIGHT COLORS */
+body.dark-mode .cheating-stats-card *,
+body.dark-mode .cheating-stats-card div,
+body.dark-mode .cheating-stats-card span {
+    color: inherit !important;
+}
+
+body.dark-mode .cheating-stats-card div[style*="color"],
+body.dark-mode .cheating-stats-card div[style*="color:white"],
+body.dark-mode .cheating-stats-card div[style*="color: white"],
+body.dark-mode .cheating-stats-card div[style*="color:#212529"],
+body.dark-mode .cheating-stats-card div[style*="color: #212529"],
+body.dark-mode .cheating-stats-card div[style*="color:#000"],
+body.dark-mode .cheating-stats-card div[style*="color: #000"] {
+    color: inherit !important;
+}
+
+body.dark-mode .cheating-stats-card #totalCheatingEvents,
+body.dark-mode .cheating-stats-card #totalTabSwitches,
+body.dark-mode .cheating-stats-card #totalCopyPaste,
+body.dark-mode .cheating-stats-card #suspiciousStudents {
+    color: inherit !important;
+    font-weight: bold !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Form Inputs Focus Dark Mode */
+body.dark-mode .form-group input:focus,
+body.dark-mode .form-group textarea:focus,
+body.dark-mode .form-group select:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+body.dark-mode .search-input:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+/* Select Dropdown Dark Mode */
+body.dark-mode select {
+    background: #0F172A;
+    color: #F3F4F6;
+    border-color: #334155;
+}
+
+body.dark-mode select:focus {
+    border-color: #A78BFA;
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
+}
+
+body.dark-mode select option {
+    background: #1E293B;
+    color: #F3F4F6;
+}
+
+/* AI Modal Dark Mode */
+body.dark-mode .ai-modal-content {
+    background: #1E293B;
+    border: 1px solid #334155;
+    color: #E5E7EB;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+}
+
+body.dark-mode .ai-form-group label {
+    color: #E5E7EB;
+}
+
+body.dark-mode .ai-form-group input,
+body.dark-mode .ai-form-group textarea,
+body.dark-mode .ai-form-group select {
+    background: #0F172A;
+    color: #F3F4F6;
+    border: 1px solid #334155;
+}
+
+body.dark-mode .ai-form-group input:focus,
+body.dark-mode .ai-form-group textarea:focus,
+body.dark-mode .ai-form-group select:focus {
+    border-color: #A78BFA;
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
+}
+
+body.dark-mode .ai-checkbox-label {
+    color: #D1D5DB;
+}
+
+body.dark-mode .ai-btn-primary {
+    background: linear-gradient(135deg, #818CF8, #A78BFA);
+    color: #F3F4F6;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+body.dark-mode .ai-btn-primary:hover {
+    background: linear-gradient(135deg, #A78BFA, #C4B5FD);
+    box-shadow: 0 6px 16px rgba(167, 139, 250, 0.4);
+}
+
+body.dark-mode .ai-btn-secondary {
+    background: #334155;
+    color: #E5E7EB;
+    border: 1px solid #475569;
+}
+
+body.dark-mode .ai-btn-secondary:hover {
+    background: #475569;
+    border-color: #64748B;
+    color: #F3F4F6;
+}
+
+/* Notification Badge Dark Mode */
+body.dark-mode .notification-badge {
+    background: #334155;
+    color: #E5E7EB;
+    border: 1px solid #475569;
+}
+
+body.dark-mode .notification-badge:hover {
+    background: #A78BFA;
+    border-color: #C4B5FD;
+    color: #F3F4F6;
+}
+
+/* Menu Toggle Dark Mode */
+body.dark-mode .menu-toggle {
+    color: #E5E7EB;
+}
+
+/* Stat Icon Dark Mode */
+body.dark-mode .stat-icon {
+    opacity: 0.9;
+}
+
+/* Empty State Dark Mode */
+body.dark-mode .empty-state-icon {
+    opacity: 0.7;
+}
+
+/* Question Options Dark Mode */
+body.dark-mode .question-option {
+    background: #1a202c;
+    border-left-color: #4a5568;
+    color: #cbd5e0;
+}
+
+body.dark-mode .question-option.correct {
+    background: rgba(72, 187, 120, 0.2);
+    border-left-color: #48bb78;
+    color: #cbd5e0;
+}
+
+/* Tags Dark Mode */
+body.dark-mode .tag {
+    background: #4a5568;
+    color: #e2e8f0;
+}
+
+/* Modal Header Dark Mode */
+body.dark-mode .modal-header {
+    background: #1a202c;
+    border-bottom-color: #4a5568;
+}
+
+body.dark-mode .modal-header h3 {
+    color: #e2e8f0;
+}
+
+/* Small Buttons Dark Mode */
+body.dark-mode .btn-small {
+    background: #4a5568;
+    color: #e2e8f0;
+}
+
+body.dark-mode .btn-small:hover {
+    background: #2d3748;
+}
+
+body.dark-mode .btn-small.btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+body.dark-mode .btn-small.btn-primary:hover {
+    background: linear-gradient(135deg, #5a67d8, #6b46c1);
+}
+
+/* Notification Item Unread Dark Mode */
+body.dark-mode .notification-item.unread {
+    background: rgba(102, 126, 234, 0.1);
+}
+
+/* Question Header Dark Mode */
+body.dark-mode .question-header {
+    color: #e2e8f0;
+}
+
+/* Exam Header Dark Mode */
+body.dark-mode .exam-header {
+    color: #e2e8f0;
+}
+
+/* Student Info Dark Mode */
+body.dark-mode .student-info {
+    color: #e2e8f0;
+}
+
+/* Grading Modal Dark Mode */
+body.dark-mode #gradingModal .modal-content {
+    background: #2d3748;
+}
+
+body.dark-mode #gradingModal .modal-header {
+    background: #1a202c;
+    border-bottom-color: #4a5568;
+}
+
+body.dark-mode #gradingModalInfo {
+    background: #1a202c;
+    color: #e2e8f0;
+}
+
+body.dark-mode #gradingViolationInfo {
+    background: rgba(220, 53, 69, 0.1);
+    border-left-color: #dc3545;
+    color: #e2e8f0;
+}
+
+/* Exam Detail Dark Mode */
+body.dark-mode #examDetailContentClass {
     background: #2d3748;
     color: #e2e8f0;
 }
 
-body.dark-mode .close {
-    color: #cbd5e0;
+body.dark-mode #examDetailContentClass > div {
+    background: #1a202c;
+    border-color: #4a5568;
+}
+
+/* Stats Grid Dark Mode */
+body.dark-mode .stats-grid {
+    gap: 15px;
+}
+
+/* Class Grid Dark Mode */
+body.dark-mode .class-grid {
+    gap: 15px;
+}
+
+/* Search Bar Dark Mode */
+body.dark-mode .search-bar {
+    border-color: #4a5568;
+}
+
+/* Form Group Small Text Dark Mode */
+body.dark-mode .form-group small {
+    color: #a0aec0;
+}
+
+/* Required Asterisk Dark Mode */
+body.dark-mode .form-group label span[style*="color: #f56565"] {
+    color: #fc8181 !important;
+}
+
+/* Import Section Cards Dark Mode */
+body.dark-mode .card[style*="cursor: pointer"] {
+    background: #1E293B !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .card[style*="cursor: pointer"]:hover {
+    border-color: #A78BFA !important;
+    box-shadow: 0 6px 16px rgba(167, 139, 250, 0.3);
+}
+
+body.dark-mode .card[style*="cursor: pointer"] h3 {
+    color: #F3F4F6 !important;
+}
+
+body.dark-mode .card[style*="cursor: pointer"] p {
+    color: #9CA3AF !important;
+}
+
+/* Import Result Section Dark Mode */
+body.dark-mode #importResultSection {
+    background: #0F172A !important;
+    border: 1px solid #334155 !important;
+    color: #E5E7EB;
+}
+
+body.dark-mode #importResultSection h4 {
+    color: #F3F4F6;
+}
+
+body.dark-mode #importResultSection p {
+    color: #D1D5DB;
+}
+
+body.dark-mode #importErrorsSection {
+    color: #F87171 !important;
+}
+
+/* Inline Style Overrides for Dark Mode */
+body.dark-mode [style*="color: #2d3748"] {
+    color: #F3F4F6 !important;
+}
+
+body.dark-mode [style*="color: #718096"] {
+    color: #9CA3AF !important;
+}
+
+body.dark-mode [style*="color: #555"] {
+    color: #D1D5DB !important;
+}
+
+body.dark-mode [style*="background: #f7fafc"] {
+    background: #0F172A !important;
+}
+
+body.dark-mode [style*="background: #f5f5f5"] {
+    background: #0F172A !important;
+}
+
+body.dark-mode [style*="border: 1px solid #e8e8e8"] {
+    border-color: #334155 !important;
+}
+
+body.dark-mode [style*="border-top: 1px solid #e2e8f0"] {
+    border-top-color: #334155 !important;
+}
+
+/* Exam Detail Info Boxes Dark Mode */
+body.dark-mode #examDetailContentClass > div[style*="background: #f5f5f5"] {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode #examDetailContentClass p[style*="color: #718096"] {
+    color: #9CA3AF !important;
+}
+
+body.dark-mode #examDetailContentClass p[style*="color: #2d3748"] {
+    color: #F3F4F6 !important;
+}
+
+body.dark-mode #examDetailContentClass p[style*="color: #48bb78"] {
+    color: #4ADE80 !important;
+}
+
+/* Schedule Title Dark Mode */
+body.dark-mode h3[style*="color: #2d3748"] {
+    color: #F3F4F6 !important;
+}
+
+/* Statistics Section Headers Dark Mode */
+body.dark-mode h3[style*="color: #2d3748"][style*="font-size: 1.2rem"] {
+    color: #F3F4F6 !important;
+}
+
+/* Stat Numbers with Inline Colors Dark Mode */
+body.dark-mode .stat-number[style*="color: #718096"] {
+    color: #9CA3AF !important;
+}
+
+body.dark-mode .stat-number[style*="color: #4299e1"] {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .stat-number[style*="color: #48bb78"] {
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .stat-number[style*="color: #2d3748"] {
+    color: #F3F4F6 !important;
+}
+
+body.dark-mode .stat-number[style*="color: #f56565"] {
+    color: #F87171 !important;
+}
+
+/* Table row text in dark mode */
+body.dark-mode .cheating-table tbody td {
+    color: #D1D5DB !important;
+}
+
+body.dark-mode .cheating-table tbody tr[style*="color:#718096"] {
+    color: #9CA3AF !important;
+}
+
+/* Card title in cheating section dark mode */
+body.dark-mode #cheatingListCard .card-title[style*="color:#2d3748"] {
+    color: #F3F4F6 !important;
+}
+
+/* Violation level badges dark mode - PROFESSIONAL HIGH CONTRAST */
+body.dark-mode .risk-badge {
+    font-weight: 600 !important;
+    padding: 6px 14px !important;
+    border-radius: 12px !important;
+    display: inline-block !important;
+    border: 1px solid !important;
+}
+
+body.dark-mode .risk-badge.risk-low {
+    background: #1F4D2B !important;
+    color: #A3FFCC !important;
+    border-color: #A3FFCC !important;
+}
+
+body.dark-mode .risk-badge.risk-medium {
+    background: #4C3A1F !important;
+    color: #FFE8A3 !important;
+    border-color: #FFE8A3 !important;
+}
+
+body.dark-mode .risk-badge.risk-high {
+    background: #4C1F1F !important;
+    color: #FFB3B3 !important;
+    border-color: #FFB3B3 !important;
+}
+
+/* Override risk badge colors from base styles */
+body.dark-mode .risk-high,
+body.dark-mode span.risk-high {
+    background: #4C1F1F !important;
+    color: #FFB3B3 !important;
+    border: 1px solid #FFB3B3 !important;
+    font-weight: 600 !important;
+}
+
+body.dark-mode .risk-medium,
+body.dark-mode span.risk-medium {
+    background: #4C3A1F !important;
+    color: #FFE8A3 !important;
+    border: 1px solid #FFE8A3 !important;
+    font-weight: 600 !important;
+}
+
+body.dark-mode .risk-low,
+body.dark-mode span.risk-low {
+    background: #1F4D2B !important;
+    color: #A3FFCC !important;
+    border: 1px solid #A3FFCC !important;
+    font-weight: 600 !important;
+}
+
+/* Override any inline styles on risk badges */
+body.dark-mode .risk-badge[style*="background"],
+body.dark-mode .risk-badge[style*="color"],
+body.dark-mode span[class*="risk"][style*="background"],
+body.dark-mode span[class*="risk"][style*="color"] {
+    /* Force override via class selectors above */
+}
+
+/* Override inline styles for table cells in dark mode */
+body.dark-mode .cheating-table td {
+    color: #D1D5DB !important;
+}
+
+body.dark-mode .cheating-table td[style*="color: #2d3748"],
+body.dark-mode .cheating-table td[style*="color:#2d3748"] {
+    color: #E4E4E7 !important;
+}
+
+body.dark-mode .cheating-table td[style*="color: #718096"],
+body.dark-mode .cheating-table td[style*="color:#718096"] {
+    color: #A1A1AA !important;
+}
+
+body.dark-mode .cheating-table td div {
+    color: inherit !important;
+}
+
+body.dark-mode .cheating-table td div[style*="color: #2d3748"],
+body.dark-mode .cheating-table td div[style*="color:#2d3748"] {
+    color: #E4E4E7 !important;
+}
+
+body.dark-mode .cheating-table td div[style*="color: #718096"],
+body.dark-mode .cheating-table td div[style*="color:#718096"] {
+    color: #A1A1AA !important;
+}
+
+/* Student name and ID in table dark mode */
+body.dark-mode .cheating-table td div[style*="font-weight: 500"],
+body.dark-mode .cheating-table td div[style*="font-weight:500"] {
+    color: #E4E4E7 !important;
+    font-weight: 500 !important;
+}
+
+body.dark-mode .cheating-table td div[style*="font-size: 0.85rem"],
+body.dark-mode .cheating-table td div[style*="font-size:0.85rem"] {
+    color: #A1A1AA !important;
+}
+
+/* Student avatar in dark mode */
+body.dark-mode .student-avatar-small {
+    border: 2px solid rgba(167, 139, 250, 0.3) !important;
+}
+
+/* GLOBAL TEXT OVERRIDE FOR DARK MODE - Ensure all text is visible */
+body.dark-mode * {
+    /* Override any black or dark text colors */
+}
+
+body.dark-mode [style*="color: #212529"],
+body.dark-mode [style*="color:#212529"],
+body.dark-mode [style*="color: #000"],
+body.dark-mode [style*="color:#000"],
+body.dark-mode [style*="color: black"],
+body.dark-mode [style*="color:black"] {
+    color: #E4E4E7 !important;
+}
+
+/* Ensure white text on dark backgrounds is visible */
+body.dark-mode [style*="color: white"][style*="background"],
+body.dark-mode [style*="color:white"][style*="background"] {
+    /* Keep white text, but ensure background is dark enough */
+}
+
+/* Override any light backgrounds that make text invisible */
+body.dark-mode [style*="background: #fff"],
+body.dark-mode [style*="background:#fff"],
+body.dark-mode [style*="background: white"],
+body.dark-mode [style*="background:white"],
+body.dark-mode [style*="background: #f7fafc"],
+body.dark-mode [style*="background:#f7fafc"] {
+    background: #0D1117 !important;
+}
+
+body.dark-mode [style*="background: #f5f5f5"],
+body.dark-mode [style*="background:#f5f5f5"] {
+    background: #0D1117 !important;
+}
+
+/* Specific override for cheating table rows */
+body.dark-mode .cheating-table tbody tr {
+    background: transparent !important;
+}
+
+body.dark-mode .cheating-table tbody tr:hover {
+    background: rgba(167, 139, 250, 0.1) !important;
+}
+
+body.dark-mode .cheating-table tbody tr:hover td {
+    background: transparent !important;
 }
 
 /* ==================== AI EXAM MODAL STYLES ==================== */

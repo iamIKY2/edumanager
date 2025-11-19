@@ -55,8 +55,6 @@ function handleQuickAction(sectionName, buttonId) {
         const btn = document.getElementById(buttonId);
         if (btn) {
             btn.click();
-        } else {
-            console.warn(`Không tìm thấy button với ID: ${buttonId}`);
         }
     }, 200);
 }
@@ -65,7 +63,6 @@ function handleQuickAction(sectionName, buttonId) {
 function switchSection(sectionName) {
     // Kiểm tra sectionName hợp lệ
     if (!sectionName || sectionName === 'null' || sectionName === 'undefined') {
-        console.warn('switchSection được gọi với giá trị không hợp lệ:', sectionName);
         return;
     }
     
@@ -85,7 +82,6 @@ function switchSection(sectionName) {
     const targetSection = document.getElementById(sectionName + '-section');
     if (targetSection) {
         targetSection.classList.add('active');
-        console.log('Section hiển thị:', sectionName + '-section');
     } else {
         console.error('Không tìm thấy section:', sectionName + '-section');
     }
@@ -104,7 +100,10 @@ function switchSection(sectionName) {
     } else if (sectionName === 'exams') {
         setTimeout(loadExamsData, 100);
     } else if (sectionName === 'questions') {
-        setTimeout(loadQuestionsData, 100);
+        setTimeout(() => {
+            loadSubjectsForQuestionFilter();
+            loadQuestionsData(1);
+        }, 100);
     } else if (sectionName === 'subjects') {
         setTimeout(loadSubjectsData, 100);
     } else if (sectionName === 'reports') {
@@ -112,7 +111,6 @@ function switchSection(sectionName) {
     } else if (sectionName === 'monitor-cheating') {
         setTimeout(loadCheatingData, 100);
     } else if (sectionName === 'settings') {
-        console.log('Đang load settings...');
         setTimeout(loadSettingsData, 100);
     }
 }
@@ -124,7 +122,6 @@ document.querySelectorAll('.nav-link').forEach(link => {
         if (sectionName) {
             switchSection(sectionName);
         } else {
-            console.warn('Nav link không có data-section:', this);
         }
     });
 });
@@ -321,7 +318,6 @@ async function optimizeDatabase() {
 // ==========================================
 async function loadSettingsData() {
     try {
-        console.log('Đang tải cài đặt...');
         const response = await fetch('http://localhost:3000/api/admin/settings', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -335,10 +331,8 @@ async function loadSettingsData() {
         }
         const settings = await response.json();
         
-        console.log('Settings loaded:', settings);
         
         if (!settings || Object.keys(settings).length === 0) {
-            console.warn('Settings rỗng, sử dụng giá trị mặc định');
         }
 
         // Fill exam settings
@@ -563,7 +557,6 @@ async function loadSettingsData() {
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 if (saveSettingsBtn) {
     saveSettingsBtn.addEventListener('click', async () => {
-        console.log('Nút Save được click');
         try {
             const settings = {
             exam: {
@@ -719,7 +712,6 @@ if (saveSettingsBtn) {
 const resetSettingsBtn = document.getElementById('resetSettingsBtn');
 if (resetSettingsBtn) {
     resetSettingsBtn.addEventListener('click', async () => {
-        console.log('Nút Reset được click');
         if (!confirm('Bạn có chắc muốn đặt lại tất cả cài đặt về mặc định?')) return;
         
         try {
@@ -822,31 +814,26 @@ function applySystemSettings(settings) {
     // Áp dụng exam settings
     if (settings.exam) {
         // Có thể thêm logic để áp dụng exam settings vào các form tạo exam
-        console.log('Exam settings applied:', settings.exam);
     }
     
     // Áp dụng security settings
     if (settings.security) {
         // Có thể thêm logic để áp dụng security settings
-        console.log('Security settings applied:', settings.security);
     }
     
     // Áp dụng notification settings
     if (settings.notification) {
         // Có thể thêm logic để áp dụng notification settings
-        console.log('Notification settings applied:', settings.notification);
     }
     
     // Áp dụng user settings
     if (settings.user) {
         // Có thể thêm logic để áp dụng user settings
-        console.log('User settings applied:', settings.user);
     }
     
     // Áp dụng system settings
     if (settings.system) {
         // Có thể thêm logic để áp dụng system settings
-        console.log('System settings applied:', settings.system);
     }
 }
 
@@ -1659,19 +1646,16 @@ async function loadUsersData() {
         if (userSearch) {
             userSearch.addEventListener('input', filterUsersData);
         } else {
-            console.warn('Không tìm thấy input#userSearch');
         }
 
         if (userRoleFilter) {
             userRoleFilter.addEventListener('change', filterUsersData);
         } else {
-            console.warn('Không tìm thấy select#userRoleFilter');
         }
 
         if (userStatusFilter) {
             userStatusFilter.addEventListener('change', filterUsersData);
         } else {
-            console.warn('Không tìm thấy select#userStatusFilter');
         }
         
     } catch (err) {
@@ -2633,19 +2617,74 @@ if (typeof io !== 'undefined') {
 }
 
 // Cập nhật loadQuestionsData để render bảng câu hỏi
-async function loadQuestionsData() {
+// Biến cho pagination và filter câu hỏi
+let questionsCurrentPage = 1;
+let questionsTotalPages = 1;
+let questionsFilters = {
+    search: '',
+    subject_id: '',
+    difficulty: '',
+    question_type: ''
+};
+
+async function loadQuestionsData(page = 1) {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/questions', {
+        questionsCurrentPage = page;
+        
+        // Lấy filters từ UI nếu có
+        const searchInput = document.getElementById('questionSearchInput');
+        const subjectSelect = document.getElementById('questionSubjectFilter');
+        const difficultySelect = document.getElementById('questionDifficultyFilter');
+        const typeSelect = document.getElementById('questionTypeFilter');
+        
+        if (searchInput) questionsFilters.search = searchInput.value.trim();
+        if (subjectSelect) questionsFilters.subject_id = subjectSelect.value;
+        if (difficultySelect) questionsFilters.difficulty = difficultySelect.value;
+        if (typeSelect) questionsFilters.question_type = typeSelect.value;
+        
+        // Tạo params
+        const params = new URLSearchParams({
+            page: page,
+            limit: 20
+        });
+        
+        if (questionsFilters.search) params.append('search', questionsFilters.search);
+        if (questionsFilters.subject_id && questionsFilters.subject_id !== 'all') {
+            params.append('subject_id', questionsFilters.subject_id);
+        }
+        if (questionsFilters.difficulty && questionsFilters.difficulty !== 'all') {
+            params.append('difficulty', questionsFilters.difficulty);
+        }
+        if (questionsFilters.question_type && questionsFilters.question_type !== 'all') {
+            params.append('question_type', questionsFilters.question_type);
+        }
+        
+        const response = await fetch(`http://localhost:3000/api/admin/questions?${params}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
-        const questions = await response.json();
         
-        const tbody = document.querySelector('#questionsTableBody');
+        if (!response.ok) throw new Error(await response.text());
+        
+        const data = await response.json();
+        
+        // Xử lý cả format cũ (array) và format mới (object với pagination)
+        const questions = Array.isArray(data) ? data : (data.questions || []);
+        const pagination = data.pagination || { page: 1, totalPages: 1, total: questions.length };
+        
+        questionsCurrentPage = pagination.page;
+        questionsTotalPages = pagination.totalPages;
+        
+        const tbody = document.querySelector('#questionsTableBody') || document.querySelector('#questions-section tbody');
+        if (!tbody) {
+            console.error('Không tìm thấy tbody cho câu hỏi');
+            return;
+        }
+        
         tbody.innerHTML = '';
         
         if (questions.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có dữ liệu</td></tr>';
+            renderQuestionsPagination(pagination);
             return;
         }
         
@@ -2657,10 +2696,14 @@ async function loadQuestionsData() {
             }[question.difficulty] || 'bg-secondary';
             const rateClass = question.correct_rate >= 80 ? 'text-success' : question.correct_rate >= 50 ? 'text-warning' : 'text-danger';
             
+            // Giới hạn độ dài nội dung câu hỏi để hiển thị
+            const content = question.question_content || '';
+            const shortContent = content.length > 100 ? content.substring(0, 100) + '...' : content;
+            
             tbody.innerHTML += `
                 <tr>
                     <td>#${question.question_id}</td>
-                    <td><strong>${question.question_content}</strong></td>
+                    <td><strong title="${content.replace(/"/g, '&quot;')}">${shortContent}</strong></td>
                     <td>${question.subject_name || 'Chưa có môn'}</td>
                     <td><span class="badge ${difficultyClass}">${question.difficulty}</span></td>
                     <td>${question.type}</td>
@@ -2674,16 +2717,480 @@ async function loadQuestionsData() {
                 </tr>
             `;
         });
+        
+        renderQuestionsPagination(pagination);
     } catch (err) {
+        console.error('Lỗi tải câu hỏi:', err);
         showNotification('Lỗi tải dữ liệu câu hỏi: ' + err.message, 'error');
     }
 }
 
+// Render pagination cho câu hỏi
+function renderQuestionsPagination(pagination) {
+    const paginationContainer = document.getElementById('questionsPagination');
+    if (!paginationContainer) return;
+    
+    if (pagination.totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let html = '<ul class="pagination justify-content-center">';
+    
+    // Nút Previous
+    html += `<li class="page-item ${pagination.page === 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadQuestionsData(${pagination.page - 1}); return false;">Trước</a>
+    </li>`;
+    
+    // Các số trang
+    const startPage = Math.max(1, pagination.page - 2);
+    const endPage = Math.min(pagination.totalPages, pagination.page + 2);
+    
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadQuestionsData(1); return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<li class="page-item ${i === pagination.page ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="loadQuestionsData(${i}); return false;">${i}</a>
+        </li>`;
+    }
+    
+    if (endPage < pagination.totalPages) {
+        if (endPage < pagination.totalPages - 1) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadQuestionsData(${pagination.totalPages}); return false;">${pagination.totalPages}</a></li>`;
+    }
+    
+    // Nút Next
+    html += `<li class="page-item ${pagination.page === pagination.totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadQuestionsData(${pagination.page + 1}); return false;">Sau</a>
+    </li>`;
+    
+    html += '</ul>';
+    html += `<div class="text-center mt-2"><small class="text-muted">Trang ${pagination.page} / ${pagination.totalPages} (Tổng: ${pagination.total} câu hỏi)</small></div>`;
+    
+    paginationContainer.innerHTML = html;
+}
+
+// Load danh sách môn học cho filter
+async function loadSubjectsForQuestionFilter() {
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/subjects', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const subjects = await response.json();
+        
+        const select = document.getElementById('questionSubjectFilter');
+        if (select) {
+            select.innerHTML = '<option value="all">Tất cả</option>';
+            subjects.forEach(subject => {
+                select.innerHTML += `<option value="${subject.subject_id}">${subject.subject_name}</option>`;
+            });
+        }
+    } catch (err) {
+        console.error('Lỗi tải môn học cho filter:', err);
+    }
+}
+
+// Event listeners cho filter
+document.getElementById('questionSearchInput')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        loadQuestionsData(1);
+    }
+});
+
+document.getElementById('questionSubjectFilter')?.addEventListener('change', () => {
+    loadQuestionsData(1);
+});
+
+document.getElementById('questionDifficultyFilter')?.addEventListener('change', () => {
+    loadQuestionsData(1);
+});
+
+document.getElementById('questionTypeFilter')?.addEventListener('change', () => {
+    loadQuestionsData(1);
+});
+
 // Khởi tạo dữ liệu giám sát gian lận (đã được xử lý trong navigation handler ở trên)
 
 // Các hàm view (placeholder cho users, exams, questions)
-function viewUser(userId) {
-    showNotification('Tính năng xem chi tiết sẽ được phát triển sau', 'info');
+// Hàm xem chi tiết người dùng
+async function viewUser(userId) {
+    try {
+        const modal = new bootstrap.Modal(document.getElementById('viewUserModal'));
+        const contentDiv = document.getElementById('userDetailContent');
+        
+        // Hiển thị loading
+        contentDiv.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Đang tải...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Lấy dữ liệu chi tiết
+        const response = await fetch(`http://localhost:3000/api/admin/users/${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Lỗi tải thông tin người dùng');
+        }
+        
+        const data = await response.json();
+        const { user, stats, recentActivity } = data;
+        
+        // Định dạng giới tính
+        const genderText = {
+            'male': 'Nam',
+            'female': 'Nữ',
+            'other': 'Khác',
+            'Chưa cập nhật': 'Chưa cập nhật'
+        }[user.gender] || user.gender;
+        
+        // Định dạng vai trò
+        const roleText = {
+            'Student': 'Sinh viên',
+            'Teacher': 'Giáo viên',
+            'Admin': 'Quản trị viên'
+        }[user.role] || user.role;
+        
+        const roleClass = {
+            'Student': 'bg-primary',
+            'Teacher': 'bg-success',
+            'Admin': 'bg-danger'
+        }[user.role] || 'bg-secondary';
+        
+        // Render nội dung
+        let html = `
+            <div class="row">
+                <!-- Thông tin cơ bản -->
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-person-circle"></i> Thông Tin Cơ Bản</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-3">
+                                <div class="avatar-lg mx-auto mb-2" style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 32px; font-weight: bold;">
+                                    ${user.full_name.charAt(0).toUpperCase()}
+                                </div>
+                                <h5 class="mb-1">${user.full_name}</h5>
+                                <span class="badge ${roleClass}">${roleText}</span>
+                            </div>
+                            <hr>
+                            <div class="mb-2">
+                                <small class="text-muted">ID:</small>
+                                <div><strong>#${user.user_id}</strong></div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Username:</small>
+                                <div><strong>${user.username || 'N/A'}</strong></div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Email:</small>
+                                <div>${user.email}</div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Giới tính:</small>
+                                <div>${genderText}</div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Số điện thoại:</small>
+                                <div>${user.phone}</div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Ngày sinh:</small>
+                                <div>${user.dob !== 'Chưa cập nhật' ? new Date(user.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</div>
+                            </div>
+                            <hr>
+                            <div class="mb-2">
+                                <small class="text-muted">Ngày đăng ký:</small>
+                                <div>${new Date(user.created_at).toLocaleDateString('vi-VN')}</div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Cập nhật lần cuối:</small>
+                                <div>${user.updated_at ? new Date(user.updated_at).toLocaleDateString('vi-VN') : 'Chưa có'}</div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Đăng nhập:</small>
+                                <div>
+                                    ${user.has_password ? '<span class="badge bg-info">Email/Password</span>' : ''}
+                                    ${user.google_id ? '<span class="badge bg-danger ms-1">Google</span>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Thống kê -->
+                <div class="col-md-8">
+        `;
+        
+        if (user.role === 'Student') {
+            html += `
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="bi bi-graph-up"></i> Thống Kê Học Tập</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-primary mb-1">${stats.total_exams || 0}</div>
+                                        <small class="text-muted">Tổng số bài thi</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-success mb-1">${stats.completed_exams || 0}</div>
+                                        <small class="text-muted">Đã hoàn thành</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-info mb-1">${stats.total_attempts || 0}</div>
+                                        <small class="text-muted">Tổng lượt thi</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-warning mb-1">${parseFloat(stats.avg_score || 0).toFixed(2)}</div>
+                                        <small class="text-muted">Điểm trung bình</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-success mb-1">${parseFloat(stats.highest_score || 0).toFixed(2)}</div>
+                                        <small class="text-muted">Điểm cao nhất</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-danger mb-1">${parseFloat(stats.lowest_score || 0).toFixed(2)}</div>
+                                        <small class="text-muted">Điểm thấp nhất</small>
+                                    </div>
+                                </div>
+                                ${stats.cheating_warnings > 0 ? `
+                                <div class="col-md-12">
+                                    <div class="alert alert-warning mb-0">
+                                        <i class="bi bi-exclamation-triangle"></i> 
+                                        <strong>Cảnh báo:</strong> Có ${stats.cheating_warnings} cảnh báo gian lận
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Lịch sử thi gần đây -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-clock-history"></i> Lịch Sử Thi Gần Đây</h6>
+                        </div>
+                        <div class="card-body">
+            `;
+            
+            if (recentActivity && recentActivity.length > 0) {
+                html += `
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Bài thi</th>
+                                            <th>Môn học</th>
+                                            <th>Điểm</th>
+                                            <th>Trạng thái</th>
+                                            <th>Thời gian</th>
+                                            <th>Cảnh báo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                `;
+                
+                recentActivity.forEach(attempt => {
+                    const statusClass = attempt.status === 'Submitted' ? 'bg-success' : 
+                                       attempt.status === 'In Progress' ? 'bg-warning' : 'bg-secondary';
+                    const statusText = attempt.status === 'Submitted' ? 'Đã nộp' : 
+                                      attempt.status === 'In Progress' ? 'Đang làm' : attempt.status;
+                    const scoreDisplay = attempt.score !== null ? parseFloat(attempt.score).toFixed(2) : 'Chưa chấm';
+                    const warningsBadge = attempt.warnings > 0 ? 
+                        `<span class="badge bg-danger">${attempt.warnings}</span>` : 
+                        '<span class="badge bg-success">0</span>';
+                    
+                    html += `
+                                        <tr>
+                                            <td>${attempt.exam_name || 'N/A'}</td>
+                                            <td>${attempt.subject_name || 'N/A'}</td>
+                                            <td><strong>${scoreDisplay}</strong></td>
+                                            <td><span class="badge ${statusClass}">${statusText}</span></td>
+                                            <td>${attempt.start_time ? new Date(attempt.start_time).toLocaleString('vi-VN') : 'N/A'}</td>
+                                            <td>${warningsBadge}</td>
+                                        </tr>
+                    `;
+                });
+                
+                html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                `;
+            } else {
+                html += '<p class="text-muted text-center">Chưa có lịch sử thi</p>';
+            }
+            
+            html += `
+                        </div>
+                    </div>
+            `;
+            
+        } else if (user.role === 'Teacher') {
+            html += `
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-graph-up"></i> Thống Kê Giảng Dạy</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-primary mb-1">${stats.total_exams || 0}</div>
+                                        <small class="text-muted">Tổng số kỳ thi</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-success mb-1">${stats.total_subjects || 0}</div>
+                                        <small class="text-muted">Số môn học</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-info mb-1">${stats.total_students || 0}</div>
+                                        <small class="text-muted">Số học sinh</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-warning mb-1">${stats.total_attempts || 0}</div>
+                                        <small class="text-muted">Tổng lượt thi</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-success mb-1">${stats.graded_attempts || 0}</div>
+                                        <small class="text-muted">Đã chấm</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center p-3 border rounded">
+                                        <div class="h4 text-primary mb-1">${stats.total_questions || 0}</div>
+                                        <small class="text-muted">Câu hỏi đã tạo</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Kỳ thi gần đây -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-file-text"></i> Kỳ Thi Gần Đây</h6>
+                        </div>
+                        <div class="card-body">
+            `;
+            
+            if (recentActivity && recentActivity.length > 0) {
+                html += `
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Tên kỳ thi</th>
+                                            <th>Môn học</th>
+                                            <th>Thời gian</th>
+                                            <th>Số SV</th>
+                                            <th>Điểm TB</th>
+                                            <th>Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                `;
+                
+                recentActivity.forEach(exam => {
+                    const statusClass = exam.status === 'active' ? 'bg-success' : 
+                                      exam.status === 'upcoming' ? 'bg-info' : 
+                                      exam.status === 'completed' ? 'bg-secondary' : 'bg-warning';
+                    const statusText = exam.status === 'active' ? 'Đang diễn ra' : 
+                                     exam.status === 'upcoming' ? 'Sắp tới' : 
+                                     exam.status === 'completed' ? 'Đã kết thúc' : exam.status;
+                    
+                    html += `
+                                        <tr>
+                                            <td><strong>${exam.exam_name || 'N/A'}</strong></td>
+                                            <td>${exam.subject_name || 'N/A'}</td>
+                                            <td>${exam.start_time ? new Date(exam.start_time).toLocaleString('vi-VN') : 'N/A'}</td>
+                                            <td>${exam.student_count || 0}</td>
+                                            <td><strong>${exam.avg_score || '0.00'}</strong></td>
+                                            <td><span class="badge ${statusClass}">${statusText}</span></td>
+                                        </tr>
+                    `;
+                });
+                
+                html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                `;
+            } else {
+                html += '<p class="text-muted text-center">Chưa có kỳ thi nào</p>';
+            }
+            
+            html += `
+                        </div>
+                    </div>
+            `;
+        } else {
+            // Admin
+            html += `
+                    <div class="card">
+                        <div class="card-header bg-danger text-white">
+                            <h6 class="mb-0"><i class="bi bi-shield-check"></i> Quản Trị Viên</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Thông tin quản trị viên</p>
+                        </div>
+                    </div>
+            `;
+        }
+        
+        html += `
+                </div>
+            </div>
+        `;
+        
+        contentDiv.innerHTML = html;
+        
+    } catch (err) {
+        console.error('Lỗi xem chi tiết người dùng:', err);
+        const contentDiv = document.getElementById('userDetailContent');
+        contentDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> 
+                Lỗi tải thông tin: ${err.message}
+            </div>
+        `;
+    }
 }
 
 // Hàm xem chi tiết kỳ thi
@@ -3384,10 +3891,53 @@ function viewExamReport(examId) {
 // Xuất Excel
 document.getElementById('exportExcel')?.addEventListener('click', async () => {
     try {
+        showNotification('Đang tạo file Excel...', 'info');
+        
         const params = new URLSearchParams(currentReportFilters);
-        window.location.href = `http://localhost:3000/api/admin/reports/export/excel?${params}`;
-        showNotification('Đang tải file Excel...', 'info');
+        const token = localStorage.getItem('token');
+        
+        // Excel export cần authorization header
+        const response = await fetch(`http://localhost:3000/api/admin/reports/export/excel?${params}`, {
+            headers: { 
+                'Authorization': `Bearer ${token}` 
+            }
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Lỗi xuất Excel');
+        }
+        
+        // Lấy tên file từ header hoặc tạo tên mặc định
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let fileName = `bao_cao_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        if (contentDisposition) {
+            const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (fileNameMatch && fileNameMatch[1]) {
+                fileName = fileNameMatch[1].replace(/['"]/g, '');
+                // Decode URI nếu cần
+                try {
+                    fileName = decodeURIComponent(fileName);
+                } catch (e) {
+                    // Giữ nguyên nếu không decode được
+                }
+            }
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showNotification('Đã xuất Excel thành công!', 'success');
     } catch (err) {
+        console.error('Lỗi xuất Excel:', err);
         showNotification('Lỗi xuất Excel: ' + err.message, 'error');
     }
 });
@@ -3512,6 +4062,8 @@ document.querySelectorAll('#examReportTableBody').forEach(table => {
 // Xuất PDF
 document.getElementById('exportPDF')?.addEventListener('click', async () => {
     try {
+        showNotification('Đang tạo file PDF...', 'info');
+        
         const params = new URLSearchParams(currentReportFilters);
         const token = localStorage.getItem('token');
         
@@ -3522,13 +4074,33 @@ document.getElementById('exportPDF')?.addEventListener('click', async () => {
             }
         });
         
-        if (!response.ok) throw new Error('Lỗi xuất PDF');
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Lỗi xuất PDF');
+        }
+        
+        // Lấy tên file từ header hoặc tạo tên mặc định
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let fileName = `bao_cao_${new Date().toISOString().split('T')[0]}.pdf`;
+        
+        if (contentDisposition) {
+            const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (fileNameMatch && fileNameMatch[1]) {
+                fileName = fileNameMatch[1].replace(/['"]/g, '');
+                // Decode URI nếu cần
+                try {
+                    fileName = decodeURIComponent(fileName);
+                } catch (e) {
+                    // Giữ nguyên nếu không decode được
+                }
+            }
+        }
         
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `bao_cao_${new Date().toISOString().split('T')[0]}.pdf`;
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -3541,9 +4113,210 @@ document.getElementById('exportPDF')?.addEventListener('click', async () => {
     }
 });
 
+// ============================================
+// XUẤT BÁO CÁO TỪ HEADER
+// ============================================
+
+// Hàm helper để lấy bộ lọc hiện tại (mặc định là 30 ngày qua)
+function getCurrentReportFilters() {
+    const reportsSection = document.getElementById('reports-section');
+    if (reportsSection && reportsSection.classList.contains('active')) {
+        // Đang ở phần reports, sử dụng bộ lọc hiện tại
+        return currentReportFilters;
+    } else {
+        // Đang ở dashboard, sử dụng bộ lọc mặc định (30 ngày qua)
+        return {
+            period: 'month',
+            subject_id: ''
+        };
+    }
+}
+
+// Hàm xuất Excel từ header
+async function exportExcelFromHeader() {
+    try {
+        showNotification('Đang tạo file Excel...', 'info');
+        
+        const filters = getCurrentReportFilters();
+        const params = new URLSearchParams(filters);
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`http://localhost:3000/api/admin/reports/export/excel?${params}`, {
+            headers: { 
+                'Authorization': `Bearer ${token}` 
+            }
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Lỗi xuất Excel');
+        }
+        
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let fileName = `bao_cao_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        if (contentDisposition) {
+            const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (fileNameMatch && fileNameMatch[1]) {
+                fileName = fileNameMatch[1].replace(/['"]/g, '');
+                try {
+                    fileName = decodeURIComponent(fileName);
+                } catch (e) {}
+            }
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showNotification('Đã xuất Excel thành công!', 'success');
+    } catch (err) {
+        console.error('Lỗi xuất Excel:', err);
+        showNotification('Lỗi xuất Excel: ' + err.message, 'error');
+    }
+}
+
+// Hàm xuất PDF từ header
+async function exportPDFFromHeader() {
+    try {
+        showNotification('Đang tạo file PDF...', 'info');
+        
+        const filters = getCurrentReportFilters();
+        const params = new URLSearchParams(filters);
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`http://localhost:3000/api/admin/reports/export/pdf?${params}`, {
+            headers: { 
+                'Authorization': `Bearer ${token}` 
+            }
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Lỗi xuất PDF');
+        }
+        
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let fileName = `bao_cao_${new Date().toISOString().split('T')[0]}.pdf`;
+        
+        if (contentDisposition) {
+            const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (fileNameMatch && fileNameMatch[1]) {
+                fileName = fileNameMatch[1].replace(/['"]/g, '');
+                try {
+                    fileName = decodeURIComponent(fileName);
+                } catch (e) {}
+            }
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showNotification('Đã xuất PDF thành công!', 'success');
+    } catch (err) {
+        console.error('Lỗi xuất PDF:', err);
+        showNotification('Lỗi xuất PDF: ' + err.message, 'error');
+    }
+}
+
+// Xuất Excel từ header
+document.getElementById('headerExportExcel')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await exportExcelFromHeader();
+});
+
+// Xuất PDF từ header
+document.getElementById('headerExportPDF')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await exportPDFFromHeader();
+});
+
+// In báo cáo từ header
+document.getElementById('headerPrintReport')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+        const reportsSection = document.getElementById('reports-section');
+        if (!reportsSection || !reportsSection.classList.contains('active')) {
+            // Chuyển đến phần reports trước
+            switchSection('reports');
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Sử dụng lại logic từ nút printReport
+        const printReportBtn = document.getElementById('printReport');
+        if (printReportBtn) {
+            printReportBtn.click();
+        } else {
+            showNotification('Vui lòng đợi phần báo cáo được tải xong', 'warning');
+        }
+    } catch (err) {
+        console.error('Lỗi in báo cáo từ header:', err);
+        showNotification('Lỗi in báo cáo: ' + err.message, 'error');
+    }
+});
+
+// Chuyển đến phần báo cáo chi tiết
+document.getElementById('goToReportsSection')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchSection('reports');
+});
+
 // In báo cáo
 document.getElementById('printReport')?.addEventListener('click', () => {
-    window.print();
+    // Thêm header in báo cáo
+    const reportsSection = document.getElementById('reports-section');
+    if (reportsSection) {
+        // Tạo header in nếu chưa có
+        let printHeader = document.getElementById('printReportHeader');
+        if (!printHeader) {
+            printHeader = document.createElement('div');
+            printHeader.id = 'printReportHeader';
+            printHeader.className = 'print-header';
+            
+            const period = document.getElementById('reportPeriod')?.value || 'month';
+            const periodNames = {
+                'week': '7 ngày qua',
+                'month': '30 ngày qua',
+                'quarter': '3 tháng qua',
+                'year': '1 năm qua',
+                'custom': 'Tùy chỉnh'
+            };
+            
+            const startDate = document.getElementById('startDate')?.value;
+            const endDate = document.getElementById('endDate')?.value;
+            let periodText = periodNames[period] || 'N/A';
+            if (period === 'custom' && startDate && endDate) {
+                periodText = `Từ ${new Date(startDate).toLocaleDateString('vi-VN')} đến ${new Date(endDate).toLocaleDateString('vi-VN')}`;
+            }
+            
+            printHeader.innerHTML = `
+                <h1>BÁO CÁO THỐNG KÊ HỆ THỐNG THI TRỰC TUYẾN</h1>
+                <div class="print-date">
+                    Khoảng thời gian: ${periodText} | 
+                    Ngày xuất báo cáo: ${new Date().toLocaleDateString('vi-VN')}
+                </div>
+            `;
+            reportsSection.insertBefore(printHeader, reportsSection.firstChild);
+        }
+        
+        // In
+        window.print();
+    } else {
+        showNotification('Không tìm thấy phần báo cáo để in', 'error');
+    }
 });
 
 // Tải danh sách môn học cho bộ lọc
@@ -3584,8 +4357,285 @@ if (reportsNavLink) {
         setTimeout(() => {
             loadSubjectsForReportFilter();
             loadReportsData();
+            loadScoreHistory();
+            loadComplaintsHistory();
         }, 100);
     };
 }
+
+// ============================================
+// 📋 LỊCH SỬ SỬA ĐIỂM CỦA GIÁO VIÊN
+// ============================================
+let currentScoreHistoryPage = 1;
+const scoreHistoryLimit = 50;
+
+async function loadScoreHistory(page = 1) {
+    try {
+        const tbody = document.getElementById('scoreHistoryTableBody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center">Đang tải dữ liệu...</td></tr>';
+        
+        const params = new URLSearchParams({
+            page: page,
+            limit: scoreHistoryLimit
+        });
+        
+        const startDate = document.getElementById('scoreHistoryStartDate')?.value;
+        const endDate = document.getElementById('scoreHistoryEndDate')?.value;
+        
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        
+        const response = await fetch(`http://localhost:3000/api/admin/reports/score-history?${params}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Lỗi tải lịch sử sửa điểm');
+        
+        const data = await response.json();
+        currentScoreHistoryPage = page;
+        
+        if (!data.logs || data.logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Không có dữ liệu</td></tr>';
+            renderScoreHistoryPagination(data.pagination);
+            return;
+        }
+        
+        tbody.innerHTML = data.logs.map(log => {
+            const editedAt = new Date(log.edited_at).toLocaleString('vi-VN');
+            const questionInfo = log.question_content 
+                ? `${log.question_content.substring(0, 50)}${log.question_content.length > 50 ? '...' : ''} (${log.question_type || 'N/A'})`
+                : 'Tổng điểm';
+            
+            return `
+                <tr>
+                    <td>${editedAt}</td>
+                    <td>
+                        <div>${log.teacher_name || 'N/A'}</div>
+                        <small class="text-muted">${log.teacher_email || ''}</small>
+                    </td>
+                    <td>
+                        <div>${log.student_name || 'N/A'}</div>
+                        <small class="text-muted">MSSV: ${log.student_id || 'N/A'}</small>
+                    </td>
+                    <td>${log.exam_name || 'N/A'}</td>
+                    <td>${log.subject_name || 'N/A'}</td>
+                    <td style="max-width: 200px;" title="${log.question_content || ''}">${questionInfo}</td>
+                    <td>
+                        ${log.old_score !== null ? `<span class="badge bg-secondary">${log.old_score}</span>` : '-'}
+                    </td>
+                    <td>
+                        ${log.new_score !== null ? `<span class="badge bg-primary">${log.new_score}</span>` : '-'}
+                    </td>
+                    <td>
+                        ${log.old_total_score !== null ? `<span class="badge bg-secondary">${log.old_total_score}</span>` : '-'}
+                    </td>
+                    <td>
+                        ${log.new_total_score !== null ? `<span class="badge bg-success">${log.new_total_score}</span>` : '-'}
+                    </td>
+                    <td style="max-width: 250px;" title="${log.reason || ''}">
+                        ${log.reason ? log.reason.substring(0, 50) + (log.reason.length > 50 ? '...' : '') : '-'}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        renderScoreHistoryPagination(data.pagination);
+        
+    } catch (err) {
+        console.error('Lỗi tải lịch sử sửa điểm:', err);
+        const tbody = document.getElementById('scoreHistoryTableBody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center text-danger">Lỗi: ${err.message}</td></tr>`;
+        }
+        showNotification('Lỗi tải lịch sử sửa điểm: ' + err.message, 'error');
+    }
+}
+
+function renderScoreHistoryPagination(pagination) {
+    const paginationEl = document.getElementById('scoreHistoryPagination');
+    if (!paginationEl || !pagination) return;
+    
+    if (pagination.totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    const currentPage = pagination.page;
+    const totalPages = pagination.totalPages;
+    
+    // Nút Trước
+    html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadScoreHistory(${currentPage - 1}); return false;">Trước</a>
+    </li>`;
+    
+    // Số trang
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="loadScoreHistory(${i}); return false;">${i}</a>
+            </li>`;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    // Nút Sau
+    html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadScoreHistory(${currentPage + 1}); return false;">Sau</a>
+    </li>`;
+    
+    paginationEl.innerHTML = html;
+}
+
+function resetScoreHistoryFilter() {
+    document.getElementById('scoreHistoryStartDate').value = '';
+    document.getElementById('scoreHistoryEndDate').value = '';
+    loadScoreHistory(1);
+}
+
+// ============================================
+// 📋 LỊCH SỬ KHIẾU NẠI CỦA HỌC SINH
+// ============================================
+let currentComplaintsHistoryPage = 1;
+const complaintsHistoryLimit = 50;
+
+async function loadComplaintsHistory(page = 1) {
+    try {
+        const tbody = document.getElementById('complaintsHistoryTableBody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center">Đang tải dữ liệu...</td></tr>';
+        
+        const params = new URLSearchParams({
+            page: page,
+            limit: complaintsHistoryLimit
+        });
+        
+        const startDate = document.getElementById('complaintHistoryStartDate')?.value;
+        const endDate = document.getElementById('complaintHistoryEndDate')?.value;
+        const status = document.getElementById('complaintStatusFilter')?.value;
+        
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (status) params.append('status', status);
+        
+        const response = await fetch(`http://localhost:3000/api/admin/reports/complaints-history?${params}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Lỗi tải lịch sử khiếu nại');
+        
+        const data = await response.json();
+        currentComplaintsHistoryPage = page;
+        
+        if (!data.complaints || data.complaints.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Không có dữ liệu</td></tr>';
+            renderComplaintsHistoryPagination(data.pagination);
+            return;
+        }
+        
+        const statusColors = {
+            'Pending': { bg: 'warning', text: 'Đang chờ', icon: '⏳' },
+            'Resolved': { bg: 'success', text: 'Đã xử lý', icon: '✅' },
+            'Rejected': { bg: 'danger', text: 'Từ chối', icon: '❌' }
+        };
+        
+        tbody.innerHTML = data.complaints.map(complaint => {
+            const createdAt = new Date(complaint.created_at).toLocaleString('vi-VN');
+            const updatedAt = complaint.updated_at ? new Date(complaint.updated_at).toLocaleString('vi-VN') : null;
+            const statusInfo = statusColors[complaint.status] || { bg: 'secondary', text: complaint.status, icon: '📋' };
+            const scoreText = `${complaint.exam_score}/${complaint.total_points}`;
+            
+            return `
+                <tr>
+                    <td>
+                        <div>${createdAt}</div>
+                        ${updatedAt ? `<small class="text-muted">Cập nhật: ${updatedAt}</small>` : ''}
+                    </td>
+                    <td>
+                        <div>${complaint.student_name || 'N/A'}</div>
+                        <small class="text-muted">MSSV: ${complaint.student_code || 'N/A'}</small>
+                    </td>
+                    <td>${complaint.exam_name || 'N/A'}</td>
+                    <td>${complaint.subject_name || 'N/A'}</td>
+                    <td><strong>${scoreText}</strong></td>
+                    <td style="max-width: 300px;" title="${complaint.content || ''}">
+                        ${complaint.content ? complaint.content.substring(0, 80) + (complaint.content.length > 80 ? '...' : '') : '-'}
+                    </td>
+                    <td>
+                        <span class="badge bg-${statusInfo.bg}">${statusInfo.icon} ${statusInfo.text}</span>
+                    </td>
+                    <td style="max-width: 250px;" title="${complaint.teacher_response || ''}">
+                        ${complaint.teacher_response ? complaint.teacher_response.substring(0, 60) + (complaint.teacher_response.length > 60 ? '...' : '') : '<em class="text-muted">Chưa phản hồi</em>'}
+                    </td>
+                    <td>
+                        ${complaint.teacher_name ? `
+                            <div>${complaint.teacher_name}</div>
+                            <small class="text-muted">${complaint.teacher_email || ''}</small>
+                        ` : 'N/A'}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        renderComplaintsHistoryPagination(data.pagination);
+        
+    } catch (err) {
+        console.error('Lỗi tải lịch sử khiếu nại:', err);
+        const tbody = document.getElementById('complaintsHistoryTableBody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Lỗi: ${err.message}</td></tr>`;
+        }
+        showNotification('Lỗi tải lịch sử khiếu nại: ' + err.message, 'error');
+    }
+}
+
+function renderComplaintsHistoryPagination(pagination) {
+    const paginationEl = document.getElementById('complaintsHistoryPagination');
+    if (!paginationEl || !pagination) return;
+    
+    if (pagination.totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    const currentPage = pagination.page;
+    const totalPages = pagination.totalPages;
+    
+    // Nút Trước
+    html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadComplaintsHistory(${currentPage - 1}); return false;">Trước</a>
+    </li>`;
+    
+    // Số trang
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="loadComplaintsHistory(${i}); return false;">${i}</a>
+            </li>`;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    // Nút Sau
+    html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadComplaintsHistory(${currentPage + 1}); return false;">Sau</a>
+    </li>`;
+    
+    paginationEl.innerHTML = html;
+}
+
+function resetComplaintHistoryFilter() {
+    document.getElementById('complaintStatusFilter').value = '';
+    document.getElementById('complaintHistoryStartDate').value = '';
+    document.getElementById('complaintHistoryEndDate').value = '';
+    loadComplaintsHistory(1);
+}
+
 // Khởi tạo dữ liệu ban đầu
 setTimeout(loadDashboardData, 100);

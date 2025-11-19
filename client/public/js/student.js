@@ -19,14 +19,10 @@
             });
 
             socket.on('connect', () => {
-                console.log('✅ Connected to Socket.io');
                 const userId = localStorage.getItem('user_id');
-                console.log('🔵 [Socket] User ID from localStorage:', userId);
-                console.log('🔵 [Socket] Socket user from server:', socket.user);
                 // Socket đã tự động join room khi connect (theo app.js)
                 // Nhưng vẫn emit để đảm bảo
                 socket.emit('join-room', `user_${userId}`);
-                console.log('🔵 [Socket] Joined room:', `user_${userId}`);
             });
 
             socket.on('connect_error', (error) => {
@@ -35,8 +31,6 @@
 
             // Lắng nghe thông báo realtime
             socket.on('notification', (notification) => {
-                console.log('🔔 [Student] New notification received:', notification);
-                console.log('🔔 [Student] Notification content:', notification.content);
                 unreadNotificationCount++;
                 updateNotificationBadge();
                 showToast(notification.content, 'success');
@@ -45,11 +39,6 @@
                 if (modal && modal.style.display === 'flex') {
                     loadNotifications();
                 }
-            });
-            
-            // Debug: Log tất cả socket events
-            socket.onAny((eventName, ...args) => {
-                console.log('📡 [Socket] Event received:', eventName, args);
             });
 
             fetchUserData();
@@ -67,7 +56,6 @@
 
         function fetchUserData() {
             const token = localStorage.getItem('token');
-            console.log('Token used:', token);
             if (!token) {
                 console.error('No token found in localStorage');
                 alert('Không có token. Vui lòng đăng nhập lại!');
@@ -83,7 +71,6 @@
                 }
             })
             .then(response => {
-                console.log('Response status:', response.status);
                 if (!response.ok) {
                     return response.json().then(errorData => {
                         throw new Error(`Lỗi: ${response.status} - ${errorData.error || response.statusText}`);
@@ -92,10 +79,9 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Data received:', data);
                 if (data.error) throw new Error(data.error);
 
-                document.getElementById('userName').textContent = data.user.username || 'Đang tải...';
+                document.getElementById('userName').textContent = data.user.fullName || data.user.username || 'Đang tải...';
                 document.getElementById('userId').textContent = `MSSV: ${data.user.id || 'Đang tải...'}`;
                 document.getElementById('avgScore').textContent = data.user.avgScore || 'Đang tải...';
                 document.getElementById('rankPosition').textContent = `#${data.user.rank || 'Đang tải...'}`;
@@ -104,16 +90,17 @@
                 userIdFromServer = data.user.user_id || data.user.id;
                 if (userIdFromServer) {
                     localStorage.setItem('user_id', userIdFromServer);
-                    console.log('✅ [Student] User ID saved to localStorage:', userIdFromServer);
                     
                     // Rejoin room với user_id chính xác nếu socket đã connect
                     if (socket && socket.connected) {
                         socket.emit('join-room', `user_${userIdFromServer}`);
-                        console.log('🔵 [Student] Rejoined room with correct user_id:', `user_${userIdFromServer}`);
                     }
                 }
 
                 const infoGrid = document.getElementById('userInfo');
+                const genderText = data.user.gender === 'male' ? 'Nam' : 
+                                  data.user.gender === 'female' ? 'Nữ' : 
+                                  data.user.gender === 'other' ? 'Khác' : null;
                 infoGrid.innerHTML = `
                     <div class="info-item">
                         <span><strong>Lớp:</strong></span>
@@ -122,6 +109,10 @@
                     <div class="info-item">
                         <span><strong>Email:</strong></span>
                         <span>${data.user.email || 'Chưa cập nhật'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span><strong>Giới tính:</strong></span>
+                        <span>${genderText || '<span style="color: #ff4757;">Chưa cập nhật</span>'}</span>
                     </div>
                     <div class="info-item">
                         <span><strong>Số điện thoại:</strong></span>
@@ -150,6 +141,7 @@
                 // Điền dữ liệu vào modal
                 document.getElementById('editFullName').value = data.user.fullName || '';
                 document.getElementById('editClass').value = data.user.class || '';
+                document.getElementById('editGender').value = data.user.gender || '';
                 document.getElementById('editPhone').value = data.user.phone || '';
                 document.getElementById('editDob').value = data.user.dob ? data.user.dob.split('T')[0] : '';
 
@@ -239,18 +231,11 @@
                 const currentUserRankInfo = document.getElementById('currentUserRankInfo');
                 const currentUserRank = document.getElementById('currentUserRank');
                 
-                // Debug ranking data
-                console.log('📊 Ranking data:', data.ranking);
-                
                 // Hiển thị top 10
                 const top10 = data.ranking?.top10 || [];
                 const currentUser = data.ranking?.currentUser;
                 const totalStudents = data.ranking?.total || 0;
                 const className = data.ranking?.className;
-                
-                console.log('📊 Top 10:', top10);
-                console.log('📊 Total students:', totalStudents);
-                console.log('📊 Class name:', className);
                 
                 // Cập nhật tiêu đề với tên lớp
                 if (className) {
@@ -428,19 +413,36 @@
 
         function saveProfileChanges() {
             const token = localStorage.getItem('token');
+            const fullName = document.getElementById('editFullName').value.trim();
+            const gender = document.getElementById('editGender').value;
             const phone = document.getElementById('editPhone').value.trim();
             const dob = document.getElementById('editDob').value.trim(); 
 
-            if (!phone && !dob) {
-                showToast('❌ Vui lòng điền ít nhất một trường (số điện thoại hoặc ngày sinh)!', 'error');
+            // Kiểm tra ít nhất một trường được điền
+            if (!fullName && !gender && !phone && !dob) {
+                showToast('❌ Vui lòng điền ít nhất một trường!', 'error');
                 return;
             }
 
+            // Validate fullName
+            if (fullName && fullName.length < 2) {
+                showToast('❌ Họ và tên phải có ít nhất 2 ký tự!', 'error');
+                return;
+            }
+
+            // Validate phone
             const phoneRegex = /^0[1-9][0-9]{8,9}$/;
             if (phone && !phoneRegex.test(phone)) {
                 showToast('❌ Số điện thoại không hợp lệ! (VD: 0123456789)', 'error');
                 return;
             }
+
+            // Gửi dữ liệu lên server
+            const updateData = {};
+            if (fullName) updateData.fullName = fullName;
+            if (gender) updateData.gender = gender;
+            if (phone) updateData.phone = phone;
+            if (dob) updateData.dob = dob;
 
             fetch('http://localhost:3000/api/user/profile/update', { 
                 method: 'POST', 
@@ -448,7 +450,7 @@
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ phone, dob })
+                body: JSON.stringify(updateData)
             })
             .then(response => {
                 if (!response.ok) throw new Error('Lỗi cập nhật thông tin');
@@ -461,6 +463,7 @@
                 fetchUserData(); 
             })
             .catch(error => {
+                console.error('Lỗi cập nhật:', error);
                 showToast('❌ Lỗi khi cập nhật thông tin. Vui lòng thử lại!', 'error');
             });
         }

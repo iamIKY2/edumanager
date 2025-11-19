@@ -16,7 +16,7 @@
         try {
             // Lấy thông tin user cơ bản
             const [users] = await req.db.query(
-                'SELECT user_id, username, email, full_name, phone, dob, role FROM users WHERE user_id = ?',
+                'SELECT user_id, username, email, full_name, phone, dob, gender, role FROM users WHERE user_id = ?',
                 [userId]
             );
 
@@ -449,6 +449,7 @@
                         email: user.email,
                         phone: user.phone,
                         dob: user.dob,
+                        gender: user.gender,
                         class: 'N/A',
                         avgScore: avgScore,
                         rank: userRankForStats
@@ -499,20 +500,48 @@
     // ============================================
     router.post('/profile/update', authMiddleware, async (req, res) => {
         const userId = req.user.id || req.user.user_id;
-        const { phone, dob } = req.body;
+        const { fullName, gender, phone, dob } = req.body;
 
         console.log('=== UPDATE PROFILE ===');
         console.log('userId:', userId);
+        console.log('fullName:', fullName);
+        console.log('gender:', gender);
         console.log('phone:', phone);
         console.log('dob:', dob);
 
-        if (!phone && !dob) {
+        // Kiểm tra ít nhất một trường được cung cấp
+        if (!fullName && !gender && !phone && !dob) {
             return res.status(400).json({ error: 'Vui lòng cung cấp ít nhất một trường để cập nhật' });
+        }
+
+        // Validate fullName
+        if (fullName && fullName.trim().length < 2) {
+            return res.status(400).json({ error: 'Họ và tên phải có ít nhất 2 ký tự' });
+        }
+
+        // Validate gender
+        if (gender && !['male', 'female', 'other'].includes(gender)) {
+            return res.status(400).json({ error: 'Giới tính không hợp lệ. Chỉ chấp nhận: male, female, other' });
+        }
+
+        // Validate phone
+        if (phone && !/^0[1-9][0-9]{8,9}$/.test(phone)) {
+            return res.status(400).json({ error: 'Số điện thoại không hợp lệ' });
         }
 
         try {
             const updates = [];
             const values = [];
+
+            if (fullName) {
+                updates.push('full_name = ?');
+                values.push(fullName.trim());
+            }
+
+            if (gender) {
+                updates.push('gender = ?');
+                values.push(gender);
+            }
 
             if (phone) {
                 updates.push('phone = ?');
@@ -524,6 +553,10 @@
                 values.push(dob);
             }
 
+            if (updates.length === 0) {
+                return res.status(400).json({ error: 'Không có trường nào để cập nhật' });
+            }
+
             values.push(userId);
 
             await req.db.query(
@@ -531,6 +564,7 @@
                 values
             );
 
+            console.log(`✅ Cập nhật thông tin thành công cho user_id: ${userId}`);
             res.json({ success: true, message: 'Cập nhật thông tin thành công' });
         } catch (err) {
             console.error('❌ Error in /profile/update:', err);

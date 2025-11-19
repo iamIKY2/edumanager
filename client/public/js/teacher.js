@@ -40,6 +40,16 @@ function formatScore(score) {
     return parseFloat(score).toFixed(1);
 }
 
+// Đảm bảo overlay không chặn click khi trang load
+document.addEventListener('DOMContentLoaded', function() {
+    const overlay = document.getElementById('sidebarOverlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+        overlay.style.pointerEvents = 'none';
+        overlay.classList.remove('active');
+    }
+});
+
 document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('role')?.toLowerCase();
@@ -386,18 +396,45 @@ async function markNotificationAsRead(notificationId) {
 
 // Event bindings
 function bindEvents() {
-    document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
     
-   document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', function() {
-        const section = this.dataset.section;
-        navigateTo(section);
-        
-        if (window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.remove('open');
-        }
+    // Menu toggle button
+    if (menuToggle) {
+        menuToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSidebar();
+        });
+    }
+    
+    // Overlay click - đóng sidebar
+    if (overlay) {
+        overlay.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeSidebar();
+        });
+    }
+    
+    // Menu items click
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const section = this.dataset.section;
+            
+            // Đóng sidebar trên mobile trước khi navigate
+            if (window.innerWidth <= 768) {
+                closeSidebar();
+            }
+            
+            // Navigate sau một chút để sidebar đóng xong
+            setTimeout(() => {
+                navigateTo(section);
+            }, 100);
+        });
     });
-});
 
     document.getElementById('searchClass').addEventListener('input', function(e) {
         filterClasses(e.target.value);
@@ -418,16 +455,25 @@ function bindEvents() {
         filterStudents(e.target.value);
     });
 
-    document.addEventListener('click', function(e) {
-        if (window.innerWidth <= 768) {
-            const sidebar = document.getElementById('sidebar');
-            const menuToggle = document.getElementById('menuToggle');
-            
-            if (!sidebar.contains(e.target) && e.target !== menuToggle) {
-                sidebar.classList.remove('open');
-            }
-        }
-    });
+    // Đóng sidebar khi click bên ngoài (chỉ trên mobile)
+    // Chỉ đóng khi click vào overlay, không đóng khi click vào các phần tử khác
+    // Điều này tránh conflict với các click events khác
+}
+
+// Hàm đóng sidebar
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (sidebar) {
+        sidebar.classList.remove('open');
+    }
+    if (overlay) {
+        overlay.classList.remove('active');
+        // Đảm bảo overlay không chặn click sau khi đóng
+        overlay.style.pointerEvents = 'none';
+        overlay.style.display = 'none';
+    }
 }
 
 // Navigation
@@ -505,19 +551,35 @@ function navigateTo(section) {
     }    
 
     if (window.innerWidth <= 768) {
-        document.getElementById('sidebar').classList.remove('open');
+        closeSidebar();
     }
 }
 // Sidebar toggle
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('mainContent');
+    const overlay = document.getElementById('sidebarOverlay');
     
     if (window.innerWidth <= 768) {
-        sidebar.classList.toggle('open');
+        const isOpen = sidebar.classList.contains('open');
+        if (isOpen) {
+            closeSidebar();
+        } else {
+            sidebar.classList.add('open');
+            if (overlay) {
+                overlay.style.display = 'block';
+                overlay.style.pointerEvents = 'auto';
+                overlay.classList.add('active');
+            }
+        }
     } else {
         sidebar.classList.toggle('closed');
         mainContent.classList.toggle('expanded');
+        if (overlay) {
+            overlay.classList.remove('active');
+            overlay.style.display = 'none';
+            overlay.style.pointerEvents = 'none';
+        }
     }
 }
 
@@ -3590,13 +3652,17 @@ function showGradingModal(data) {
     }
     
     // ⭐ SỬA: Lấy cả câu đã chấm và chưa chấm để có thể sửa điểm
+    // Bao gồm tất cả loại câu hỏi: Essay, FillInBlank, SingleChoice, MultipleChoice
     const ungraded = data.answers.filter(a => 
         !a.is_graded && (a.question_type === 'Essay' || a.question_type === 'FillInBlank')
     );
     
-    // Lấy tất cả câu hỏi tự luận và điền khẩu (kể cả đã chấm) để có thể sửa điểm
+    // Lấy TẤT CẢ câu hỏi (kể cả trắc nghiệm) để có thể sửa điểm
     const allGradableQuestions = data.answers.filter(a => 
-        a.question_type === 'Essay' || a.question_type === 'FillInBlank'
+        a.question_type === 'Essay' || 
+        a.question_type === 'FillInBlank' || 
+        a.question_type === 'SingleChoice' || 
+        a.question_type === 'MultipleChoice'
     );
     
     // Cập nhật title
@@ -3709,14 +3775,25 @@ function showGradingModal(data) {
                     
                     <div style="margin-bottom: 15px;">
                         <strong>Loại:</strong> 
-                        <span class="tag">${answer.question_type === 'Essay' ? 'Tự luận' : 'Điền khẩu'}</span>
+                        <span class="tag">${
+                            answer.question_type === 'Essay' ? 'Tự luận' : 
+                            answer.question_type === 'FillInBlank' ? 'Điền khẩu' :
+                            answer.question_type === 'SingleChoice' ? 'Trắc nghiệm 1 lựa chọn' :
+                            answer.question_type === 'MultipleChoice' ? 'Trắc nghiệm nhiều lựa chọn' :
+                            answer.question_type
+                        }</span>
                         <span class="tag" style="background: #4299e1;">Độ khó: ${answer.difficulty}</span>
                         <span class="tag" style="background: #48bb78;">Điểm tối đa: ${answer.points}</span>
+                        ${answer.is_correct !== null && answer.is_correct !== undefined ? `
+                            <span class="tag" style="background: ${answer.is_correct == 1 ? '#48bb78' : '#f56565'};">
+                                ${answer.is_correct == 1 ? '✅ Đúng' : '❌ Sai'} (Tự động)
+                            </span>
+                        ` : ''}
                     </div>
                     
                     ${answer.correct_answer_text ? `
                         <div style="background: #e6fffa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #26de81;">
-                            <strong style="color: #2d3748;">✅ Đáp án gợi ý:</strong>
+                            <strong style="color: #2d3748;">✅ Đáp án đúng:</strong>
                             <div style="margin-top: 8px; color: #2d3748;">${answer.correct_answer_text}</div>
                         </div>
                     ` : ''}
@@ -3724,8 +3801,17 @@ function showGradingModal(data) {
                     <div style="background: #fff5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #667eea;">
                         <strong style="color: #2d3748;">📝 Câu trả lời của học sinh:</strong>
                         <div style="margin-top: 8px; color: #2d3748; white-space: pre-wrap;">
-                            ${answer.answer_text || '<em style="color: #cbd5e0;">Học sinh chưa trả lời</em>'}
+                            ${answer.answer_text || answer.option_id || '<em style="color: #cbd5e0;">Học sinh chưa trả lời</em>'}
                         </div>
+                        ${(answer.question_type === 'SingleChoice' || answer.question_type === 'MultipleChoice') && answer.is_correct !== null ? `
+                            <div style="margin-top: 8px; padding: 8px; background: ${answer.is_correct == 1 ? '#e6fffa' : '#fff5f5'}; border-radius: 4px;">
+                                <strong>Kết quả tự động:</strong> 
+                                <span style="color: ${answer.is_correct == 1 ? '#26de81' : '#f56565'}; font-weight: 600;">
+                                    ${answer.is_correct == 1 ? '✅ Đúng' : '❌ Sai'}
+                                </span>
+                                ${answer.is_correct == 1 ? ` (Được ${answer.points} điểm tự động)` : ' (0 điểm)'}
+                            </div>
+                        ` : ''}
                     </div>
                     
                     <div class="form-group">
@@ -3741,13 +3827,17 @@ function showGradingModal(data) {
                             step="0.5"
                             class="input-field"
                             placeholder="VD: 0, 0.5, 1, 1.5..."
-                            value="${answer.teacher_score || ''}"
+                            value="${answer.teacher_score !== null && answer.teacher_score !== undefined ? answer.teacher_score : (answer.is_correct == 1 ? answer.points : 0)}"
                             required
                             style="max-width: 150px;"
                         >
                         ${answer.teacher_score !== null && answer.teacher_score !== undefined ? `
                             <small style="color: #48bb78; display: block; margin-top: 5px;">
-                                💡 Điểm hiện tại: ${answer.teacher_score}/${answer.points}
+                                💡 Điểm đã chỉnh sửa: ${answer.teacher_score}/${answer.points}
+                            </small>
+                        ` : (answer.question_type === 'SingleChoice' || answer.question_type === 'MultipleChoice') ? `
+                            <small style="color: #4299e1; display: block; margin-top: 5px;">
+                                💡 Điểm tự động: ${answer.is_correct == 1 ? answer.points : 0}/${answer.points} (Có thể chỉnh sửa)
                             </small>
                         ` : ''}
                     </div>
@@ -3767,7 +3857,7 @@ function showGradingModal(data) {
             ${allGradableQuestions.length === 0 ? `
                 <div class="empty-state">
                     <div class="empty-state-icon">✅</div>
-                    <div class="empty-state-text">Không có câu hỏi tự luận hoặc điền khẩu</div>
+                    <div class="empty-state-text">Không có câu hỏi cần chấm</div>
                 </div>
             ` : ''}
             
@@ -5758,7 +5848,7 @@ window.showSection = function(sectionId) {
 // Responsive
 window.addEventListener('resize', function() {
     if (window.innerWidth > 768) {
-        document.getElementById('sidebar').classList.remove('open');
+        closeSidebar();
     }
 });
 
@@ -6314,4 +6404,17 @@ function resetAIModal() {
         alertContainer.innerHTML = '';
     }
     resetAIForm();
+}
+
+// Hàm đăng xuất
+function logout() {
+    if (confirm('🔒 Bạn có chắc muốn đăng xuất?')) {
+        showNotification('👋 Đang đăng xuất...', 'info');
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('user_id');
+        setTimeout(() => {
+            window.location.href = './login.html';
+        }, 1000);
+    }
 }

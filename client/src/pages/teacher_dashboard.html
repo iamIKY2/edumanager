@@ -11,6 +11,7 @@
     <script defer src="/client/public/js/teacher.js"></script>
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <div class="dashboard-container">
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -50,17 +51,20 @@
 
         <div class="main-content" id="mainContent">
             <div class="header">
-                <div style="display: flex; align-items: center;">
+                <div class="header-left" style="display: flex; align-items: center;">
                     <button class="menu-toggle" id="menuToggle">☰</button>
                     <h1 class="header-title" id="pageTitle">Dashboard</h1>
                 </div>
-                <div style="display: flex; gap: 15px; align-items: center;">
-    <button id="themeToggle" class="theme-toggle" title="Chuyển đổi giao diện">
-        <span class="theme-icon">🌙</span>
-    </button>
-    <div class="notification-badge" onclick="showNotifications()" title="Thông báo">🔔</div>
-    <div id="welcomeMessage" style="font-size:18px; font-weight:600; color:#555;"></div>
-</div>
+                <div class="header-center" id="welcomeMessage" style="font-size:18px; font-weight:600; color:#555; text-align: center; flex: 1;"></div>
+                <div class="header-right" style="display: flex; gap: 15px; align-items: center;">
+                    <button id="themeToggle" class="theme-toggle" title="Chuyển đổi giao diện">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                    <div class="notification-badge" onclick="showNotifications()" title="Thông báo">🔔</div>
+                    <button id="logoutBtn" class="logout-btn" onclick="logout()" title="Đăng xuất">
+                        <span>🚪</span>
+                    </button>
+                </div>
             </div>
 
             <!-- DASHBOARD SECTION -->
@@ -208,7 +212,7 @@
                                     </div>
                                     <div id="examDetailContentClass" style="padding: 20px;">
                                         <!-- Thông tin cơ bản -->
-                                        <div style="background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+                                        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e8e8e8;">
                                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
                                                 <div>
                                                     <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">🏫 Lớp học</p>
@@ -224,7 +228,7 @@
                                                 </div>
                                                 <div>
                                                     <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">🔐 Mã code</p>
-                                                    <p style="font-size: 1.1rem; font-weight: 600; color: #667eea; font-family: 'Courier New', monospace; letter-spacing: 2px;" id="examDetailCode">-</p>
+                                                    <p style="font-size: 1.1rem; font-weight: 600; color: #2d3748; font-family: 'Courier New', monospace; letter-spacing: 2px;" id="examDetailCode">-</p>
                                                 </div>
                                                 <div>
                                                     <p style="color: #718096; font-size: 0.9rem; margin-bottom: 5px;">📊 Trạng thái</p>
@@ -570,7 +574,7 @@
         </div>
         
         <!-- Thông tin vi phạm gian lận -->
-        <div id="gradingViolationInfo" style="background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f56565; display: none;">
+        <div id="gradingViolationInfo" style="background: #fff5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #dc3545; display: none; border: 1px solid #e8e8e8;">
             <h4 style="color: #c53030; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
                 ⚠️ Thông tin vi phạm gian lận
             </h4>
@@ -615,22 +619,22 @@
 
                 <!-- Stats Grid -->
                 <div class="cheating-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:20px;">
-                    <div class="cheating-stats-card" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:15px;text-align:center;border-radius:10px;">
+                    <div class="cheating-stats-card" style="background:#4a5568;color:white;padding:15px;text-align:center;border-radius:8px;">
                         <div style="font-size:1.5rem;">⚠️</div>
                         <div id="totalCheatingEvents" style="font-size:1.8rem;font-weight:bold;">0</div>
                         <div style="font-size:0.85rem;opacity:0.9;">Tổng vi phạm</div>
                     </div>
-                    <div class="cheating-stats-card" style="background:linear-gradient(135deg,#f56565 0%,#c53030 100%);color:white;padding:15px;text-align:center;border-radius:10px;">
+                    <div class="cheating-stats-card" style="background:#dc3545;color:white;padding:15px;text-align:center;border-radius:8px;">
                         <div style="font-size:1.5rem;">🚫</div>
                         <div id="totalTabSwitches" style="font-size:1.8rem;font-weight:bold;">0</div>
                         <div style="font-size:0.85rem;opacity:0.9;">Chuyển tab</div>
                     </div>
-                    <div class="cheating-stats-card" style="background:linear-gradient(135deg,#ffa502 0%,#ed8936 100%);color:white;padding:15px;text-align:center;border-radius:10px;">
+                    <div class="cheating-stats-card" style="background:#ffc107;color:#212529;padding:15px;text-align:center;border-radius:8px;">
                         <div style="font-size:1.5rem;">📋</div>
                         <div id="totalCopyPaste" style="font-size:1.8rem;font-weight:bold;">0</div>
                         <div style="font-size:0.85rem;opacity:0.9;">Copy/Paste</div>
                     </div>
-                    <div class="cheating-stats-card" style="background:linear-gradient(135deg,#4299e1 0%,#3182ce 100%);color:white;padding:15px;text-align:center;border-radius:10px;">
+                    <div class="cheating-stats-card" style="background:#17a2b8;color:white;padding:15px;text-align:center;border-radius:8px;">
                         <div style="font-size:1.5rem;">👤</div>
                         <div id="suspiciousStudents" style="font-size:1.8rem;font-weight:bold;">0</div>
                         <div style="font-size:0.85rem;opacity:0.9;">Học sinh vi phạm</div>
@@ -666,7 +670,7 @@
                 <!-- Detail View -->
                 <div class="card" id="studentCheatingDetail" style="display:none;">
                     <button class="back-btn" onclick="backToCheatingList()">← Quay lại danh sách</button>
-                    <div style="background:linear-gradient(135deg,#f56565 0%,#c53030 100%);color:white;border-radius:10px;padding:20px;margin-bottom:20px;">
+                    <div style="background:#dc3545;color:white;border-radius:8px;padding:20px;margin-bottom:20px;">
                         <h2 id="studentCheatingName" style="margin-bottom:10px;">Chi tiết gian lận</h2>
                         <p><strong>Bài thi:</strong> <span id="detailExamName">-</span> | <strong>⏰</strong> <span id="detailExamTime">-</span></p>
                         <p><strong>⚠️</strong> <span id="detailTotalViolations">0</span> vi phạm</p>
@@ -771,7 +775,7 @@
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Điểm trung bình</div>
-                            <div class="stat-number" id="statAvgScore" style="font-size: 2rem; color: #667eea;">0</div>
+                            <div class="stat-number" id="statAvgScore" style="font-size: 2rem; color: #2d3748;">0</div>
                             <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Tất cả bài thi</div>
                         </div>
                         <div class="stat-card">
@@ -801,7 +805,7 @@
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Tổng bài làm</div>
-                            <div class="stat-number" id="statTotalAttempts" style="font-size: 1.8rem; color: #667eea;">0</div>
+                            <div class="stat-number" id="statTotalAttempts" style="font-size: 1.8rem; color: #2d3748;">0</div>
                             <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Tất cả</div>
                         </div>
                         <div class="stat-card">
@@ -828,7 +832,7 @@
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Đã kết thúc</div>
-                            <div class="stat-number" id="statCompletedExams" style="font-size: 1.5rem; color: #667eea;">0</div>
+                            <div class="stat-number" id="statCompletedExams" style="font-size: 1.5rem; color: #2d3748;">0</div>
                         </div>
                     </div>
 
@@ -1104,7 +1108,7 @@
             <div style="padding: 30px; text-align: center;">
                 <p style="margin-bottom: 20px; color: #666; font-size: 14px;">Bài thi đã được tạo thành công! Vui lòng cung cấp mã code này cho học sinh để họ có thể làm bài thi.</p>
                 
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 15px; margin-bottom: 20px;">
+                <div style="background: #4a5568; color: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
                     <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin-bottom: 10px; font-weight: 500;">Mã code bài thi:</p>
                     <div id="examCodeDisplay" style="font-size: 36px; font-weight: bold; color: white; letter-spacing: 8px; font-family: 'Courier New', monospace; margin: 10px 0;">000000</div>
                     <p id="examCodeName" style="color: rgba(255,255,255,0.9); font-size: 16px; margin-top: 10px; font-weight: 500;"></p>
@@ -1234,7 +1238,7 @@
             <!-- Loading -->
             <div id="aiLoading" class="ai-loading">
                 <div class="ai-spinner"></div>
-                <p style="color: #667eea; font-size: 16px; font-weight: 600;">
+                <p style="color: #2d3748; font-size: 16px; font-weight: 600;">
                     Đang tạo đề thi với AI...
                 </p>
                 <p style="color: #718096; margin-top: 10px; font-size: 14px;">

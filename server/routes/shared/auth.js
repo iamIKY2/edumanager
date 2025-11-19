@@ -4,7 +4,14 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const emailService = require('../../services/emailService');
+const { OAuth2Client } = require('google-auth-library');
 const router = express.Router();
+
+// Khởi tạo Google OAuth Client
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID || '1028134720370-jgqmf3pg0p25vjgmhtgj9a4q2rid4t4e.apps.googleusercontent.com',
+  process.env.GOOGLE_CLIENT_SECRET || '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'
+);
 
 // ============================================
 // RATE LIMITING cho OTP
@@ -432,6 +439,261 @@ router.post('/resend-otp', otpLimiter, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Có lỗi xảy ra khi gửi lại OTP'
+    });
+  }
+});
+
+// ============================================
+// GOOGLE OAUTH ROUTES
+// ============================================
+
+// POST /api/auth/google - Xử lý đăng nhập Google
+router.post('/google', async (req, res) => {
+  try {
+    const db = req.db;
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Thiếu Google token!'
+      });
+    }
+
+    // Xác thực token với Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID || '1028134720370-jgqmf3pg0p25vjgmhtgj9a4q2rid4t4e.apps.googleusercontent.com'
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Không thể lấy email từ Google!'
+      });
+    }
+
+    // Kiểm tra user đã tồn tại chưa (theo email HOẶC google_id)
+    let [usersByEmail] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    let [usersByGoogleId] = await db.query('SELECT * FROM users WHERE google_id = ?', [googleId]);
+    
+    let user = null;
+    
+    // Ưu tiên tìm theo google_id (nếu đã liên kết Google trước đó)
+    if (usersByGoogleId.length > 0) {
+      user = usersByGoogleId[0];
+      console.log(`🔍 Tìm thấy user theo google_id: ${email}, role: ${user.role}`);
+    } 
+    // Nếu không tìm thấy theo google_id, tìm theo email
+    else if (usersByEmail.length > 0) {
+      user = usersByEmail[0];
+      console.log(`🔍 Tìm thấy user theo email: ${email}, role: ${user.role}, google_id: ${user.google_id || 'NULL'}`);
+    }
+
+    // Nếu không tìm thấy user nào → User mới, cần chọn role
+    if (!user) {
+      console.log(`🆕 User mới từ Google: ${email} - Yêu cầu chọn role`);
+      return res.json({
+        success: false,
+        needsRoleSelection: true,
+        message: 'Vui lòng chọn vai trò của bạn',
+        userInfo: {
+          email,
+          name: name || email.split('@')[0],
+          picture,
+          googleId
+        }
+      });
+    }
+    
+    // User đã tồn tại - cập nhật google_id nếu chưa có
+    try {
+      if (!user.google_id) {
+        await db.query('UPDATE users SET google_id = ? WHERE user_id = ?', [googleId, user.user_id]);
+        console.log(`✅ Đã cập nhật google_id cho user: ${email}`);
+      }
+    } catch (err) {
+      // Bỏ qua lỗi nếu cột google_id chưa tồn tại
+      if (err.code === 'ER_BAD_FIELD_ERROR' && err.message.includes('google_id')) {
+        console.warn('⚠️ Cột google_id chưa tồn tại. Vui lòng chạy migration add_google_id_to_users.sql');
+      } else {
+        throw err;
+      }
+    }
+    
+    console.log(`✅ Đăng nhập Google thành công: ${email}, role: ${user.role}`);
+
+    // Tạo JWT token
+    const jwtToken = jwt.sign(
+      { id: user.user_id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Đăng nhập Google thành công!',
+      token: jwtToken,
+      role: user.role,
+      user: {
+        user_id: user.user_id,
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error in Google OAuth:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Lỗi xác thực Google!',
+      details: error.message
+    });
+  }
+});
+
+// POST /api/auth/google/complete - Hoàn tất đăng ký Google với role đã chọn
+router.post('/google/complete', async (req, res) => {
+  try {
+    const db = req.db;
+    const { token, role, fullName, username } = req.body;
+
+    if (!token || !role) {
+      return res.status(400).json({
+        success: false,
+        error: 'Thiếu token hoặc role!'
+      });
+    }
+
+    if (!['student', 'teacher'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Role không hợp lệ! Chỉ chấp nhận student hoặc teacher'
+      });
+    }
+
+    // Xác thực token với Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID || '1028134720370-jgqmf3pg0p25vjgmhtgj9a4q2rid4t4e.apps.googleusercontent.com'
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, sub: googleId } = payload;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Không thể lấy email từ Google!'
+      });
+    }
+
+    // Kiểm tra user đã tồn tại chưa
+    let [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    
+    if (users.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email đã được sử dụng!'
+      });
+    }
+
+    // Sử dụng thông tin từ form hoặc từ Google
+    const finalFullName = fullName || name || email.split('@')[0];
+    const finalUsername = username || email.split('@')[0] + '_' + Date.now().toString().slice(-6);
+    
+    // Kiểm tra username đã tồn tại chưa
+    const [existingUsername] = await db.query('SELECT * FROM users WHERE username = ?', [finalUsername]);
+    if (existingUsername.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tên đăng nhập đã được sử dụng! Vui lòng chọn tên khác.'
+      });
+    }
+    
+    try {
+      // Tạo user với password_hash = NULL (đăng nhập bằng Google)
+      await db.query(
+        'INSERT INTO users (username, email, password_hash, full_name, role, google_id) VALUES (?, ?, NULL, ?, ?, ?)',
+        [finalUsername, email, finalFullName, role, googleId]
+      );
+    } catch (err) {
+      // Nếu lỗi do password_hash không thể NULL, tạo password hash mặc định
+      if (err.code === 'ER_BAD_NULL_ERROR' && err.message.includes('password_hash')) {
+        console.warn('⚠️ password_hash không thể NULL. Tạo password hash mặc định.');
+        // Tạo password hash ngẫu nhiên (user sẽ không dùng password này)
+        const crypto = require('crypto');
+        const randomPassword = crypto.randomBytes(32).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        
+        try {
+          await db.query(
+            'INSERT INTO users (username, email, password_hash, full_name, role, google_id) VALUES (?, ?, ?, ?, ?, ?)',
+            [finalUsername, email, hashedPassword, finalFullName, role, googleId]
+          );
+        } catch (err2) {
+          // Nếu cột google_id chưa tồn tại
+          if (err2.code === 'ER_BAD_FIELD_ERROR' && err2.message.includes('google_id')) {
+            console.warn('⚠️ Cột google_id chưa tồn tại. Tạo user không có google_id.');
+            await db.query(
+              'INSERT INTO users (username, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
+              [finalUsername, email, hashedPassword, finalFullName, role]
+            );
+          } else {
+            throw err2;
+          }
+        }
+      } else if (err.code === 'ER_BAD_FIELD_ERROR' && err.message.includes('google_id')) {
+        console.warn('⚠️ Cột google_id chưa tồn tại. Tạo user không có google_id.');
+        // Tạo password hash mặc định
+        const crypto = require('crypto');
+        const randomPassword = crypto.randomBytes(32).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        await db.query(
+          'INSERT INTO users (username, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
+          [finalUsername, email, hashedPassword, finalFullName, role]
+        );
+      } else {
+        throw err;
+      }
+    }
+
+    // Lấy user vừa tạo
+    [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    const user = users[0];
+    
+    console.log(`✅ Tạo tài khoản mới từ Google với role ${role}: ${email}`);
+
+    // Tạo JWT token
+    const jwtToken = jwt.sign(
+      { id: user.user_id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Đăng ký Google thành công!',
+      token: jwtToken,
+      role: user.role,
+      user: {
+        user_id: user.user_id,
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error in Google OAuth Complete:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Lỗi hoàn tất đăng ký Google!',
+      details: error.message
     });
   }
 });

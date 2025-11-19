@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Làm Bài Thi - EDEXIS</title>
     <link rel="icon" type="image/png" href="/client/public/images/edu.png">
+    <link rel="stylesheet" href="/client/public/css/variables.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
     <style>
         * {
@@ -14,30 +15,30 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: var(--font-family);
+            background: var(--bg-gradient);
             min-height: 100vh;
-            padding: 20px;
+            padding: var(--spacing-lg);
         }
 
         .exam-container {
-            max-width: 1200px;
+            max-width: var(--container-max-width);
             margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            background: var(--white);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-xl);
             overflow: hidden;
         }
 
         .exam-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 30px;
+            background: var(--primary-gradient);
+            color: var(--white);
+            padding: var(--spacing-lg) var(--spacing-xl);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: var(--spacing-md);
         }
 
         .exam-title {
@@ -196,18 +197,30 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--primary-gradient);
+            color: var(--white);
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-gradient-hover);
         }
 
         .btn-success {
-            background: #26de81;
-            color: white;
+            background: var(--success-color);
+            color: var(--white);
+        }
+        
+        .btn-success:hover {
+            background: var(--success-dark);
         }
 
         .btn-secondary {
-            background: #95a5a6;
-            color: white;
+            background: var(--gray-500);
+            color: var(--white);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--gray-600);
         }
 
         .btn:hover {
@@ -223,14 +236,14 @@
 
         .webcam-container {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
+            bottom: var(--spacing-lg);
+            right: var(--spacing-lg);
             width: 200px;
-            border: 3px solid #667eea;
-            border-radius: 10px;
+            border: 3px solid var(--primary-color);
+            border-radius: var(--radius-lg);
             overflow: hidden;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            z-index: 1000;
+            box-shadow: var(--shadow-lg);
+            z-index: var(--z-fixed);
         }
 
         #localVideo {
@@ -239,25 +252,25 @@
         }
 
         .webcam-status {
-            background: #26de81;
-            color: white;
-            padding: 5px;
+            background: var(--success-color);
+            color: var(--white);
+            padding: var(--spacing-xs);
             text-align: center;
-            font-size: 12px;
+            font-size: var(--font-size-xs);
             font-weight: 600;
         }
 
         .warning-banner {
-            background: #ff4757;
-            color: white;
-            padding: 15px;
+            background: var(--danger-color);
+            color: var(--white);
+            padding: var(--spacing-md);
             text-align: center;
             font-weight: 600;
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            z-index: 9999;
+            z-index: var(--z-tooltip);
             display: none;
         }
 
@@ -288,24 +301,141 @@
             transform: translateX(0);
         }
 
-        .toast.error { border-left: 5px solid #ff4757; }
-        .toast.success { border-left: 5px solid #26de81; }
-        .toast.warning { border-left: 5px solid #ffa502; }
+        .toast.error { border-left: 5px solid var(--danger-color); }
+        .toast.success { border-left: 5px solid var(--success-color); }
+        .toast.warning { border-left: 5px solid var(--warning-color); }
 
-        @media (max-width: 768px) {
+        /* ============================================
+           RESPONSIVE STYLES
+           ============================================ */
+        
+        /* Mobile (0px - 575px) */
+        @media (max-width: 575.98px) {
+            body {
+                padding: var(--spacing-sm);
+            }
+            
+            .exam-container {
+                border-radius: var(--radius-lg);
+            }
+            
             .exam-header {
                 flex-direction: column;
                 text-align: center;
+                padding: var(--spacing-md);
+                gap: var(--spacing-sm);
             }
-
+            
+            .exam-title {
+                font-size: var(--font-size-lg);
+            }
+            
+            .timer {
+                font-size: var(--font-size-xl);
+                min-width: auto;
+                width: 100%;
+                padding: var(--spacing-sm) var(--spacing-md);
+            }
+            
+            .exam-body {
+                padding: var(--spacing-md);
+            }
+            
+            .question-nav {
+                gap: var(--spacing-xs);
+                margin-bottom: var(--spacing-lg);
+            }
+            
+            .question-nav-btn {
+                width: 35px;
+                height: 35px;
+                font-size: var(--font-size-sm);
+            }
+            
+            .question-content {
+                padding: var(--spacing-md);
+            }
+            
+            .question-text {
+                font-size: var(--font-size-base);
+            }
+            
             .webcam-container {
-                width: 150px;
-                bottom: 10px;
-                right: 10px;
+                width: 120px;
+                bottom: var(--spacing-sm);
+                right: var(--spacing-sm);
             }
-
+            
+            .webcam-status {
+                font-size: var(--font-size-xs);
+                padding: var(--spacing-xs);
+            }
+            
             .action-buttons {
                 flex-direction: column;
+                gap: var(--spacing-sm);
+            }
+            
+            .action-buttons .btn {
+                width: 100%;
+                padding: var(--spacing-sm) var(--spacing-md);
+                font-size: var(--font-size-sm);
+            }
+            
+            .modal-content {
+                width: 95%;
+                padding: var(--spacing-lg);
+                max-height: 90vh;
+            }
+            
+            .option {
+                padding: var(--spacing-sm) var(--spacing-md);
+                font-size: var(--font-size-sm);
+            }
+            
+            .textarea-answer {
+                min-height: 120px;
+                font-size: var(--font-size-sm);
+            }
+        }
+        
+        /* Large Mobile / Small Tablet (576px - 767px) */
+        @media (min-width: 576px) and (max-width: 767.98px) {
+            .exam-header {
+                flex-direction: column;
+                text-align: center;
+                gap: var(--spacing-sm);
+            }
+            
+            .webcam-container {
+                width: 150px;
+            }
+            
+            .action-buttons {
+                flex-wrap: wrap;
+            }
+            
+            .action-buttons .btn {
+                flex: 1;
+                min-width: 120px;
+            }
+        }
+        
+        /* Tablet (768px - 991px) */
+        @media (min-width: 768px) and (max-width: 991.98px) {
+            .exam-container {
+                max-width: 100%;
+            }
+            
+            .webcam-container {
+                width: 180px;
+            }
+        }
+        
+        /* Desktop (992px+) */
+        @media (min-width: 992px) {
+            .exam-container {
+                max-width: 1200px;
             }
         }
 
@@ -431,7 +561,6 @@
         });
 
         socket.on('connect', () => {
-            console.log('✅ Socket connected');
             socket.emit('join', `user_${userId}`);
             socket.emit('join_exam', {
                 exam_id: examData.exam_id,
@@ -449,13 +578,11 @@
         });
 
         socket.on('answerSaved', (data) => {
-            if (data.attempt_id === examData.attempt_id) {
-                showToast('✅ Đáp án đã được lưu', 'success');
-            }
+            // Đáp án đã được lưu tự động
         });
 
         socket.on('disconnect', () => {
-            console.log('❌ Socket disconnected');
+            // Socket disconnected
         });
     }
 
@@ -469,8 +596,6 @@
             document.getElementById('localVideo').srcObject = stream;
             document.getElementById('webcamStatus').textContent = '🟢 Đang giám sát';
             document.getElementById('webcamStatus').style.background = '#26de81';
-            
-            console.log('✅ Webcam started');
             
         } catch (error) {
             console.error('❌ Webcam error:', error);
@@ -534,7 +659,7 @@
 
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(() => {
-                console.log('Fullscreen không được hỗ trợ');
+                // Fullscreen không được hỗ trợ
             });
         }
     }
@@ -656,8 +781,6 @@
         }
 
         try {
-            console.log('🔄 Đang lưu câu:', questionId, 'Option ID:', optionId, 'Answer Text:', answerText);
-            
             const response = await fetch(`${API_URL}/student/exams/${examData.exam_id}/save-answer`, {
                 method: 'POST',
                 headers: {  
@@ -675,9 +798,7 @@
             const result = await response.json();
             
             if (response.ok) {
-                console.log('✅ Đã lưu thành công câu:', questionId, 'Response:', result);
                 updateAnsweredStatus();
-                showToast('✅ Đã lưu đáp án', 'success');
             } else {
                 console.error('❌ Lỗi từ server:', result);
                 throw new Error(result.error || 'Lỗi khi lưu đáp án');
@@ -793,8 +914,6 @@
         }
 
         try {
-            console.log('🔄 Lưu trực tiếp câu:', questionId, 'Option ID:', optionId, 'Answer Text:', answerText);
-            
             const response = await fetch(`${API_URL}/student/exams/${examData.exam_id}/save-answer`, {
                 method: 'POST',
                 headers: {
@@ -816,7 +935,6 @@
                 throw new Error(result.error || 'Lỗi khi lưu đáp án');
             }
             
-            console.log('✅ Đã lưu trực tiếp câu:', questionId, 'Response:', result);
             return result;
         } catch (error) {
             console.error('❌ Error saving answer:', error);
@@ -871,10 +989,6 @@
             return;
         }
 
-        showToast('✅ Đã lưu xong tất cả câu trả lời', 'success');
-
-        console.log('🔍 Đang nộp bài:', { attempt_id: examData.attempt_id });
-
         const response = await fetch(`${API_URL}/student/exams/${examData.exam_id}/submit`, {
             method: 'POST',
             headers: {
@@ -889,7 +1003,6 @@
         const result = await response.json();
 
         if (response.ok) {
-            console.log('✅ Nộp bài thành công:', result);
             localStorage.removeItem('current_exam');
             // Kiểm tra nếu có câu tự luận chưa chấm
             const hasPendingGrading = (result.has_essay_questions && !result.is_fully_graded) || !result.is_fully_graded;

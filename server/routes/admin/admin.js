@@ -6,7 +6,8 @@ const bcrypt = require('bcrypt');
 const multer = require('multer'); 
 const xlsx = require('xlsx');           
 const fs = require('fs').promises;       
-const { parse } = require('csv-parse'); 
+const { parse } = require('csv-parse');
+const { generateAdminReport } = require('../../services/pdfService'); 
 
 
 
@@ -332,6 +333,72 @@ const buildReportData = async (db, filters) => {
     ]
   );
 
+  // Lịch sử sửa điểm
+  const [scoreHistory] = await db.query(
+    `SELECT 
+       sal.log_id,
+       sal.attempt_id,
+       sal.old_score,
+       sal.new_score,
+       sal.old_total_score,
+       sal.new_total_score,
+       sal.reason,
+       sal.edited_at,
+       u.full_name as teacher_name,
+       e.exam_name,
+       s.subject_name,
+       st.full_name as student_name,
+       qb.question_content
+     FROM score_audit_logs sal
+     JOIN exam_attempts ea ON sal.attempt_id = ea.attempt_id
+     JOIN exams e ON ea.exam_id = e.exam_id
+     LEFT JOIN subjects s ON e.subject_id = s.subject_id
+     LEFT JOIN users u ON sal.edited_by = u.user_id
+     LEFT JOIN users st ON ea.student_id = st.user_id
+     LEFT JOIN question_bank qb ON sal.question_id = qb.question_id
+     WHERE sal.edited_at BETWEEN ? AND ?
+       ${subjectId ? ' AND e.subject_id = ?' : ''}
+     ORDER BY sal.edited_at DESC
+     LIMIT 100`,
+    [
+      startDateStr,
+      endDateStr,
+      ...(subjectId ? [subjectId] : [])
+    ]
+  );
+
+  // Lịch sử khiếu nại
+  const [complaintsHistory] = await db.query(
+    `SELECT 
+       c.complaint_id,
+       c.exam_id,
+       c.student_id,
+       c.content,
+       c.status,
+       c.teacher_response,
+       c.created_at,
+       c.updated_at,
+       e.exam_name,
+       s.subject_name,
+       st.full_name as student_name,
+       st.email as student_email,
+       t.full_name as teacher_name
+     FROM complaints c
+     JOIN exams e ON c.exam_id = e.exam_id
+     LEFT JOIN subjects s ON e.subject_id = s.subject_id
+     LEFT JOIN users st ON c.student_id = st.user_id
+     LEFT JOIN users t ON e.teacher_id = t.user_id
+     WHERE c.created_at BETWEEN ? AND ?
+       ${subjectId ? ' AND e.subject_id = ?' : ''}
+     ORDER BY c.created_at DESC
+     LIMIT 100`,
+    [
+      startDateStr,
+      endDateStr,
+      ...(subjectId ? [subjectId] : [])
+    ]
+  );
+
   return {
     stats,
     trend,
@@ -339,7 +406,9 @@ const buildReportData = async (db, filters) => {
     subjectComparison,
     topStudents,
     warningStudents,
-    details
+    details,
+    scoreHistory,
+    complaintsHistory
   };
 };
 
@@ -738,6 +807,145 @@ router.get('/users', authenticateToken, async (req, res) => {
     res.json(users);
   } catch (err) {
     console.error('Lỗi lấy người dùng:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// API lấy chi tiết người dùng
+router.get('/users/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = req.db;
+    const userId = req.params.id;
+    
+    // Lấy thông tin cơ bản
+    const [userInfo] = await db.query(`
+      SELECT 
+        user_id, username, full_name, email, role, 
+        gender, phone, dob, created_at, updated_at,
+        google_id, password_hash IS NOT NULL as has_password
+      FROM users 
+      WHERE user_id = ?
+    `, [userId]);
+    
+    if (!userInfo.length) {
+      return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    }
+    
+    const user = userInfo[0];
+    const result = {
+      user: {
+        ...user,
+        gender: user.gender || 'Chưa cập nhật',
+        phone: user.phone || 'Chưa cập nhật',
+        dob: user.dob || 'Chưa cập nhật'
+      },
+      stats: {},
+      recentActivity: []
+    };
+    
+    // Thống kê theo vai trò
+    if (user.role === 'Student') {
+      // Thống kê cho sinh viên
+      const [studentStats] = await db.query(`
+        SELECT 
+          COUNT(DISTINCT ea.exam_id) as total_exams,
+          COUNT(ea.attempt_id) as total_attempts,
+          COUNT(CASE WHEN ea.status = 'Submitted' THEN 1 END) as completed_exams,
+          COALESCE(AVG(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) as avg_score,
+          COALESCE(MAX(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) as highest_score,
+          COALESCE(MIN(CASE WHEN ea.status = 'Submitted' THEN ea.score END), 0) as lowest_score,
+          (SELECT COUNT(*) FROM anti_cheating_logs acl 
+           JOIN exam_attempts ea2 ON acl.attempt_id = ea2.attempt_id 
+           WHERE ea2.student_id = ?) as cheating_warnings
+        FROM exam_attempts ea
+        WHERE ea.student_id = ?
+      `, [userId, userId]);
+      
+      result.stats = studentStats[0] || {
+        total_exams: 0,
+        total_attempts: 0,
+        completed_exams: 0,
+        avg_score: 0,
+        highest_score: 0,
+        lowest_score: 0,
+        cheating_warnings: 0
+      };
+      
+      // Lịch sử thi gần đây (10 bài gần nhất)
+      const [recentAttempts] = await db.query(`
+        SELECT 
+          ea.attempt_id,
+          ea.exam_id,
+          e.exam_name,
+          s.subject_name,
+          ea.score,
+          ea.status,
+          ea.start_time,
+          ea.end_time,
+          TIMESTAMPDIFF(MINUTE, ea.start_time, ea.end_time) as duration_minutes,
+          (SELECT COUNT(*) FROM anti_cheating_logs acl WHERE acl.attempt_id = ea.attempt_id) as warnings
+        FROM exam_attempts ea
+        JOIN exams e ON ea.exam_id = e.exam_id
+        LEFT JOIN subjects s ON e.subject_id = s.subject_id
+        WHERE ea.student_id = ?
+        ORDER BY ea.created_at DESC
+        LIMIT 10
+      `, [userId]);
+      
+      result.recentActivity = recentAttempts;
+      
+    } else if (user.role === 'Teacher') {
+      // Thống kê cho giáo viên
+      const [teacherStats] = await db.query(`
+        SELECT 
+          COUNT(DISTINCT e.exam_id) as total_exams,
+          COUNT(DISTINCT e.subject_id) as total_subjects,
+          COUNT(DISTINCT ea.student_id) as total_students,
+          COUNT(ea.attempt_id) as total_attempts,
+          COUNT(CASE WHEN ea.status = 'Submitted' THEN 1 END) as graded_attempts,
+          (SELECT COUNT(*) FROM question_bank WHERE teacher_id = ?) as total_questions
+        FROM exams e
+        LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id
+        WHERE e.teacher_id = ?
+      `, [userId, userId]);
+      
+      result.stats = teacherStats[0] || {
+        total_exams: 0,
+        total_subjects: 0,
+        total_students: 0,
+        total_attempts: 0,
+        graded_attempts: 0,
+        total_questions: 0
+      };
+      
+      // Kỳ thi gần đây (10 kỳ thi gần nhất)
+      const [recentExams] = await db.query(`
+        SELECT 
+          e.exam_id,
+          e.exam_name,
+          s.subject_name,
+          e.start_time,
+          e.duration,
+          e.status,
+          (SELECT COUNT(DISTINCT ea.student_id) FROM exam_attempts ea WHERE ea.exam_id = e.exam_id) as student_count,
+          (SELECT AVG(ea.score) FROM exam_attempts ea WHERE ea.exam_id = e.exam_id AND ea.status = 'Submitted') as avg_score
+        FROM exams e
+        LEFT JOIN subjects s ON e.subject_id = s.subject_id
+        WHERE e.teacher_id = ?
+        ORDER BY e.created_at DESC
+        LIMIT 10
+      `, [userId]);
+      
+      result.recentActivity = recentExams.map(exam => ({
+        ...exam,
+        status: computeExamStatus(exam),
+        avg_score: parseFloat(exam.avg_score || 0).toFixed(2)
+      }));
+    }
+    
+    res.json(result);
+  } catch (err) {
+    console.error('Lỗi lấy chi tiết người dùng:', err);
     res.status(500).json({ error: 'Lỗi server', details: err.message });
   }
 });
@@ -1316,20 +1524,109 @@ router.delete('/exams/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// API danh sách câu hỏi
+// API danh sách câu hỏi (TỐI ƯU - có pagination và filter)
 router.get('/questions', authenticateToken, async (req, res) => {
   try {
     const db = req.db;
-    const [questions] = await db.query(`
-      SELECT q.question_id, q.question_content, s.subject_name, q.difficulty, 
-             q.question_type as type, 
-             COALESCE(ROUND((qs.correct_attempts / NULLIF(qs.total_attempts, 0) * 100), 0), 0) as correct_rate
+    const { 
+      page = 1, 
+      limit = 20, 
+      search = '', 
+      subject_id = '', 
+      difficulty = '', 
+      question_type = '',
+      include_stats = 'false' // Tùy chọn: có lấy thống kê không (mặc định không để nhanh hơn)
+    } = req.query;
+    
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const limitNum = parseInt(limit);
+    
+    // Xây dựng query với điều kiện WHERE
+    let whereConditions = [];
+    const params = [];
+    
+    if (search && search.trim()) {
+      whereConditions.push('q.question_content LIKE ?');
+      params.push(`%${search.trim()}%`);
+    }
+    
+    if (subject_id && subject_id !== 'all' && subject_id !== '') {
+      whereConditions.push('q.subject_id = ?');
+      params.push(subject_id);
+    }
+    
+    if (difficulty && difficulty !== 'all' && difficulty !== '') {
+      whereConditions.push('q.difficulty = ?');
+      params.push(difficulty);
+    }
+    
+    if (question_type && question_type !== 'all' && question_type !== '') {
+      whereConditions.push('q.question_type = ?');
+      params.push(question_type);
+    }
+    
+    const whereClause = whereConditions.length > 0 
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : '';
+    
+    // Query chính - tối ưu: chỉ JOIN subjects, bỏ question_statistics để nhanh hơn
+    // Nếu cần stats, có thể query riêng hoặc dùng subquery tối ưu hơn
+    let query = `
+      SELECT 
+        q.question_id, 
+        q.question_content, 
+        s.subject_name, 
+        q.difficulty, 
+        q.question_type as type,
+        q.created_at,
+        q.teacher_id,
+        (SELECT COUNT(*) FROM question_options WHERE question_id = q.question_id) as option_count
+    `;
+    
+    // Chỉ thêm correct_rate nếu include_stats = 'true'
+    if (include_stats === 'true') {
+      query += `,
+        COALESCE(ROUND((qs.correct_attempts / NULLIF(qs.total_attempts, 0) * 100), 0), 0) as correct_rate
+      `;
+    } else {
+      query += `, 0 as correct_rate`;
+    }
+    
+    query += `
       FROM question_bank q
       LEFT JOIN subjects s ON q.subject_id = s.subject_id
-      LEFT JOIN question_statistics qs ON q.question_id = qs.question_id
+    `;
+    
+    if (include_stats === 'true') {
+      query += `LEFT JOIN question_statistics qs ON q.question_id = qs.question_id`;
+    }
+    
+    query += `
+      ${whereClause}
       ORDER BY q.created_at DESC
-    `);
-    res.json(questions);
+      LIMIT ? OFFSET ?
+    `;
+    
+    params.push(limitNum, offset);
+    
+    const [questions] = await db.query(query, params);
+    
+    // Query tổng số (tối ưu: không JOIN không cần thiết)
+    let countQuery = `SELECT COUNT(*) as total FROM question_bank q ${whereClause}`;
+    const [countResult] = await db.query(countQuery, params.slice(0, -2)); // Bỏ limit và offset
+    
+    const total = countResult[0]?.total || 0;
+    const totalPages = Math.ceil(total / limitNum);
+    
+    res.json({
+      questions,
+      pagination: {
+        page: parseInt(page),
+        limit: limitNum,
+        total,
+        totalPages
+      }
+    });
   } catch (err) {
     console.error('Lỗi lấy câu hỏi:', err);
     res.status(500).json({ error: 'Lỗi server', details: err.message });
@@ -1528,7 +1825,7 @@ router.get('/reports/export/excel', authenticateToken, async (req, res) => {
     }
     
     // ============================================
-    // SHEET 3: PHÂN BỐ XẾNG LOẠI
+    // SHEET 3: PHÂN BỐ XẾP LOẠI
     // ============================================
     if (data.gradeDistribution && data.gradeDistribution.length > 0) {
       const gradeData = [
@@ -1649,6 +1946,78 @@ router.get('/reports/export/excel', authenticateToken, async (req, res) => {
       xlsx.utils.book_append_sheet(workbook, detailSheet, 'Chi tiết kỳ thi');
     }
     
+    // ============================================
+    // SHEET 8: LỊCH SỬ SỬA ĐIỂM
+    // ============================================
+    if (data.scoreHistory && data.scoreHistory.length > 0) {
+      const scoreHistoryData = [
+        ['LỊCH SỬ SỬA ĐIỂM CỦA GIÁO VIÊN'],
+        [],
+        ['Thời gian', 'Giáo viên', 'Học sinh', 'Bài thi', 'Môn học', 'Điểm cũ', 'Điểm mới', 'Tổng điểm cũ', 'Tổng điểm mới', 'Lý do'],
+        ...data.scoreHistory.map(sh => [
+          new Date(sh.edited_at).toLocaleString('vi-VN'),
+          sh.teacher_name || 'N/A',
+          sh.student_name || 'N/A',
+          sh.exam_name || 'N/A',
+          sh.subject_name || 'N/A',
+          sh.old_score ? parseFloat(sh.old_score).toFixed(2) : 'N/A',
+          sh.new_score ? parseFloat(sh.new_score).toFixed(2) : 'N/A',
+          sh.old_total_score ? parseFloat(sh.old_total_score).toFixed(2) : 'N/A',
+          sh.new_total_score ? parseFloat(sh.new_total_score).toFixed(2) : 'N/A',
+          sh.reason || 'N/A'
+        ])
+      ];
+      
+      const scoreHistorySheet = xlsx.utils.aoa_to_sheet(scoreHistoryData);
+      scoreHistorySheet['!cols'] = [
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 20 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 40 }
+      ];
+      xlsx.utils.book_append_sheet(workbook, scoreHistorySheet, 'Lịch sử sửa điểm');
+    }
+    
+    // ============================================
+    // SHEET 9: LỊCH SỬ KHIẾU NẠI
+    // ============================================
+    if (data.complaintsHistory && data.complaintsHistory.length > 0) {
+      const complaintsData = [
+        ['LỊCH SỬ KHIẾU NẠI CỦA HỌC SINH'],
+        [],
+        ['Thời gian', 'Học sinh', 'Email', 'Bài thi', 'Môn học', 'Nội dung', 'Trạng thái', 'Phản hồi giáo viên'],
+        ...data.complaintsHistory.map(c => [
+          new Date(c.created_at).toLocaleString('vi-VN'),
+          c.student_name || 'N/A',
+          c.student_email || 'N/A',
+          c.exam_name || 'N/A',
+          c.subject_name || 'N/A',
+          c.content || 'N/A',
+          c.status === 'Pending' ? 'Đang chờ' : c.status === 'Resolved' ? 'Đã giải quyết' : 'Đã từ chối',
+          c.teacher_response || 'Chưa có'
+        ])
+      ];
+      
+      const complaintsSheet = xlsx.utils.aoa_to_sheet(complaintsData);
+      complaintsSheet['!cols'] = [
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 30 },
+        { wch: 20 },
+        { wch: 50 },
+        { wch: 15 },
+        { wch: 50 }
+      ];
+      xlsx.utils.book_append_sheet(workbook, complaintsSheet, 'Lịch sử khiếu nại');
+    }
+    
     // Tạo buffer và gửi file
     const excelBuffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     
@@ -1679,12 +2048,26 @@ router.get('/reports/export/pdf', authenticateToken, async (req, res) => {
     const filters = parseReportFilters(req.query);
     const data = await buildReportData(db, filters);
     
-    // Tạo HTML để convert sang PDF (sử dụng thư viện như puppeteer nếu cần)
-    // Hiện tại trả về JSON với thông báo
-    res.json({
-      message: 'Tính năng xuất PDF đang được phát triển',
-      suggestion: 'Vui lòng sử dụng tính năng In báo cáo (Print) từ trình duyệt'
+    // Tạo PDF sử dụng pdfService
+    const pdfBuffer = await generateAdminReport(data, {
+      period: filters.period,
+      start_date: filters.startDateStr,
+      end_date: filters.endDateStr
     });
+    
+    const periodNames = {
+      'week': '7_ngay',
+      'month': '30_ngay',
+      'quarter': '3_thang',
+      'year': '1_nam',
+      'custom': 'tuy_chinh'
+    };
+    
+    const fileName = `bao_cao_${periodNames[filters.period] || 'tuy_chinh'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    res.send(pdfBuffer);
     
   } catch (err) {
     console.error('❌ Lỗi xuất PDF:', err);
@@ -2829,6 +3212,202 @@ router.post('/cache/clear', authenticateToken, async (req, res) => {
     res.json({ message: 'Xóa cache thành công' });
   } catch (err) {
     console.error('Lỗi xóa cache:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// ============================================
+// 📋 API LỊCH SỬ SỬA ĐIỂM CỦA GIÁO VIÊN
+// ============================================
+router.get('/reports/score-history', authMiddleware, async (req, res) => {
+  const { role } = req.user;
+
+  if (role !== 'Admin') {
+    return res.status(403).json({ error: 'Chỉ admin có quyền truy cập' });
+  }
+
+  try {
+    const { startDate, endDate, teacherId, examId, page = 1, limit = 50 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    let whereClause = '1=1';
+    const params = [];
+
+    if (startDate) {
+      whereClause += ' AND sal.edited_at >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      whereClause += ' AND sal.edited_at <= ?';
+      params.push(endDate + ' 23:59:59');
+    }
+
+    if (teacherId) {
+      whereClause += ' AND sal.edited_by = ?';
+      params.push(teacherId);
+    }
+
+    if (examId) {
+      whereClause += ' AND ea.exam_id = ?';
+      params.push(examId);
+    }
+
+    // Lấy tổng số records
+    const [countResult] = await req.db.query(
+      `SELECT COUNT(*) as total
+       FROM score_audit_logs sal
+       JOIN exam_attempts ea ON sal.attempt_id = ea.attempt_id
+       WHERE ${whereClause}`,
+      params
+    );
+
+    const total = countResult[0]?.total || 0;
+
+    // Lấy dữ liệu
+    const [logs] = await req.db.query(
+      `SELECT 
+        sal.log_id,
+        sal.attempt_id,
+        sal.question_id,
+        sal.old_score,
+        sal.new_score,
+        sal.old_total_score,
+        sal.new_total_score,
+        sal.reason,
+        sal.edited_at,
+        sal.edited_by,
+        u.full_name as teacher_name,
+        u.email as teacher_email,
+        e.exam_id,
+        e.exam_name,
+        s.subject_name,
+        st.full_name as student_name,
+        st.user_id as student_id,
+        qb.question_content,
+        qb.question_type
+       FROM score_audit_logs sal
+       JOIN exam_attempts ea ON sal.attempt_id = ea.attempt_id
+       JOIN exams e ON ea.exam_id = e.exam_id
+       LEFT JOIN subjects s ON e.subject_id = s.subject_id
+       LEFT JOIN users u ON sal.edited_by = u.user_id
+       LEFT JOIN users st ON ea.student_id = st.user_id
+       LEFT JOIN question_bank qb ON sal.question_id = qb.question_id
+       WHERE ${whereClause}
+       ORDER BY sal.edited_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), offset]
+    );
+
+    res.json({
+      logs,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (err) {
+    console.error('❌ Lỗi lấy lịch sử sửa điểm:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// ============================================
+// 📋 API LỊCH SỬ KHIẾU NẠI CỦA HỌC SINH
+// ============================================
+router.get('/reports/complaints-history', authMiddleware, async (req, res) => {
+  const { role } = req.user;
+
+  if (role !== 'Admin') {
+    return res.status(403).json({ error: 'Chỉ admin có quyền truy cập' });
+  }
+
+  try {
+    const { startDate, endDate, studentId, examId, status, page = 1, limit = 50 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    let whereClause = '1=1';
+    const params = [];
+
+    if (startDate) {
+      whereClause += ' AND c.created_at >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      whereClause += ' AND c.created_at <= ?';
+      params.push(endDate + ' 23:59:59');
+    }
+
+    if (studentId) {
+      whereClause += ' AND c.student_id = ?';
+      params.push(studentId);
+    }
+
+    if (examId) {
+      whereClause += ' AND c.exam_id = ?';
+      params.push(examId);
+    }
+
+    if (status) {
+      whereClause += ' AND c.status = ?';
+      params.push(status);
+    }
+
+    // Lấy tổng số records
+    const [countResult] = await req.db.query(
+      `SELECT COUNT(*) as total
+       FROM complaints c
+       WHERE ${whereClause}`,
+      params
+    );
+
+    const total = countResult[0]?.total || 0;
+
+    // Lấy dữ liệu
+    const [complaints] = await req.db.query(
+      `SELECT 
+        c.complaint_id,
+        c.exam_id,
+        c.student_id,
+        c.content,
+        c.status,
+        c.teacher_response,
+        c.created_at,
+        c.updated_at,
+        e.exam_name,
+        s.subject_name,
+        st.full_name as student_name,
+        st.user_id as student_code,
+        st.email as student_email,
+        t.full_name as teacher_name,
+        t.email as teacher_email,
+        COALESCE((SELECT score FROM exam_attempts WHERE exam_id = c.exam_id AND student_id = c.student_id AND status = 'Submitted' ORDER BY start_time DESC LIMIT 1), 0) as exam_score,
+        COALESCE((SELECT SUM(points) FROM exam_questions WHERE exam_id = c.exam_id), 0) as total_points
+       FROM complaints c
+       JOIN exams e ON c.exam_id = e.exam_id
+       LEFT JOIN subjects s ON e.subject_id = s.subject_id
+       LEFT JOIN users st ON c.student_id = st.user_id
+       LEFT JOIN users t ON e.teacher_id = t.user_id
+       WHERE ${whereClause}
+       ORDER BY c.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), offset]
+    );
+
+    res.json({
+      complaints,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (err) {
+    console.error('❌ Lỗi lấy lịch sử khiếu nại:', err);
     res.status(500).json({ error: 'Lỗi server', details: err.message });
   }
 });

@@ -360,6 +360,12 @@
             <div>
                 <input type="text" class="input-field" id="editFullName" placeholder="Họ và tên" value="">
                 <input type="text" class="input-field" id="editClass" placeholder="Lớp" value="">
+                <select class="input-field" id="editGender" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: white;">
+                    <option value="">-- Chọn giới tính --</option>
+                    <option value="male">Nam</option>
+                    <option value="female">Nữ</option>
+                    <option value="other">Khác</option>
+                </select>
                 <input type="tel" class="input-field" id="editPhone" placeholder="Số điện thoại (VD: 0123456789)" value="">
                 <input type="date" class="input-field" id="editDob" placeholder="Ngày sinh">
                 <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="saveProfileChanges()">Lưu thay đổi</button>
