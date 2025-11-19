@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: localhost
--- Thời gian đã tạo: Th10 17, 2025 lúc 06:06 AM
+-- Thời gian đã tạo: Th10 19, 2025 lúc 01:14 PM
 -- Phiên bản máy phục vụ: 8.0.40
 -- Phiên bản PHP: 8.3.16
 
@@ -76,7 +76,8 @@ INSERT INTO `anti_cheating_logs` (`log_id`, `attempt_id`, `event_type`, `event_d
 (20, 39, 'TabSwitch', 'Chuyển tab lần 2', '2025-11-15 10:39:24'),
 (21, 39, 'TabSwitch', 'Chuyển tab lần 3', '2025-11-15 10:39:25'),
 (22, 39, 'TabSwitch', 'Chuyển tab lần 4', '2025-11-15 10:39:26'),
-(23, 42, 'TabSwitch', 'Chuyển tab lần 1', '2025-11-17 12:29:27');
+(23, 42, 'TabSwitch', 'Chuyển tab lần 1', '2025-11-17 12:29:27'),
+(24, 43, 'WebcamSuspicious', 'Không thể truy cập webcam', '2025-11-18 08:01:05');
 
 -- --------------------------------------------------------
 
@@ -98,7 +99,8 @@ CREATE TABLE `backup_history` (
 
 INSERT INTO `backup_history` (`backup_id`, `backup_file`, `backup_size`, `created_at`, `created_by`) VALUES
 (1, 'backup_2025-11-17_10-02-59.json', 524040, '2025-11-17 03:02:59', 1),
-(2, 'backup_2025-11-17_10-03-43.json', 524264, '2025-11-17 03:03:43', 1);
+(2, 'backup_2025-11-17_10-03-43.json', 524264, '2025-11-17 03:03:43', 1),
+(3, 'backup_2025-11-18_08-08-54.json', 589924, '2025-11-18 01:08:54', 1);
 
 -- --------------------------------------------------------
 
@@ -173,7 +175,8 @@ CREATE TABLE `complaints` (
 INSERT INTO `complaints` (`complaint_id`, `student_id`, `exam_id`, `content`, `teacher_response`, `status`, `created_at`, `updated_at`) VALUES
 (1, 4, 69, 'tets khiếu nại học sinh', NULL, 'Pending', '2025-11-17 12:06:37', NULL),
 (2, 4, 65, 'lỗi web cam', NULL, 'Pending', '2025-11-17 12:33:03', NULL),
-(3, 4, 79, 'tets khiếu nại lần 3', 'Điểm đã được chỉnh sửa. Lý do: sửa điểm. Điểm mới: 10.0 điểm.', 'Resolved', '2025-11-17 12:42:51', '2025-11-17 05:43:35');
+(3, 4, 79, 'tets khiếu nại lần 3', 'Điểm đã được chỉnh sửa. Lý do: sửa điểm. Điểm mới: 10.0 điểm.', 'Resolved', '2025-11-17 12:42:51', '2025-11-17 05:43:35'),
+(4, 4, 82, 'ngu như chó', NULL, 'Pending', '2025-11-18 08:04:42', NULL);
 
 -- --------------------------------------------------------
 
@@ -216,7 +219,8 @@ INSERT INTO `exams` (`exam_id`, `exam_name`, `subject_id`, `teacher_id`, `durati
 (74, 'điện toán đám mây - rds', 3, 7, 10, '2025-11-15 10:35:00', NULL, '133906', 0, 0, 0, '2025-11-15 10:34:49', 7, 'Đề thi được tạo tự động bằng AI - điện toán đám mây: rds', 'upcoming'),
 (76, 'test lần 3', 3, 7, 3, '2025-11-16 09:22:00', NULL, '312666', 0, 0, 0, '2025-11-16 09:20:53', 7, 'Đề thi tạo thủ công', 'upcoming'),
 (79, 'tets chấm điểm', 3, 7, 9, '2025-11-17 12:29:00', NULL, '939935', 0, 0, 0, '2025-11-17 12:27:30', 7, 'Đề thi tạo thủ công', 'upcoming'),
-(80, 'alo', 3, 7, 1, '2025-11-17 01:00:00', NULL, '912238', 0, 0, 0, '2025-11-17 12:49:10', 7, 'Đề thi tạo thủ công', 'upcoming');
+(80, 'alo', 3, 7, 1, '2025-11-17 01:00:00', NULL, '912238', 0, 0, 0, '2025-11-17 12:49:10', 7, 'Đề thi tạo thủ công', 'upcoming'),
+(82, 'nhập môn khai thác dữ liệu - thuật toán cart', 3, 7, 14, '2025-11-18 08:00:00', NULL, '400216', 0, 0, 0, '2025-11-18 07:56:29', 7, 'Đề thi được tạo tự động bằng AI - nhập môn khai thác dữ liệu: thuật toán cart', 'upcoming');
 
 -- --------------------------------------------------------
 
@@ -257,7 +261,8 @@ INSERT INTO `exam_attempts` (`attempt_id`, `exam_id`, `student_id`, `start_time`
 (38, 69, 4, '2025-11-14 15:11:19', '2025-11-14 15:13:08', 8.00, 'Submitted', 1, '2025-11-14 15:11:19', 0, 0.00, 1, NULL, 0.00),
 (39, 74, 4, '2025-11-15 10:35:23', '2025-11-15 10:39:30', 9.00, 'Submitted', 1, '2025-11-15 10:35:23', 0, 0.00, 1, 'Bị trừ 1 điểm (10% điểm trắc nghiệm) do chuyển tab 12 lần (vượt quá giới hạn 3 lần)', 1.00),
 (41, 76, 4, '2025-11-16 09:22:18', '2025-11-16 09:22:25', 10.00, 'Submitted', 1, '2025-11-16 09:22:18', 0, 0.00, 0, NULL, 0.00),
-(42, 79, 4, '2025-11-17 12:29:18', '2025-11-17 12:29:25', 10.00, 'Submitted', 1, '2025-11-17 12:29:18', 0, 0.00, 1, NULL, 0.00);
+(42, 79, 4, '2025-11-17 12:29:18', '2025-11-17 12:29:25', 10.00, 'Submitted', 1, '2025-11-17 12:29:18', 0, 0.00, 1, NULL, 0.00),
+(43, 82, 4, '2025-11-18 08:00:58', '2025-11-18 08:03:35', 4.00, 'Submitted', 1, '2025-11-18 08:00:58', 0, 0.00, 1, NULL, 0.00);
 
 -- --------------------------------------------------------
 
@@ -332,7 +337,27 @@ INSERT INTO `exam_attempt_answers` (`attempt_id`, `question_id`, `option_id`, `a
 (39, 439, 1133, NULL, 0, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
 (39, 440, 1137, NULL, 0, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
 (39, 441, 1141, NULL, 0, NULL, NULL, 0, '2025-11-15 10:39:30', NULL, NULL),
-(41, 443, NULL, 'oke', 0, 10.00, 'tốt', 1, '2025-11-16 09:22:25', 7, '2025-11-16 09:22:47');
+(41, 443, NULL, 'oke', 0, 10.00, 'tốt', 1, '2025-11-16 09:22:25', 7, '2025-11-16 09:22:47'),
+(43, 449, 1147, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 450, 1149, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 451, 1155, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 452, 1159, NULL, 1, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 453, 1163, NULL, 1, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 454, 1168, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 455, 1171, NULL, 1, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 456, 1173, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 457, 1180, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 458, 1182, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 459, 1187, NULL, 1, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 460, 1189, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 461, 1193, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 462, 1200, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 463, 1202, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 464, 1208, NULL, 0, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 465, 1212, NULL, 1, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 466, 1214, NULL, 1, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 467, 1219, NULL, 1, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL),
+(43, 468, 1222, NULL, 1, NULL, NULL, 0, '2025-11-18 08:03:35', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -455,7 +480,27 @@ INSERT INTO `exam_questions` (`exam_id`, `question_id`, `question_order`, `point
 (74, 441, 5, 10.00),
 (76, 443, 1, 10.00),
 (79, 446, 1, 10.00),
-(80, 447, 1, 10.00);
+(80, 447, 1, 10.00),
+(82, 449, 1, 0.50),
+(82, 450, 2, 0.50),
+(82, 451, 3, 0.50),
+(82, 452, 4, 0.50),
+(82, 453, 5, 0.50),
+(82, 454, 6, 0.50),
+(82, 455, 7, 0.50),
+(82, 456, 8, 0.50),
+(82, 457, 9, 0.50),
+(82, 458, 10, 0.50),
+(82, 459, 11, 0.50),
+(82, 460, 12, 0.50),
+(82, 461, 13, 0.50),
+(82, 462, 14, 0.50),
+(82, 463, 15, 0.50),
+(82, 464, 16, 0.50),
+(82, 465, 17, 0.50),
+(82, 466, 18, 0.50),
+(82, 467, 19, 0.50),
+(82, 468, 20, 0.50);
 
 -- --------------------------------------------------------
 
@@ -651,33 +696,55 @@ INSERT INTO `notifications` (`notification_id`, `user_id`, `content`, `type`, `i
 (153, 7, 'Bài thi \"test lần 3\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-16 09:20:53', 76, 'Exam'),
 (154, 7, 'Đã thêm câu hỏi mới: \"test...\"', 'Info', 1, '2025-11-16 09:20:53', 443, 'Question'),
 (155, 4, 'Bài thi \"test lần 3\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 1, '2025-11-16 09:22:47', 76, 'Exam'),
-(156, 4, 'tets noti \n\ntets noti', 'Info', 0, '2025-11-17 10:41:10', NULL, NULL),
+(156, 4, 'tets noti \n\ntets noti', 'Info', 1, '2025-11-17 10:41:10', NULL, NULL),
 (157, 8, 'tets noti \n\ntets noti', 'Info', 0, '2025-11-17 10:41:10', NULL, NULL),
-(158, 4, 'tets noti lần 2\n\ntets noti lần 2', 'Info', 0, '2025-11-17 10:42:36', NULL, NULL),
+(158, 4, 'tets noti lần 2\n\ntets noti lần 2', 'Info', 1, '2025-11-17 10:42:36', NULL, NULL),
 (159, 7, 'Học sinh thuan đã gửi khiếu nại về bài thi \"test 3.6\" (Lớp 26th03)', 'Warning', 1, '2025-11-17 12:06:37', 1, 'Comp'),
-(160, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:07:40', 69, 'Exam'),
-(161, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:08:28', 69, 'Exam'),
-(162, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:12:48', 69, 'Exam'),
-(163, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:13:09', 69, 'Exam'),
-(164, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:19:03', 69, 'Exam'),
-(165, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 0, '2025-11-17 12:20:20', 69, 'Exam'),
-(166, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 8.0 điểm', 'Info', 0, '2025-11-17 12:22:46', 69, 'Exam'),
+(160, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 1, '2025-11-17 12:07:40', 69, 'Exam'),
+(161, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 1, '2025-11-17 12:08:28', 69, 'Exam'),
+(162, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 1, '2025-11-17 12:12:48', 69, 'Exam'),
+(163, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 1, '2025-11-17 12:13:09', 69, 'Exam'),
+(164, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 1, '2025-11-17 12:19:03', 69, 'Exam'),
+(165, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 0.0 điểm', 'Info', 1, '2025-11-17 12:20:20', 69, 'Exam'),
+(166, 4, 'Bài thi \"test 3.6\" của bạn đã được chấm điểm. Điểm số: 8.0 điểm', 'Info', 1, '2025-11-17 12:22:46', 69, 'Exam'),
 (167, 7, 'Bài thi \"tets chấm điểm\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-17 12:24:44', 77, 'Exam'),
 (168, 7, 'Đã thêm câu hỏi mới: \"hello...\"', 'Info', 1, '2025-11-17 12:24:44', 444, 'Question'),
 (169, 7, 'Bài thi \"tets lần 12\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-17 12:25:55', 78, 'Exam'),
 (170, 7, 'Đã thêm câu hỏi mới: \"....\"', 'Info', 1, '2025-11-17 12:25:55', 445, 'Question'),
 (171, 7, 'Bài thi \"tets chấm điểm\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-17 12:27:30', 79, 'Exam'),
 (172, 7, 'Đã thêm câu hỏi mới: \"....\"', 'Info', 1, '2025-11-17 12:27:30', 446, 'Question'),
-(173, 4, 'Bài thi \"tets chấm điểm\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-17 12:29:54', 79, 'Exam'),
+(173, 4, 'Bài thi \"tets chấm điểm\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 1, '2025-11-17 12:29:54', 79, 'Exam'),
 (174, 7, 'Học sinh thuan đã gửi khiếu nại về bài thi \"test 10\" (Lớp 26th03)', 'Warning', 1, '2025-11-17 12:33:03', 2, 'Comp'),
-(175, 4, 'Bài thi \"tets10\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-17 12:38:11', 60, 'Exam'),
-(176, 4, 'Bài thi \"tets chấm điểm\" của bạn đã được chấm điểm. Điểm số: 9.0 điểm', 'Info', 0, '2025-11-17 12:41:01', 79, 'Exam'),
+(175, 4, 'Bài thi \"tets10\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 1, '2025-11-17 12:38:11', 60, 'Exam'),
+(176, 4, 'Bài thi \"tets chấm điểm\" của bạn đã được chấm điểm. Điểm số: 9.0 điểm', 'Info', 1, '2025-11-17 12:41:01', 79, 'Exam'),
 (177, 7, 'Học sinh thuan đã gửi khiếu nại về bài thi \"tets chấm điểm\" (Lớp 26th02)', 'Warning', 1, '2025-11-17 12:42:51', 3, 'Comp'),
-(178, 4, 'Bài thi \"tets chấm điểm\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 0, '2025-11-17 12:43:35', 79, 'Exam'),
-(179, 7, 'Bài thi \"alo\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-17 12:49:10', 80, 'Exam'),
-(180, 7, 'Đã thêm câu hỏi mới: \"....\"', 'Info', 0, '2025-11-17 12:49:10', 447, 'Question'),
-(181, 7, 'Bài thi \"alo alo\" đã được thêm vào lớp 26th02', 'Info', 0, '2025-11-17 12:50:23', 81, 'Exam'),
-(182, 7, 'Đã thêm câu hỏi mới: \"test 1...\"', 'Info', 0, '2025-11-17 12:50:23', 448, 'Question');
+(178, 4, 'Bài thi \"tets chấm điểm\" của bạn đã được chấm điểm. Điểm số: 10.0 điểm', 'Info', 1, '2025-11-17 12:43:35', 79, 'Exam'),
+(179, 7, 'Bài thi \"alo\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-17 12:49:10', 80, 'Exam'),
+(180, 7, 'Đã thêm câu hỏi mới: \"....\"', 'Info', 1, '2025-11-17 12:49:10', 447, 'Question'),
+(181, 7, 'Bài thi \"alo alo\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-17 12:50:23', 81, 'Exam'),
+(182, 7, 'Đã thêm câu hỏi mới: \"test 1...\"', 'Info', 1, '2025-11-17 12:50:23', 448, 'Question'),
+(183, 7, 'Bài thi \"nhập môn khai thác dữ liệu - thuật toán cart\" đã được thêm vào lớp 26th02', 'Info', 1, '2025-11-18 07:56:29', 82, 'Exam'),
+(184, 7, 'Đã thêm câu hỏi mới: \"Thuật toán CART viết tắt của cụm từ nào?...\"', 'Info', 1, '2025-11-18 07:56:30', 449, 'Question'),
+(185, 7, 'Đã thêm câu hỏi mới: \"Thuật toán CART được sử dụng cho những loại bài to...\"', 'Info', 1, '2025-11-18 07:56:30', 450, 'Question'),
+(186, 7, 'Đã thêm câu hỏi mới: \"Tiêu chí nào sau đây thường được sử dụng để đánh g...\"', 'Info', 1, '2025-11-18 07:56:30', 451, 'Question'),
+(187, 7, 'Đã thêm câu hỏi mới: \"Khi xây dựng cây CART cho bài toán hồi quy, tiêu c...\"', 'Info', 1, '2025-11-18 07:56:30', 452, 'Question'),
+(188, 7, 'Đã thêm câu hỏi mới: \"Mục tiêu chính của thuật toán CART khi tìm một điể...\"', 'Info', 1, '2025-11-18 07:56:30', 453, 'Question'),
+(189, 7, 'Đã thêm câu hỏi mới: \"Quá trình \"tỉa cây\" (pruning) trong thuật toán CAR...\"', 'Info', 1, '2025-11-18 07:56:30', 454, 'Question'),
+(190, 7, 'Đã thêm câu hỏi mới: \"Điều gì xảy ra nếu một cây CART được huấn luyện qu...\"', 'Info', 1, '2025-11-18 07:56:30', 455, 'Question'),
+(191, 7, 'Đã thêm câu hỏi mới: \"Một nút lá (leaf node) trong cây quyết định CART đ...\"', 'Info', 1, '2025-11-18 07:56:30', 456, 'Question'),
+(192, 7, 'Đã thêm câu hỏi mới: \"Khi xử lý các biến liên tục trong CART, thuật toán...\"', 'Info', 1, '2025-11-18 07:56:30', 457, 'Question'),
+(193, 7, 'Đã thêm câu hỏi mới: \"Ưu điểm chính của cây quyết định CART so với một s...\"', 'Info', 1, '2025-11-18 07:56:30', 458, 'Question'),
+(194, 7, 'Đã thêm câu hỏi mới: \"Nhược điểm nào sau đây thường gặp ở cây quyết định...\"', 'Info', 1, '2025-11-18 07:56:30', 459, 'Question'),
+(195, 7, 'Đã thêm câu hỏi mới: \"Sự khác biệt cơ bản giữa tỉa cây trước (pre-prunin...\"', 'Info', 1, '2025-11-18 07:56:30', 460, 'Question'),
+(196, 7, 'Đã thêm câu hỏi mới: \"Chỉ số Gini Impurity được tính như thế nào cho một...\"', 'Info', 1, '2025-11-18 07:56:30', 461, 'Question'),
+(197, 7, 'Đã thêm câu hỏi mới: \"Đối với một bài toán phân lớp nhị phân, nếu một nú...\"', 'Info', 1, '2025-11-18 07:56:30', 462, 'Question'),
+(198, 7, 'Đã thêm câu hỏi mới: \"Khi chọn một đặc trưng để phân tách tại một nút, C...\"', 'Info', 1, '2025-11-18 07:56:30', 463, 'Question'),
+(199, 7, 'Đã thêm câu hỏi mới: \"Thuật toán CART xử lý các biến phân loại (categori...\"', 'Info', 1, '2025-11-18 07:56:30', 464, 'Question'),
+(200, 7, 'Đã thêm câu hỏi mới: \"Điều nào sau đây KHÔNG phải là một tiêu chí dừng p...\"', 'Info', 1, '2025-11-18 07:56:30', 465, 'Question'),
+(201, 7, 'Đã thêm câu hỏi mới: \"Trong ngữ cảnh của cây CART, \"tầm quan trọng của đ...\"', 'Info', 1, '2025-11-18 07:56:30', 466, 'Question'),
+(202, 7, 'Đã thêm câu hỏi mới: \"Khi nào thì một cây quyết định CART được coi là \"q...\"', 'Info', 1, '2025-11-18 07:56:30', 467, 'Question'),
+(203, 7, 'Đã thêm câu hỏi mới: \"Giả sử một cây CART đã được huấn luyện. Để đưa ra ...\"', 'Info', 1, '2025-11-18 07:56:30', 468, 'Question'),
+(204, 7, 'Học sinh thuan đã gửi khiếu nại về bài thi \"nhập môn khai thác dữ liệu - thuật toán cart\" (Lớp 26th02)', 'Warning', 1, '2025-11-18 08:04:42', 4, 'Comp');
 
 -- --------------------------------------------------------
 
@@ -695,6 +762,13 @@ CREATE TABLE `otps` (
   `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `otps`
+--
+
+INSERT INTO `otps` (`id`, `email`, `otp`, `expiresAt`, `verified`, `attempts`, `createdAt`, `updatedAt`) VALUES
+('43d6e144-da4c-4125-a722-f0edb6873cc1', 'maipanh35@gmail.com', '592349', '2025-11-18 07:12:05', 0, 0, '2025-11-18 07:07:05', '2025-11-18 07:07:05');
 
 -- --------------------------------------------------------
 
@@ -1162,11 +1236,30 @@ INSERT INTO `question_bank` (`question_id`, `subject_id`, `teacher_id`, `questio
 (441, NULL, 7, 'Loại lưu trữ Amazon RDS nào thường được khuyến nghị cho các cơ sở dữ liệu sản xuất yêu cầu hiệu suất cao và hoạt động I/O nhất quán, phù hợp với các khối lượng công việc giao dịch (transactional workloads)?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-15 10:34:49', '2025-11-15 10:34:49'),
 (442, NULL, 7, 'tets', 'Essay', 'Easy', '.', NULL, '2025-11-16 09:03:28', '2025-11-16 09:03:28'),
 (443, NULL, 7, 'test', 'Essay', 'Easy', '.', NULL, '2025-11-16 09:20:53', '2025-11-16 09:20:53'),
-(444, NULL, 7, 'hello', 'Essay', 'Easy', '.', NULL, '2025-11-17 12:24:44', '2025-11-17 12:24:44'),
 (445, NULL, 7, '.', 'Essay', 'Easy', '.', NULL, '2025-11-17 12:25:55', '2025-11-17 12:25:55'),
 (446, NULL, 7, '.', 'Essay', 'Easy', '.', NULL, '2025-11-17 12:27:30', '2025-11-17 12:27:30'),
 (447, NULL, 7, '.', 'Essay', 'Easy', '.', NULL, '2025-11-17 12:49:10', '2025-11-17 12:49:10'),
-(448, NULL, 7, 'test 1', 'Essay', 'Easy', 'tets 1', NULL, '2025-11-17 12:50:23', '2025-11-17 12:50:23');
+(448, NULL, 7, 'test 1', 'Essay', 'Easy', 'tets 1', NULL, '2025-11-17 12:50:23', '2025-11-17 12:50:23'),
+(449, NULL, 7, 'Thuật toán CART viết tắt của cụm từ nào?', 'SingleChoice', 'Medium', 'A', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(450, NULL, 7, 'Thuật toán CART được sử dụng cho những loại bài toán nào trong khai thác dữ liệu?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(451, NULL, 7, 'Tiêu chí nào sau đây thường được sử dụng để đánh giá độ tinh khiết (purity) của các nút trong cây CART cho bài toán phân lớp?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(452, NULL, 7, 'Khi xây dựng cây CART cho bài toán hồi quy, tiêu chí phân tách (splitting criterion) phổ biến nhất là gì?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(453, NULL, 7, 'Mục tiêu chính của thuật toán CART khi tìm một điểm phân tách tốt nhất tại một nút là gì?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(454, NULL, 7, 'Quá trình \"tỉa cây\" (pruning) trong thuật toán CART được thực hiện với mục đích chính nào?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(455, NULL, 7, 'Điều gì xảy ra nếu một cây CART được huấn luyện quá sâu mà không có quá trình tỉa cây hoặc các ràng buộc về độ sâu?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(456, NULL, 7, 'Một nút lá (leaf node) trong cây quyết định CART đại diện cho điều gì?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(457, NULL, 7, 'Khi xử lý các biến liên tục trong CART, thuật toán tìm điểm phân tách tối ưu bằng cách nào?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(458, NULL, 7, 'Ưu điểm chính của cây quyết định CART so với một số mô hình phức tạp hơn là gì?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(459, NULL, 7, 'Nhược điểm nào sau đây thường gặp ở cây quyết định CART?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(460, NULL, 7, 'Sự khác biệt cơ bản giữa tỉa cây trước (pre-pruning) và tỉa cây sau (post-pruning) là gì?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(461, NULL, 7, 'Chỉ số Gini Impurity được tính như thế nào cho một nút trong cây quyết định?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(462, NULL, 7, 'Đối với một bài toán phân lớp nhị phân, nếu một nút là \"tinh khiết\" (pure), giá trị Gini Impurity của nút đó sẽ là bao nhiêu?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(463, NULL, 7, 'Khi chọn một đặc trưng để phân tách tại một nút, CART sẽ tìm kiếm đặc trưng nào?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(464, NULL, 7, 'Thuật toán CART xử lý các biến phân loại (categorical variables) như thế nào?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(465, NULL, 7, 'Điều nào sau đây KHÔNG phải là một tiêu chí dừng phổ biến cho việc xây dựng cây CART?', 'SingleChoice', 'Medium', 'D', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(466, NULL, 7, 'Trong ngữ cảnh của cây CART, \"tầm quan trọng của đặc trưng\" (feature importance) thường được tính toán dựa trên yếu tố nào?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(467, NULL, 7, 'Khi nào thì một cây quyết định CART được coi là \"quá khớp\" (overfitting)?', 'SingleChoice', 'Medium', 'C', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30'),
+(468, NULL, 7, 'Giả sử một cây CART đã được huấn luyện. Để đưa ra dự đoán cho một mẫu dữ liệu mới, quy trình nào sẽ được thực hiện?', 'SingleChoice', 'Medium', 'B', NULL, '2025-11-18 07:56:30', '2025-11-18 07:56:30');
 
 -- --------------------------------------------------------
 
@@ -2325,7 +2418,87 @@ INSERT INTO `question_options` (`option_id`, `question_id`, `option_content`, `i
 (1141, 441, 'Standard Storage (Magnetic)', 0),
 (1142, 441, 'General Purpose SSD (gp2/gp3)', 0),
 (1143, 441, 'Provisioned IOPS SSD (io1/io2)', 1),
-(1144, 441, 'EBS Cold HDD (sc1)', 0);
+(1144, 441, 'EBS Cold HDD (sc1)', 0),
+(1145, 449, 'Classification And Regression Trees', 1),
+(1146, 449, 'Categorical And Recursive Trees', 0),
+(1147, 449, 'Computational Algorithms for Regression and Trees', 0),
+(1148, 449, 'Classification Algorithms for Random Trees', 0),
+(1149, 450, 'Chỉ phân lớp (Classification)', 0),
+(1150, 450, 'Chỉ hồi quy (Regression)', 0),
+(1151, 450, 'Cả phân lớp và hồi quy', 1),
+(1152, 450, 'Chỉ phân cụm (Clustering)', 0),
+(1153, 451, 'Độ lỗi bình phương trung bình (Mean Squared Error - MSE)', 0),
+(1154, 451, 'Chỉ số Gini (Gini Impurity)', 1),
+(1155, 451, 'Sai số tuyệt đối trung bình (Mean Absolute Error - MAE)', 0),
+(1156, 451, 'Hệ số tương quan (Correlation Coefficient)', 0),
+(1157, 452, 'Entropy', 0),
+(1158, 452, 'Chỉ số Gini', 0),
+(1159, 452, 'Độ lỗi bình phương trung bình (Mean Squared Error - MSE)', 1),
+(1160, 452, 'Tỷ lệ lỗi phân loại (Classification Error Rate)', 0),
+(1161, 453, 'Tăng độ phức tạp của cây', 0),
+(1162, 453, 'Giảm thiểu chi phí tính toán', 0),
+(1163, 453, 'Tối đa hóa sự đồng nhất (homogeneity) của các nút con sau khi phân tách', 1),
+(1164, 453, 'Đảm bảo mỗi nút con có số lượng mẫu bằng nhau', 0),
+(1165, 454, 'Tăng tốc độ huấn luyện của cây', 0),
+(1166, 454, 'Giảm thiểu nguy cơ quá khớp (overfitting)', 1),
+(1167, 454, 'Tăng độ phức tạp của mô hình để xử lý dữ liệu lớn hơn', 0),
+(1168, 454, 'Thay đổi loại bài toán từ phân lớp sang hồi quy', 0),
+(1169, 455, 'Cây sẽ có hiệu suất kém trên tập huấn luyện', 0),
+(1170, 455, 'Cây sẽ trở nên quá đơn giản (underfitting)', 0),
+(1171, 455, 'Cây có thể bị quá khớp (overfitting) với dữ liệu huấn luyện', 1),
+(1172, 455, 'Cây sẽ tự động chọn các đặc trưng quan trọng nhất', 0),
+(1173, 456, 'Một điểm phân tách tiếp theo', 0),
+(1174, 456, 'Điểm bắt đầu của cây (root node)', 0),
+(1175, 456, 'Một dự đoán hoặc nhãn lớp cuối cùng', 1),
+(1176, 456, 'Một điều kiện logic phức tạp', 0),
+(1177, 457, 'Chia biến thành các khoảng bằng nhau ngẫu nhiên', 0),
+(1178, 457, 'Thử tất cả các giá trị duy nhất của biến làm điểm phân tách', 1),
+(1179, 457, 'Sử dụng các thuật toán tối ưu hóa phức tạp như Gradient Descent', 0),
+(1180, 457, 'Chỉ xem xét các giá trị trung bình của biến', 0),
+(1181, 458, 'Luôn đạt độ chính xác cao nhất trên mọi tập dữ liệu', 0),
+(1182, 458, 'Không bị ảnh hưởng bởi dữ liệu ngoại lai (outliers)', 0),
+(1183, 458, 'Dễ giải thích và trực quan hóa (interpretability)', 1),
+(1184, 458, 'Yêu cầu ít dữ liệu huấn luyện hơn', 0),
+(1185, 459, 'Khó xử lý dữ liệu có nhiều chiều (high-dimensional data)', 0),
+(1186, 459, 'Khó xử lý các biến phân loại', 0),
+(1187, 459, 'Có xu hướng không ổn định (instability) và nhạy cảm với những thay đổi nhỏ trong dữ liệu', 1),
+(1188, 459, 'Không thể xử lý cả bài toán phân lớp và hồi quy', 0),
+(1189, 460, 'Tỉa cây trước sử dụng chỉ số Gini, tỉa cây sau sử dụng Entropy.', 0),
+(1190, 460, 'Tỉa cây trước ngăn không cho cây phát triển quá mức ngay từ đầu, tỉa cây sau cắt bớt cây sau khi nó đã phát triển đầy đủ.', 1),
+(1191, 460, 'Tỉa cây trước chỉ áp dụng cho hồi quy, tỉa cây sau cho phân lớp.', 0),
+(1192, 460, 'Tỉa cây trước cần tập kiểm định, tỉa cây sau thì không.', 0),
+(1193, 461, 'G = sum(p_i * log(p_i))', 0),
+(1194, 461, 'G = 1 - sum(p_i^2)', 1),
+(1195, 461, 'G = 1 - max(p_i)', 0),
+(1196, 461, 'G = sum(|y_i - y_mean|)', 0),
+(1197, 462, '1.0', 0),
+(1198, 462, '0.5', 0),
+(1199, 462, '0.0', 1),
+(1200, 462, 'Không thể xác định', 0),
+(1201, 463, 'Đặc trưng có ít giá trị duy nhất nhất', 0),
+(1202, 463, 'Đặc trưng có giá trị trung bình lớn nhất', 0),
+(1203, 463, 'Đặc trưng mang lại sự giảm impurity (impurity reduction) lớn nhất', 1),
+(1204, 463, 'Đặc trưng có mối tương quan mạnh nhất với các đặc trưng khác', 0),
+(1205, 464, 'Chỉ sử dụng các biến nhị phân', 0),
+(1206, 464, 'Biến đổi chúng thành các biến liên tục', 0),
+(1207, 464, 'Tìm cách nhóm các giá trị phân loại thành hai tập con để tối ưu hóa sự phân tách', 1),
+(1208, 464, 'Bỏ qua các biến phân loại', 0),
+(1209, 465, 'Đạt đến độ sâu tối đa cho phép của cây', 0),
+(1210, 465, 'Số lượng mẫu trong một nút nhỏ hơn ngưỡng tối thiểu', 0),
+(1211, 465, 'Mức giảm độ tinh khiết (impurity decrease) sau khi phân tách không đáng kể', 0),
+(1212, 465, 'Độ chính xác của cây đạt 100% trên tập kiểm định', 1),
+(1213, 466, 'Số lần đặc trưng xuất hiện trong cây', 0),
+(1214, 466, 'Tổng mức giảm độ tinh khiết mà đặc trưng đó mang lại trên toàn bộ cây', 1),
+(1215, 466, 'Vị trí của đặc trưng trong tập dữ liệu ban đầu', 0),
+(1216, 466, 'Độ phức tạp tính toán liên quan đến đặc trưng', 0),
+(1217, 467, 'Khi nó có hiệu suất kém trên cả tập huấn luyện và tập kiểm định.', 0),
+(1218, 467, 'Khi nó dự đoán sai trên tập huấn luyện nhưng chính xác trên tập kiểm định.', 0),
+(1219, 467, 'Khi nó học quá chi tiết dữ liệu huấn luyện, dẫn đến hiệu suất tốt trên tập huấn luyện nhưng kém trên dữ liệu mới (tập kiểm định).', 1),
+(1220, 467, 'Khi nó quá đơn giản để nắm bắt các mối quan hệ trong dữ liệu.', 0),
+(1221, 468, 'Mẫu dữ liệu được đưa từ nút lá lên nút gốc để tìm ra đường đi.', 0),
+(1222, 468, 'Mẫu dữ liệu được đưa từ nút gốc xuống các nút con theo các điều kiện phân tách cho đến khi đạt đến một nút lá, và giá trị của nút lá đó là dự đoán.', 1),
+(1223, 468, 'Mẫu dữ liệu được so sánh với tất cả các mẫu trong tập huấn luyện.', 0),
+(1224, 468, 'Thuật toán tạo lại cây từ đầu với mẫu dữ liệu mới.', 0);
 
 -- --------------------------------------------------------
 
@@ -2421,80 +2594,80 @@ CREATE TABLE `system_settings` (
 --
 
 INSERT INTO `system_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
-('antiCheat.enableCopyPasteDetection', 'true', '2025-11-17 02:48:57'),
-('antiCheat.enableTabSwitchDetection', 'true', '2025-11-17 02:48:57'),
-('antiCheat.enableWebcamMonitoring', 'true', '2025-11-17 02:48:57'),
-('antiCheat.maxWarnings', '3', '2025-11-17 02:48:57'),
-('api.enableAPI', 'false', '2025-11-17 02:48:57'),
-('api.enableFacebookIntegration', 'false', '2025-11-17 02:48:57'),
-('api.enableGoogleIntegration', 'false', '2025-11-17 02:48:57'),
-('api.facebookAppId', '\"\"', '2025-11-17 02:48:57'),
-('api.googleClientId', '\"\"', '2025-11-17 02:48:57'),
-('api.rateLimit', '100', '2025-11-17 02:48:57'),
-('api.tokenExpiry', '60', '2025-11-17 02:48:57'),
-('api.webhookOnExamEnd', 'false', '2025-11-17 02:48:57'),
-('api.webhookOnExamStart', 'false', '2025-11-17 02:48:57'),
-('api.webhookUrl', '\"\"', '2025-11-17 02:48:57'),
-('backup.compress', 'true', '2025-11-17 02:48:57'),
-('backup.includeFiles', 'true', '2025-11-17 02:48:57'),
-('backup.retention', '7', '2025-11-17 02:48:57'),
-('backup.schedule', '\"weekly\"', '2025-11-17 02:48:57'),
-('display.compactMode', 'false', '2025-11-17 02:48:57'),
-('display.fontSize', '\"medium\"', '2025-11-17 02:48:57'),
-('display.itemsPerPage', '25', '2025-11-17 02:48:57'),
-('display.language', '\"en\"', '2025-11-17 02:48:57'),
-('display.primaryColor', '\"#0d6efd\"', '2025-11-17 02:48:57'),
-('display.showAnimations', 'true', '2025-11-17 02:48:57'),
-('display.showTooltips', 'true', '2025-11-17 02:48:57'),
-('email.emailFromName', '\"\"', '2025-11-17 02:48:57'),
-('email.smtpEmail', '\"\"', '2025-11-17 02:48:57'),
-('email.smtpHost', '\"\"', '2025-11-17 02:48:57'),
-('email.smtpPort', 'null', '2025-11-17 02:48:57'),
-('email.smtpSecure', '\"tls\"', '2025-11-17 02:48:57'),
-('exam.defaultDuration', '60', '2025-11-17 02:48:57'),
-('exam.defaultPassingScore', '5', '2025-11-17 02:48:57'),
-('exam.enableAutoSubmit', 'true', '2025-11-17 02:48:57'),
-('exam.enableReviewBeforeSubmit', 'true', '2025-11-17 02:48:57'),
-('logs.cpuThreshold', '80', '2025-11-17 02:48:57'),
-('logs.enableSystemMonitoring', 'false', '2025-11-17 02:48:57'),
-('logs.level', '\"info\"', '2025-11-17 02:48:57'),
-('logs.logAPIRequests', 'false', '2025-11-17 02:48:57'),
-('logs.logUserActions', 'false', '2025-11-17 02:48:57'),
-('logs.maxFileSize', '10', '2025-11-17 02:48:57'),
-('logs.monitoringInterval', '5', '2025-11-17 02:48:57'),
-('logs.ramThreshold', '85', '2025-11-17 02:48:57'),
-('notification.enableEmail', 'false', '2025-11-17 02:48:57'),
-('notification.notifyExamEnd', 'true', '2025-11-17 02:48:57'),
-('notification.notifyExamStart', 'true', '2025-11-17 02:48:57'),
-('notification.notifyScoreAvailable', 'true', '2025-11-17 02:48:57'),
-('performance.cacheDuration', '3600', '2025-11-17 02:48:57'),
-('performance.cdnUrl', '\"\"', '2025-11-17 02:48:57'),
-('performance.dbPoolSize', '10', '2025-11-17 02:48:57'),
-('performance.enableCDN', 'false', '2025-11-17 02:48:57'),
-('performance.enableGzip', 'false', '2025-11-17 02:48:57'),
-('performance.enableImageOptimization', 'false', '2025-11-17 02:48:57'),
-('performance.enableQueryCache', 'false', '2025-11-17 02:48:57'),
-('performance.imageQuality', '80', '2025-11-17 02:48:57'),
-('performance.maxImageSize', '5', '2025-11-17 02:48:57'),
-('performance.queryCacheDuration', '300', '2025-11-17 02:48:57'),
-('security.accountLockoutDuration', '15', '2025-11-17 02:48:57'),
-('security.enableIPWhitelist', 'false', '2025-11-17 02:48:57'),
-('security.enableTwoFactor', 'false', '2025-11-17 02:48:57'),
-('security.maxLoginAttempts', '5', '2025-11-17 02:48:57'),
-('security.requireStrongPassword', 'false', '2025-11-17 02:48:57'),
-('security.sessionTimeout', '30', '2025-11-17 02:48:57'),
-('system.autoSaveInterval', '60', '2025-11-17 02:48:57'),
-('system.backupFrequency', '7', '2025-11-17 02:48:57'),
-('system.enableCaching', 'true', '2025-11-17 02:48:57'),
-('system.enableMaintenanceMode', 'false', '2025-11-17 02:48:57'),
-('system.logRetentionDays', '30', '2025-11-17 02:48:57'),
-('system.questionsPerPage', '20', '2025-11-17 02:48:57'),
-('user.allowStudentRegistration', 'true', '2025-11-17 02:48:57'),
-('user.maxStudentsPerClass', '50', '2025-11-17 02:48:57'),
-('user.minPasswordLength', '8', '2025-11-17 02:48:57'),
-('user.passwordExpiryDays', '90', '2025-11-17 02:48:57'),
-('user.preventPasswordReuse', 'false', '2025-11-17 02:48:57'),
-('user.requireEmailVerification', 'false', '2025-11-17 02:48:57');
+('antiCheat.enableCopyPasteDetection', 'true', '2025-11-19 09:16:53'),
+('antiCheat.enableTabSwitchDetection', 'true', '2025-11-19 09:16:53'),
+('antiCheat.enableWebcamMonitoring', 'true', '2025-11-19 09:16:53'),
+('antiCheat.maxWarnings', '3', '2025-11-19 09:16:53'),
+('api.enableAPI', 'false', '2025-11-19 09:16:53'),
+('api.enableFacebookIntegration', 'false', '2025-11-19 09:16:53'),
+('api.enableGoogleIntegration', 'false', '2025-11-19 09:16:53'),
+('api.facebookAppId', '\"\"', '2025-11-19 09:16:53'),
+('api.googleClientId', '\"\"', '2025-11-19 09:16:53'),
+('api.rateLimit', '100', '2025-11-19 09:16:53'),
+('api.tokenExpiry', '60', '2025-11-19 09:16:53'),
+('api.webhookOnExamEnd', 'false', '2025-11-19 09:16:53'),
+('api.webhookOnExamStart', 'false', '2025-11-19 09:16:53'),
+('api.webhookUrl', '\"\"', '2025-11-19 09:16:53'),
+('backup.compress', 'true', '2025-11-19 09:16:53'),
+('backup.includeFiles', 'true', '2025-11-19 09:16:53'),
+('backup.retention', '7', '2025-11-19 09:16:53'),
+('backup.schedule', '\"weekly\"', '2025-11-19 09:16:53'),
+('display.compactMode', 'false', '2025-11-19 09:16:53'),
+('display.fontSize', '\"medium\"', '2025-11-19 09:16:53'),
+('display.itemsPerPage', '25', '2025-11-19 09:16:53'),
+('display.language', '\"vi\"', '2025-11-19 09:16:53'),
+('display.primaryColor', '\"#7abd94\"', '2025-11-19 09:16:53'),
+('display.showAnimations', 'true', '2025-11-19 09:16:53'),
+('display.showTooltips', 'true', '2025-11-19 09:16:53'),
+('email.emailFromName', '\"\"', '2025-11-19 09:16:53'),
+('email.smtpEmail', '\"\"', '2025-11-19 09:16:53'),
+('email.smtpHost', '\"\"', '2025-11-19 09:16:53'),
+('email.smtpPort', 'null', '2025-11-19 09:16:53'),
+('email.smtpSecure', '\"tls\"', '2025-11-19 09:16:53'),
+('exam.defaultDuration', '60', '2025-11-19 09:16:53'),
+('exam.defaultPassingScore', '5', '2025-11-19 09:16:53'),
+('exam.enableAutoSubmit', 'true', '2025-11-19 09:16:53'),
+('exam.enableReviewBeforeSubmit', 'true', '2025-11-19 09:16:53'),
+('logs.cpuThreshold', '80', '2025-11-19 09:16:53'),
+('logs.enableSystemMonitoring', 'false', '2025-11-19 09:16:53'),
+('logs.level', '\"info\"', '2025-11-19 09:16:53'),
+('logs.logAPIRequests', 'false', '2025-11-19 09:16:53'),
+('logs.logUserActions', 'false', '2025-11-19 09:16:53'),
+('logs.maxFileSize', '10', '2025-11-19 09:16:53'),
+('logs.monitoringInterval', '5', '2025-11-19 09:16:53'),
+('logs.ramThreshold', '85', '2025-11-19 09:16:53'),
+('notification.enableEmail', 'false', '2025-11-19 09:16:53'),
+('notification.notifyExamEnd', 'true', '2025-11-19 09:16:53'),
+('notification.notifyExamStart', 'true', '2025-11-19 09:16:53'),
+('notification.notifyScoreAvailable', 'true', '2025-11-19 09:16:53'),
+('performance.cacheDuration', '3600', '2025-11-19 09:16:53'),
+('performance.cdnUrl', '\"\"', '2025-11-19 09:16:53'),
+('performance.dbPoolSize', '10', '2025-11-19 09:16:53'),
+('performance.enableCDN', 'false', '2025-11-19 09:16:53'),
+('performance.enableGzip', 'false', '2025-11-19 09:16:53'),
+('performance.enableImageOptimization', 'false', '2025-11-19 09:16:53'),
+('performance.enableQueryCache', 'false', '2025-11-19 09:16:53'),
+('performance.imageQuality', '80', '2025-11-19 09:16:53'),
+('performance.maxImageSize', '5', '2025-11-19 09:16:53'),
+('performance.queryCacheDuration', '300', '2025-11-19 09:16:53'),
+('security.accountLockoutDuration', '15', '2025-11-19 09:16:53'),
+('security.enableIPWhitelist', 'false', '2025-11-19 09:16:53'),
+('security.enableTwoFactor', 'false', '2025-11-19 09:16:53'),
+('security.maxLoginAttempts', '5', '2025-11-19 09:16:53'),
+('security.requireStrongPassword', 'false', '2025-11-19 09:16:53'),
+('security.sessionTimeout', '30', '2025-11-19 09:16:53'),
+('system.autoSaveInterval', '60', '2025-11-19 09:16:53'),
+('system.backupFrequency', '7', '2025-11-19 09:16:53'),
+('system.enableCaching', 'true', '2025-11-19 09:16:53'),
+('system.enableMaintenanceMode', 'false', '2025-11-19 09:16:53'),
+('system.logRetentionDays', '30', '2025-11-19 09:16:53'),
+('system.questionsPerPage', '20', '2025-11-19 09:16:53'),
+('user.allowStudentRegistration', 'true', '2025-11-19 09:16:53'),
+('user.maxStudentsPerClass', '50', '2025-11-19 09:16:53'),
+('user.minPasswordLength', '8', '2025-11-19 09:16:53'),
+('user.passwordExpiryDays', '90', '2025-11-19 09:16:53'),
+('user.preventPasswordReuse', 'false', '2025-11-19 09:16:53'),
+('user.requireEmailVerification', 'false', '2025-11-19 09:16:53');
 
 -- --------------------------------------------------------
 
@@ -2521,7 +2694,8 @@ CREATE TABLE `teacher_actions` (
 CREATE TABLE `users` (
   `user_id` bigint NOT NULL,
   `username` varchar(50) NOT NULL,
-  `password_hash` varchar(255) NOT NULL,
+  `password_hash` varchar(255) DEFAULT NULL COMMENT 'Mật khẩu đã hash. NULL nếu đăng nhập bằng Google OAuth',
+  `google_id` varchar(255) DEFAULT NULL COMMENT 'Google OAuth ID để liên kết tài khoản Google',
   `email` varchar(100) NOT NULL,
   `full_name` varchar(100) NOT NULL,
   `role` enum('Student','Teacher','Admin') NOT NULL,
@@ -2529,6 +2703,7 @@ CREATE TABLE `users` (
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `phone` varchar(15) DEFAULT NULL,
   `dob` date DEFAULT NULL,
+  `gender` enum('male','female','other') DEFAULT NULL COMMENT 'Giới tính: male (Nam), female (Nữ), other (Khác)',
   `class_id` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -2536,14 +2711,14 @@ CREATE TABLE `users` (
 -- Đang đổ dữ liệu cho bảng `users`
 --
 
-INSERT INTO `users` (`user_id`, `username`, `password_hash`, `email`, `full_name`, `role`, `created_at`, `updated_at`, `phone`, `dob`, `class_id`) VALUES
-(1, 'admin', '$2b$10$ZERYixpbgC0.62btiNvUn.d8fuqWQ.lPXsAgwig1ZDLatLZNK35BK', 'admin@edexis.com', 'Admin', 'Admin', '2025-10-04 09:52:29', '2025-10-15 13:44:03', NULL, NULL, NULL),
-(2, 'thuan', '$2b$10$AGwpJOi/2LUuHZe/.0cIzerV0RVFeAzfR7vQcG6GknCYVR1Y/As5O', 'maipanh35@gmail.com', 'thuan', 'Student', '2025-10-04 11:14:17', '2025-11-14 14:08:52', NULL, NULL, NULL),
-(3, 'test1', '$2b$10$UH31JXVBVprjK3Ryud6E8uPnpLRj1kZKqp73l/IQ7wn4OQdFEBgYe', 'thuan@gmail.com', 'test1', 'Teacher', '2025-10-04 12:58:49', '2025-10-04 12:58:49', NULL, NULL, NULL),
-(4, 'thu', '$2b$10$NdaaaYBwM3Rfj3./sVSgMODdPsYF/1IjS2iJkB9YKWdV.epa71pcG', 'th@gmail.com', 'thuan', 'Student', '2025-10-04 13:20:43', '2025-11-13 18:47:20', '0399697281', '2005-03-21', NULL),
-(5, 'thao', '$2b$10$OdKcmlA0f3yIulShiJvNbu8s1MG91mITzFRkvsDj6X.iciu88n3gy', 'zxc@gmail.com', 'thao', 'Teacher', '2025-10-04 20:09:10', '2025-10-04 20:09:10', NULL, NULL, NULL),
-(7, 'thao123', '$2b$10$NKbXGUGDermaTd69S7cx3O/nPmEnzGqLIuRaC9MV4rso3QuJHFSnu', 'tha@gamil.com', 'thao123', 'Teacher', '2025-10-11 16:49:53', '2025-10-11 16:49:53', NULL, NULL, NULL),
-(8, 'nguyen', '$2b$10$Uh08rbrmSb9Se4VFs8pvl.eUidsaTexnVtJNDgMo3zmXv/tsMeKW.', 'ng@gmail.com', 'nguyen', 'Student', '2025-10-22 09:08:52', '2025-10-22 09:08:52', NULL, NULL, NULL);
+INSERT INTO `users` (`user_id`, `username`, `password_hash`, `google_id`, `email`, `full_name`, `role`, `created_at`, `updated_at`, `phone`, `dob`, `gender`, `class_id`) VALUES
+(1, 'admin', '$2b$10$ZERYixpbgC0.62btiNvUn.d8fuqWQ.lPXsAgwig1ZDLatLZNK35BK', NULL, 'admin@edexis.com', 'Admin', 'Admin', '2025-10-04 09:52:29', '2025-10-15 13:44:03', NULL, NULL, NULL, NULL),
+(4, 'thu', '$2b$10$NdaaaYBwM3Rfj3./sVSgMODdPsYF/1IjS2iJkB9YKWdV.epa71pcG', NULL, 'th@gmail.com', 'Bùi Đức Thuần', 'Student', '2025-10-04 13:20:43', '2025-11-18 16:35:09', '0399697281', '2005-03-17', 'male', NULL),
+(5, 'thao', '$2b$10$OdKcmlA0f3yIulShiJvNbu8s1MG91mITzFRkvsDj6X.iciu88n3gy', NULL, 'zxc@gmail.com', 'thao', 'Teacher', '2025-10-04 20:09:10', '2025-10-04 20:09:10', NULL, NULL, NULL, NULL),
+(7, 'thao123', '$2b$10$NKbXGUGDermaTd69S7cx3O/nPmEnzGqLIuRaC9MV4rso3QuJHFSnu', NULL, 'tha@gamil.com', 'thao123', 'Teacher', '2025-10-11 16:49:53', '2025-10-11 16:49:53', NULL, NULL, NULL, NULL),
+(8, 'nguyen', '$2b$10$Uh08rbrmSb9Se4VFs8pvl.eUidsaTexnVtJNDgMo3zmXv/tsMeKW.', NULL, 'ng@gmail.com', 'nguyen', 'Student', '2025-10-22 09:08:52', '2025-10-22 09:08:52', NULL, NULL, NULL, NULL),
+(10, 'maipanh35', NULL, '117451791166846615134', 'maipanh35@gmail.com', 'Phương Anh', 'Teacher', '2025-11-18 16:22:55', '2025-11-18 16:22:55', NULL, NULL, NULL, NULL),
+(11, 'lan258079a', '$2b$10$HdMTaiw892QkORRxiA8MiOEpV8G.mztjwnFAj7qlEfwwDYhNK1dbW', '103657516417655516305', 'lan258079a@gmail.com', 'Thanh Lan', 'Student', '2025-11-18 16:25:03', '2025-11-18 16:26:12', NULL, NULL, NULL, NULL);
 
 --
 -- Chỉ mục cho các bảng đã đổ
@@ -2723,7 +2898,8 @@ ALTER TABLE `users`
   ADD UNIQUE KEY `username` (`username`),
   ADD UNIQUE KEY `email` (`email`),
   ADD KEY `idx_role` (`role`),
-  ADD KEY `class_id` (`class_id`);
+  ADD KEY `class_id` (`class_id`),
+  ADD KEY `idx_google_id` (`google_id`);
 
 --
 -- AUTO_INCREMENT cho các bảng đã đổ
@@ -2739,13 +2915,13 @@ ALTER TABLE `admin_logs`
 -- AUTO_INCREMENT cho bảng `anti_cheating_logs`
 --
 ALTER TABLE `anti_cheating_logs`
-  MODIFY `log_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `log_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT cho bảng `backup_history`
 --
 ALTER TABLE `backup_history`
-  MODIFY `backup_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `backup_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `classes`
@@ -2757,19 +2933,19 @@ ALTER TABLE `classes`
 -- AUTO_INCREMENT cho bảng `complaints`
 --
 ALTER TABLE `complaints`
-  MODIFY `complaint_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `complaint_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT cho bảng `exams`
 --
 ALTER TABLE `exams`
-  MODIFY `exam_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=82;
+  MODIFY `exam_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=83;
 
 --
 -- AUTO_INCREMENT cho bảng `exam_attempts`
 --
 ALTER TABLE `exam_attempts`
-  MODIFY `attempt_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+  MODIFY `attempt_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- AUTO_INCREMENT cho bảng `import_logs`
@@ -2781,19 +2957,19 @@ ALTER TABLE `import_logs`
 -- AUTO_INCREMENT cho bảng `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `notification_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=183;
+  MODIFY `notification_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=205;
 
 --
 -- AUTO_INCREMENT cho bảng `question_bank`
 --
 ALTER TABLE `question_bank`
-  MODIFY `question_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=449;
+  MODIFY `question_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=469;
 
 --
 -- AUTO_INCREMENT cho bảng `question_options`
 --
 ALTER TABLE `question_options`
-  MODIFY `option_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1145;
+  MODIFY `option_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1225;
 
 --
 -- AUTO_INCREMENT cho bảng `score_audit_logs`
@@ -2817,7 +2993,7 @@ ALTER TABLE `teacher_actions`
 -- AUTO_INCREMENT cho bảng `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `user_id` bigint NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- Các ràng buộc cho các bảng đã đổ
