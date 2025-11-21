@@ -26,6 +26,8 @@ const teacherExamRoutes = require('./routes/teacher/exams');
 const teacherCheatingRoutes = require('./routes/teacher/cheating');
 const gradingRoutes = require('./routes/teacher/grading');
 const teacherStatisticsRoutes = require('./routes/teacher/statistics');
+const teacherMonitoringRoutes = require('./routes/teacher/monitoring');
+const teacherQuestionAnalysisRoutes = require('./routes/teacher/questionAnalysis');
 
 // Student routes
 const studentClassesRoutes = require('./routes/student/classes');
@@ -187,6 +189,8 @@ app.use('/api/teacher/exams', teacherExamRoutes);
 app.use('/api/teacher/cheating', teacherCheatingRoutes);
 app.use('/api/teacher/grading', gradingRoutes);
 app.use('/api/teacher/statistics', teacherStatisticsRoutes);
+app.use('/api/teacher/monitoring', teacherMonitoringRoutes);
+app.use('/api/teacher', teacherQuestionAnalysisRoutes);
 
 // Student routes
 app.use('/api/student/classes', studentClassesRoutes);

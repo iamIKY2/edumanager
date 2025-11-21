@@ -80,6 +80,28 @@ document.addEventListener('DOMContentLoaded', async function() {
         updateNotificationBadge();
         fetchNotifications();
     });
+    
+    // ⭐ LẮNG NGHE SỰ KIỆN EXAM DELETED ĐỂ CẬP NHẬT UI
+    socket.on('exam_deleted', (data) => {
+        console.log('🔄 Exam deleted:', data);
+        // Xóa khỏi appData
+        if (appData.exams) {
+            appData.exams = appData.exams.filter(e => e.exam_id !== data.exam_id);
+        }
+        // Reload UI
+        renderExams();
+        renderAllExams();
+        renderDashboard();
+        updateDashboardStats();
+    });
+    
+    // ⭐ LẮNG NGHE SỰ KIỆN EXAM CREATED/UPDATED
+    socket.on('exam_updated', (data) => {
+        console.log('🔄 Exam updated:', data);
+        renderExams();
+        renderAllExams();
+        renderDashboard();
+    });
 
     try {
         const res = await fetch('http://localhost:3000/api/user/profile', {
@@ -117,6 +139,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     renderDashboard();
     initializeChart();
     updateStatsDropdown();
+    
+    // ⭐ TỰ ĐỘNG REFRESH DASHBOARD MỖI 30 GIÂY
+    setInterval(() => {
+        renderDashboard();
+        if (appData.currentClassId) {
+            renderExams();
+        }
+    }, 30000); // 30 giây
 });
 
 //
@@ -139,7 +169,9 @@ async function handleAddExam(event) {
                 examDate: formData.get('examDate'),
                 examTime: formData.get('examTime'),  
                 duration: formData.get('duration'),
-                description: formData.get('description')
+                description: formData.get('description'),
+                shuffle_questions: formData.get('shuffleQuestions') === '1' ? 1 : 0,
+                shuffle_options: formData.get('shuffleOptions') === '1' ? 1 : 0
             })
         });
 
@@ -151,16 +183,47 @@ async function handleAddExam(event) {
         const result = await response.json();
         console.log('✅ Exam created:', result);
         
-        // Hiển thị mã code bài thi cho giáo viên
-        const examCode = result.exam?.exam_code || result.exam_code;
-        if (examCode) {
-            showNotification('✅ Tạo bài thi thành công!', 'success');
-            // Hiển thị modal mã code
-            setTimeout(() => {
-                showExamCodeModal(examCode, result.exam?.title || result.exam?.exam_name || formData.get('examName'));
-            }, 500);
+        // Lấy exam_id từ kết quả
+        const newExamId = result.exam?.exam_id || result.exam_id;
+        
+        // Kiểm tra nếu có chọn đề thi để import
+        const sourceExamId = formData.get('importExamId');
+        if (sourceExamId && newExamId) {
+            try {
+                console.log('📥 Importing questions from exam', sourceExamId, 'to exam', newExamId);
+                const importResponse = await fetch(`http://localhost:3000/api/teacher/exams/${newExamId}/copy-questions/${sourceExamId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (importResponse.ok) {
+                    const importResult = await importResponse.json();
+                    console.log('✅ Questions imported:', importResult);
+                    showNotification(`✅ Tạo bài thi thành công! Đã import ${importResult.copied} câu hỏi.`, 'success');
+                } else {
+                    const errorData = await importResponse.json();
+                    console.error('⚠️ Import failed:', errorData);
+                    showNotification('✅ Tạo bài thi thành công! Nhưng import câu hỏi thất bại: ' + (errorData.error || 'Lỗi không xác định'), 'warning');
+                }
+            } catch (importError) {
+                console.error('❌ Error importing questions:', importError);
+                showNotification('✅ Tạo bài thi thành công! Nhưng có lỗi khi import câu hỏi.', 'warning');
+            }
         } else {
-            showNotification('✅ Tạo bài thi thành công!', 'success');
+            // Không có import, hiển thị thông báo bình thường
+            const examCode = result.exam?.exam_code || result.exam_code;
+            if (examCode) {
+                showNotification('✅ Tạo bài thi thành công!', 'success');
+                // Hiển thị modal mã code
+                setTimeout(() => {
+                    showExamCodeModal(examCode, result.exam?.title || result.exam?.exam_name || formData.get('examName'));
+                }, 500);
+            } else {
+                showNotification('✅ Tạo bài thi thành công!', 'success');
+            }
         }
         
         // Fetch lại exams từ server
@@ -597,7 +660,17 @@ async function renderDashboard() {
 
         if (!response.ok) throw new Error('Lỗi tải dữ liệu dashboard');
         const classes = await response.json();
+        
+        // ⭐ CẬP NHẬT appData.classes VÀ ĐỒNG BỘ VỚI appData.exams
         appData.classes = classes;
+        
+        // ⭐ CẬP NHẬT SỐ LƯỢNG BÀI THI CHO MỖI LỚP DỰA TRÊN appData.exams
+        if (appData.exams && appData.exams.length > 0) {
+            classes.forEach(cls => {
+                const examCount = appData.exams.filter(e => e.class_id === cls.class_id).length;
+                cls.exams = examCount;
+            });
+        }
         
         const recentClasses = classes.slice(0, 2);
         const grid = document.getElementById('dashboardClasses');
@@ -848,13 +921,6 @@ renderGrades();
     }
 }
 
-const examCountInClass = appData.exams.filter(e => e.class_id === classId).length;
-document.getElementById('examCount').textContent = examCountInClass;
-    
-    renderStudents();
-    renderGrades();
-
-
 function backToClassList() {
     document.getElementById('classList').style.display = 'block';
     document.getElementById('classDetail').classList.remove('active');
@@ -1020,7 +1086,7 @@ function hideAddStudent() {
     document.getElementById('classDetail').classList.add('active');
 }
 
-function showAddExam() {
+async function showAddExam() {
     if (!appData.currentClassId) {
         showNotification('❗ Vui lòng chọn một lớp trước khi thêm bài thi', 'error');
         return;
@@ -1038,8 +1104,81 @@ function showAddExam() {
         }
     }
 
+    // Load danh sách đề thi để import
+    await loadExamsForImport();
+
     document.getElementById('classDetail').classList.remove('active');
     formWrapper.style.display = 'block';
+}
+
+// Hàm tải danh sách đề thi để import
+async function loadExamsForImport() {
+    const select = document.getElementById('importExamSelect');
+    const infoDiv = document.getElementById('importExamInfo');
+    const infoText = document.getElementById('importExamInfoText');
+    
+    if (!select) return;
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+        // Lấy tất cả bài thi của giáo viên
+        const response = await fetch('http://localhost:3000/api/teacher/exams/all', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Lỗi tải danh sách đề thi');
+        }
+        
+        const exams = await response.json();
+        
+        // Xóa các option cũ (trừ option đầu tiên)
+        select.innerHTML = '<option value="">-- Chọn đề thi để import câu hỏi --</option>';
+        
+        // Thêm các đề thi vào select
+        exams.forEach(exam => {
+            const option = document.createElement('option');
+            option.value = exam.exam_id;
+            const examDate = exam.start_time ? new Date(exam.start_time).toLocaleDateString('vi-VN') : 'N/A';
+            option.textContent = `${exam.title || exam.exam_name} (${examDate})`;
+            select.appendChild(option);
+        });
+        
+        // Thêm event listener để hiển thị thông tin đề thi được chọn
+        select.onchange = async function() {
+            const selectedExamId = this.value;
+            if (selectedExamId) {
+                // Lấy thông tin chi tiết đề thi
+                try {
+                    const detailResponse = await fetch(`http://localhost:3000/api/teacher/exams/${selectedExamId}/detail`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (detailResponse.ok) {
+                        const examDetail = await detailResponse.json();
+                        const questionCount = examDetail.total_questions || 0;
+                        infoText.textContent = `Đề thi này có ${questionCount} câu hỏi. Tất cả câu hỏi sẽ được import vào bài thi mới.`;
+                        infoDiv.style.display = 'block';
+                    }
+                } catch (err) {
+                    console.error('Error loading exam details:', err);
+                }
+            } else {
+                infoDiv.style.display = 'none';
+            }
+        };
+        
+    } catch (error) {
+        console.error('Error loading exams for import:', error);
+        // Không hiển thị lỗi để không làm gián đoạn quá trình tạo bài thi
+    }
 }
 
 function hideAddExam() {
@@ -1047,6 +1186,17 @@ function hideAddExam() {
     if (formWrapper) {
         formWrapper.style.display = 'none';
     }
+    
+    // Reset import exam select
+    const importSelect = document.getElementById('importExamSelect');
+    const importInfo = document.getElementById('importExamInfo');
+    if (importSelect) {
+        importSelect.value = '';
+    }
+    if (importInfo) {
+        importInfo.style.display = 'none';
+    }
+    
     document.getElementById('classDetail').classList.add('active');
 }
 
@@ -1583,13 +1733,47 @@ async function deleteQuestion(examId, questionId) {
 
 async function deleteExam(examId, event) {
     event.stopPropagation();
-    if (!confirm('Bạn có chắc muốn xóa bài thi này?')) return;
-
+    
     const token = localStorage.getItem('token');
+    
     try {
-                const response = await fetch(`http://localhost:3000/api/teacher/exams/${examId}`, { 
-            method: 'DELETE',
+        // Kiểm tra xem có dữ liệu gian lận không
+        const checkResponse = await fetch(`http://localhost:3000/api/teacher/exams/${examId}/check-cheating-data`, {
+            method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!checkResponse.ok) {
+            throw new Error('Không thể kiểm tra dữ liệu gian lận');
+        }
+
+        const checkData = await checkResponse.json();
+        const hasCheatingData = checkData.has_cheating_data;
+        const cheatingCount = checkData.count || 0;
+
+        // Nếu có dữ liệu gian lận, hiển thị modal cảnh báo
+        if (hasCheatingData) {
+            const confirmed = await showCheatingWarningModal(cheatingCount);
+            if (!confirmed) {
+                return; // User không xác nhận, không xóa
+            }
+        } else {
+            // Nếu không có dữ liệu gian lận, chỉ cần confirm thông thường
+            if (!confirm('Bạn có chắc muốn xóa bài thi này?')) {
+                return;
+            }
+        }
+
+        // Thực hiện xóa với confirmDelete = true nếu có dữ liệu gian lận
+        const response = await fetch(`http://localhost:3000/api/teacher/exams/${examId}`, { 
+            method: 'DELETE',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                confirmDelete: hasCheatingData
+            })
         });
 
         const contentType = response.headers.get('content-type');
@@ -1602,19 +1786,116 @@ async function deleteExam(examId, event) {
             throw new Error(errorData.error || 'Lỗi xóa bài thi');
         }
 
-        appData.exams = appData.exams.filter(e => e.exam_id !== examId);
-        const cls = appData.classes.find(c => c.class_id === appData.currentClassId);
-        if (cls && cls.exams > 0) cls.exams--;
+        const result = await response.json();
         
+        // ⭐ XÓA KHỎI appData
+        appData.exams = appData.exams.filter(e => e.exam_id !== examId);
+        
+        // ⭐ RELOAD LẠI CLASSES TỪ SERVER ĐỂ CẬP NHẬT SỐ LƯỢNG BÀI THI CHÍNH XÁC
+        try {
+            const classesResponse = await fetch('http://localhost:3000/api/teacher/classes', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (classesResponse.ok) {
+                const classes = await classesResponse.json();
+                appData.classes = classes;
+                
+                // Cập nhật số lượng bài thi cho class hiện tại
+                const cls = appData.classes.find(c => c.class_id === appData.currentClassId);
+                if (cls) {
+                    // Tìm lại số lượng bài thi từ server
+                    const classExams = appData.exams.filter(e => e.class_id === appData.currentClassId);
+                    cls.exams = classExams.length;
+                }
+            }
+        } catch (err) {
+            console.error('Lỗi reload classes:', err);
+            // Fallback: giảm số lượng thủ công
+            const cls = appData.classes.find(c => c.class_id === appData.currentClassId);
+            if (cls && cls.exams > 0) cls.exams--;
+        }
+        
+        // ⭐ CẬP NHẬT UI
         renderExams();
         renderAllExams();
-        renderDashboard();
+        renderDashboard(); // Hàm này sẽ reload classes và update stats
         updateDashboardStats();
-        showNotification('✅ Đã xóa bài thi');
+        
+        // ⭐ CẬP NHẬT SỐ LƯỢNG BÀI THI Ở CLASS DETAIL NẾU ĐANG MỞ
+        const examCountEl = document.getElementById('examCount');
+        if (examCountEl) {
+            const classExams = appData.exams.filter(e => e.class_id === appData.currentClassId);
+            examCountEl.textContent = classExams.length;
+        }
+        
+        const message = hasCheatingData 
+            ? `✅ Đã xóa bài thi thành công (đã xóa ${cheatingCount} bản ghi gian lận)`
+            : '✅ Đã xóa bài thi thành công';
+        showNotification(message);
     } catch (error) {
         console.error('Lỗi trong deleteExam:', error);
         showNotification(`❌ ${error.message}`, 'error');
     }
+}
+
+// Hiển thị modal cảnh báo khi có dữ liệu gian lận
+function showCheatingWarningModal(cheatingCount) {
+    return new Promise(resolve => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #f56565 0%, #c53030 100%);">
+                    <h3>⚠️ Cảnh báo: Dữ liệu gian lận</h3>
+                    <span class="close" onclick="closeCheatingWarningModal()" style="color: white;">&times;</span>
+                </div>
+                <div style="padding: 30px;">
+                    <div style="background: #fff5f5; border-left: 4px solid #f56565; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                        <p style="margin: 0; color: #742a2a; font-size: 16px; line-height: 1.6;">
+                            <strong>⚠️ Bài thi này đang có dữ liệu về gian lận của thí sinh!</strong>
+                        </p>
+                        <p style="margin: 10px 0 0 0; color: #742a2a; font-size: 14px;">
+                            Số lượng bản ghi gian lận: <strong>${cheatingCount}</strong>
+                        </p>
+                    </div>
+                    <p style="color: #2d3748; margin-bottom: 25px; line-height: 1.6;">
+                        Nếu bạn xóa bài thi này, <strong>tất cả dữ liệu gian lận</strong> liên quan sẽ bị xóa vĩnh viễn và không thể khôi phục.
+                    </p>
+                    <p style="color: #718096; font-size: 14px; margin-bottom: 25px;">
+                        Bạn có chắc chắn muốn tiếp tục xóa bài thi này không?
+                    </p>
+                    <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                        <button class="btn btn-secondary" onclick="closeCheatingWarningModal()" style="padding: 12px 24px;">
+                            Hủy
+                        </button>
+                        <button class="btn btn-danger" onclick="confirmDeleteWithCheating()" style="padding: 12px 24px; background: #f56565;">
+                            Xác nhận xóa
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        window.confirmDeleteWithCheating = () => {
+            modal.remove();
+            resolve(true);
+        };
+        
+        window.closeCheatingWarningModal = () => {
+            modal.remove();
+            resolve(false);
+        };
+        
+        // Đóng modal khi click ra ngoài
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+                resolve(false);
+            }
+        });
+    });
 }
 
 
@@ -1629,6 +1910,28 @@ async function renderGrades() {
         return;
     }
     
+    // Kiểm tra currentClassId trước khi gọi API
+    if (!appData.currentClassId) {
+        console.error('❌ [Grades] currentClassId is not set:', {
+            currentClassId: appData.currentClassId,
+            appData: appData
+        });
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <div class="empty-state-text">Chưa chọn lớp học</div>
+                <div class="empty-state-subtext">Vui lòng chọn một lớp học để xem bảng điểm</div>
+            </div>
+        `;
+        return;
+    }
+    
+    console.log('🔵 [Grades] Starting renderGrades with classId:', {
+        currentClassId: appData.currentClassId,
+        type: typeof appData.currentClassId,
+        appData: appData
+    });
+    
     // Hiển thị loading
     container.innerHTML = `
         <div style="text-align: center; padding: 40px; color: #666;">
@@ -1639,14 +1942,22 @@ async function renderGrades() {
     
     try {
         // 1. Lấy danh sách học sinh
+        const classId = appData.currentClassId;
+        console.log('🔵 [Grades] Fetching students for classId:', classId, 'Type:', typeof classId);
         
         const studentsResponse = await fetch(
-            `http://localhost:3000/api/teacher/classes/${appData.currentClassId}/students`, 
+            `http://localhost:3000/api/teacher/classes/${classId}/students`, 
             { headers: { 'Authorization': `Bearer ${token}` } }
         );
         
         if (!studentsResponse.ok) {
-            const errorData = await studentsResponse.json();
+            const errorData = await studentsResponse.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('❌ [Grades] Students API error:', {
+                status: studentsResponse.status,
+                statusText: studentsResponse.statusText,
+                error: errorData.error,
+                classId: classId
+            });
             throw new Error(errorData.error || 'Lỗi tải danh sách học sinh');
         }
         
@@ -1654,15 +1965,21 @@ async function renderGrades() {
         console.log('✅ [Grades] Students loaded:', students.length);
         
         // 2. Lấy danh sách bài thi của lớp
-        console.log('🔵 [Grades] Loading exams for class:', appData.currentClassId);
+        console.log('🔵 [Grades] Loading exams for class:', classId);
         
         const examsResponse = await fetch(
-            `http://localhost:3000/api/teacher/classes/${appData.currentClassId}/exams`, 
+            `http://localhost:3000/api/teacher/classes/${classId}/exams`, 
             { headers: { 'Authorization': `Bearer ${token}` } }
         );
         
         if (!examsResponse.ok) {
-            const errorData = await examsResponse.json();
+            const errorData = await examsResponse.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('❌ [Grades] Exams API error:', {
+                status: examsResponse.status,
+                statusText: examsResponse.statusText,
+                error: errorData.error,
+                classId: classId
+            });
             throw new Error(errorData.error || 'Lỗi tải danh sách bài thi');
         }
         
@@ -2845,14 +3162,27 @@ async function importExamFromExcel(event) {
 
         // Hiển thị dropdown để chọn bài thi
         const selectExam = document.createElement('select');
+        selectExam.id = 'selectExamForImport';
+        selectExam.className = 'form-control';
+        selectExam.style.marginBottom = '10px';
         selectExam.innerHTML = '<option value="">Chọn bài thi</option>' + 
             classExams.map(exam => `<option value="${exam.exam_id}">${exam.title || exam.exam_name}</option>`).join('');
-        resultContainer.innerHTML = `
-            <h4>Chọn bài thi để import câu hỏi</h4>
+        
+        // Tạo container cho dropdown và button
+        const selectContainer = document.createElement('div');
+        selectContainer.id = 'selectExamContainer';
+        selectContainer.innerHTML = `
+            <h4 style="margin-bottom: 15px;">Chọn bài thi để import câu hỏi</h4>
             ${selectExam.outerHTML}
-            <button class="btn btn-primary" onclick="proceedWithImport(this, '${fileInput.id}')">Xác nhận</button>
+            <button class="btn btn-primary" onclick="proceedWithImportFromSelect('${fileInput.id}')" style="margin-top: 10px;">Xác nhận</button>
         `;
-        fileInput.value = ''; 
+        
+        // Giữ nguyên cấu trúc HTML gốc, chỉ thêm container chọn bài thi
+        resultContainer.innerHTML = '';
+        resultContainer.appendChild(selectContainer);
+        resultContainer.style.display = 'block';
+        
+        // KHÔNG reset file input ở đây, để giữ file cho lần import
         return;
     } else {
         // Trong section Tạo bài thi: Tạo bài thi mới trước khi import
@@ -2869,6 +3199,8 @@ async function importExamFromExcel(event) {
                     examTime: '08:00',
                     duration: 60,
                     description: 'Bài thi được tạo từ file Excel',
+                    shuffle_questions: 1, // Mặc định bật xáo trộn câu hỏi
+                    shuffle_options: 1,    // Mặc định bật xáo trộn đáp án
                     status: 'draft'
                 })
             });
@@ -2893,10 +3225,27 @@ async function importExamFromExcel(event) {
     proceedWithImport(null, fileInput.id, examId, file);
 }
 
+// Hàm xử lý import sau khi chọn examId từ dropdown
+async function proceedWithImportFromSelect(inputId) {
+    const selectExam = document.getElementById('selectExamForImport');
+    if (!selectExam || !selectExam.value) {
+        showNotification('❌ Vui lòng chọn bài thi!', 'error');
+        return;
+    }
+    
+    const fileInput = document.getElementById(inputId);
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        showNotification('❌ Vui lòng chọn lại file Excel!', 'error');
+        return;
+    }
+    
+    await proceedWithImport(null, inputId, selectExam.value, fileInput.files[0]);
+}
+
 // Hàm xử lý import sau khi chọn examId
 async function proceedWithImport(buttonEl, inputId, examId, file) {
     const fileInput = document.getElementById(inputId);
-    if (!file && !fileInput.files[0]) {
+    if (!file && (!fileInput || !fileInput.files || !fileInput.files[0])) {
         showNotification('❌ Vui lòng chọn lại file Excel!', 'error');
         return;
     }
@@ -2946,14 +3295,56 @@ async function proceedWithImport(buttonEl, inputId, examId, file) {
         const result = await response.json();
         console.log('✅ Import result:', result);
 
+        // Khôi phục lại cấu trúc HTML gốc nếu đã bị thay thế
+        if (isClassContext && !messageEl) {
+            resultContainer.innerHTML = `
+                <h4>Kết quả import câu hỏi</h4>
+                <p id="importResultMessageClass"></p>
+                <p id="importSuccessCountClass"></p>
+                <p id="importErrorCountClass"></p>
+                <p id="importErrorsClass" style="color: #f56565;"></p>
+            `;
+        }
+        
         // Hiển thị kết quả
         resultContainer.style.display = 'block';
-        messageEl.textContent = 'Import hoàn tất!';
-        successCountEl.textContent = `Số câu hỏi import thành công: ${result.successCount || 0}`;
-        errorCountEl.textContent = `Số lỗi: ${result.errorCount || 0}`;
-        errorsEl.innerHTML = result.errors && result.errors.length > 0
-            ? result.errors.map(err => `<div>${err}</div>`).join('')
-            : 'Không có lỗi';
+        const msgEl = isClassContext 
+            ? document.getElementById('importResultMessageClass')
+            : document.getElementById('importResultMessageSection');
+        const successEl = isClassContext
+            ? document.getElementById('importSuccessCountClass')
+            : document.getElementById('importSuccessCountSection');
+        const errorEl = isClassContext
+            ? document.getElementById('importErrorCountClass')
+            : document.getElementById('importErrorCountSection');
+        const errorsEl = isClassContext
+            ? document.getElementById('importErrorsClass')
+            : document.getElementById('importErrorsSection');
+        
+        if (msgEl) msgEl.textContent = 'Import hoàn tất!';
+        const importedCount = result.imported || result.copied || result.successCount || result.verified || 0;
+        if (successEl) {
+            if (importedCount > 0) {
+                successEl.textContent = `Số câu hỏi import thành công: ${importedCount}`;
+                successEl.style.color = '#48bb78';
+            } else {
+                successEl.textContent = '⚠️ Không có câu hỏi nào được import. Vui lòng kiểm tra file Excel và thử lại.';
+                successEl.style.color = '#f56565';
+            }
+        }
+        if (errorEl) errorEl.textContent = `Số lỗi: ${result.errors?.length || result.errorCount || 0}`;
+        if (errorsEl) {
+            errorsEl.innerHTML = result.errors && result.errors.length > 0
+                ? result.errors.map(err => `<div>${err}</div>`).join('')
+                : 'Không có lỗi';
+        }
+        
+        console.log('📊 Import result summary:', {
+            imported: importedCount,
+            total: result.total,
+            errors: result.errors?.length || 0,
+            verified: result.verified
+        });
 
         // Cập nhật danh sách bài thi
         if (isClassContext) {
@@ -2964,8 +3355,54 @@ async function proceedWithImport(buttonEl, inputId, examId, file) {
                 appData.exams.push(...classExams);
                 renderExams();
             });
+            
+            // ⭐ LUÔN RELOAD CHI TIẾT BÀI THI NẾU ĐANG XEM (KHÔNG CẦN KIỂM TRA ĐIỀU KIỆN PHỨC TẠP)
+            const examDetail = document.getElementById('examDetail');
+            const examIdNum = parseInt(examId);
+            
+            console.log('🔍 Checking exam detail state:', {
+                examDetailExists: !!examDetail,
+                examDetailDisplay: examDetail?.style.display,
+                currentExamId: currentExam?.exam_id,
+                targetExamId: examIdNum
+            });
+            
+            // Nếu đang xem chi tiết bài thi, luôn reload
+            if (examDetail && examDetail.style.display !== 'none') {
+                console.log('🔄 Reloading exam detail after import (examId:', examIdNum, ')...');
+                // Reload lại chi tiết bài thi để hiển thị câu hỏi mới
+                setTimeout(async () => {
+                    try {
+                        await viewExamDetail(examIdNum, 'class');
+                        console.log('✅ Exam detail reloaded successfully');
+                    } catch (err) {
+                        console.error('❌ Error reloading exam detail:', err);
+                    }
+                }, 500);
+            } else {
+                console.log('ℹ️ Exam detail not visible, skipping reload');
+            }
         } else {
             await renderAllExams();
+            
+            // ⭐ LUÔN RELOAD CHI TIẾT BÀI THI TRONG MODAL NẾU ĐANG XEM
+            const examDetailModal = document.getElementById('examDetailModal');
+            const examIdNum = parseInt(examId);
+            
+            if (examDetailModal && examDetailModal.style.display === 'flex') {
+                const isViewingThisExam = currentExam && (
+                    parseInt(currentExam.exam_id) === examIdNum || 
+                    currentExam.exam_id == examId ||
+                    currentExam.exam_id === examId
+                );
+                
+                if (isViewingThisExam) {
+                    console.log('🔄 Reloading exam detail modal after import...');
+                    setTimeout(async () => {
+                        await viewExamDetail(examIdNum, 'exams');
+                    }, 500);
+                }
+            }
         }
 
         showNotification('✅ Import câu hỏi thành công!', 'success');
@@ -4221,6 +4658,23 @@ function showManualExamCreation() {
                 <textarea id="manualExamDesc" class="form-control" rows="3"></textarea>
             </div>
             
+            <div class="form-group">
+                <label style="font-weight: 600; margin-bottom: 12px; display: block; color: #2d3748;">🔀 Xáo trộn</label>
+                <div class="shuffle-options">
+                    <label class="shuffle-checkbox-label">
+                        <input type="checkbox" id="manualShuffleQuestions" value="1" class="shuffle-checkbox">
+                        <span>Xáo trộn thứ tự câu hỏi</span>
+                    </label>
+                    <label class="shuffle-checkbox-label">
+                        <input type="checkbox" id="manualShuffleOptions" value="1" class="shuffle-checkbox">
+                        <span>Xáo trộn thứ tự đáp án</span>
+                    </label>
+                </div>
+                <small style="color: #718096; display: block; margin-top: 10px; font-size: 0.85rem; line-height: 1.4;">
+                    Mỗi học sinh sẽ nhận thứ tự câu hỏi/đáp án khác nhau để tránh gian lận
+                </small>
+            </div>
+            
             <hr style="margin: 30px 0; border-top: 2px solid #e2e8f0;">
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -4591,7 +5045,9 @@ async function saveManualExam() {
                 examDate: date,
                 examTime: time,
                 duration,
-                description: desc || 'Đề thi tạo thủ công'
+                description: desc || 'Đề thi tạo thủ công',
+                shuffle_questions: document.getElementById('manualShuffleQuestions')?.checked ? 1 : 0,
+                shuffle_options: document.getElementById('manualShuffleOptions')?.checked ? 1 : 0
             })
         });
         
@@ -5015,7 +5471,9 @@ async function createExamFromQuestionBank() {
                 examDate: new Date().toISOString().split('T')[0],
                 examTime: '08:00',
                 duration: 60,
-                description: 'Tạo từ ngân hàng câu hỏi'
+                description: 'Tạo từ ngân hàng câu hỏi',
+                shuffle_questions: 1, // Mặc định bật shuffle khi tạo từ question bank
+                shuffle_options: 1
             })
         });
         
@@ -6179,7 +6637,9 @@ async function saveAIExam() {
                 examDate: examDate,
                 examTime: examTime,
                 duration: duration,
-                description: description
+                description: description,
+                shuffle_questions: document.getElementById('aiShuffleQuestions')?.checked ? 1 : 0,
+                shuffle_options: document.getElementById('aiShuffleOptions')?.checked ? 1 : 0
             })
         });
 

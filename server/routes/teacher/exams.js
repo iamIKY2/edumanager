@@ -219,6 +219,13 @@ router.get('/:examId/detail', authMiddleware, roleMiddleware(['teacher']), async
 
     console.log('✅ Exam found:', exam[0].exam_name);
 
+    // Kiểm tra xem có câu hỏi nào trong exam_questions không
+    const [checkQuestions] = await req.db.query(
+      'SELECT COUNT(*) as count FROM exam_questions WHERE exam_id = ?',
+      [examId]
+    );
+    console.log(`🔍 Total questions in exam_questions table for exam ${examId}: ${checkQuestions[0]?.count || 0}`);
+
     // Lấy danh sách câu hỏi với options
     const [questions] = await req.db.query(
       `SELECT 
@@ -236,7 +243,17 @@ router.get('/:examId/detail', authMiddleware, roleMiddleware(['teacher']), async
       [examId]
     );
 
-    console.log(`✅ Found ${questions.length} questions`);
+    console.log(`✅ Found ${questions.length} questions after JOIN with question_bank`);
+    
+    // Nếu có câu hỏi trong exam_questions nhưng không có sau JOIN, có thể question_bank bị thiếu
+    if (checkQuestions[0]?.count > 0 && questions.length === 0) {
+      console.error(`⚠️ WARNING: Found ${checkQuestions[0].count} questions in exam_questions but 0 after JOIN with question_bank`);
+      const [orphanedQuestions] = await req.db.query(
+        'SELECT question_id FROM exam_questions WHERE exam_id = ? LIMIT 5',
+        [examId]
+      );
+      console.error('⚠️ Sample question_ids in exam_questions:', orphanedQuestions.map(q => q.question_id));
+    }
 
     // Lấy options cho từng câu hỏi (chỉ với trắc nghiệm)
     const questionsWithOptions = await Promise.all(
@@ -276,11 +293,52 @@ router.get('/:examId/detail', authMiddleware, roleMiddleware(['teacher']), async
   }
 });
 
+// ✅ Kiểm tra dữ liệu gian lận trước khi xóa
+router.get('/:examId/check-cheating-data', authMiddleware, roleMiddleware(['teacher', 'admin']), async (req, res) => {
+  const { examId } = req.params;
+  const teacherId = req.user.id || req.user.user_id;
+  const role = req.user.role;
+
+  try {
+    // Kiểm tra quyền sở hữu (nếu là Teacher)
+    if (role === 'teacher' || role === 'Teacher') {
+      const [exam] = await req.db.query(
+        'SELECT exam_name FROM exams WHERE exam_id = ? AND teacher_id = ?',
+        [examId, teacherId]
+      );
+      
+      if (!exam.length) {
+        return res.status(403).json({ error: 'Bạn không có quyền truy cập bài thi này' });
+      }
+    }
+
+    // Kiểm tra xem có dữ liệu gian lận không
+    const [cheatingData] = await req.db.query(
+      `SELECT COUNT(*) as count 
+       FROM anti_cheating_logs acl
+       JOIN exam_attempts ea ON acl.attempt_id = ea.attempt_id
+       WHERE ea.exam_id = ?`,
+      [examId]
+    );
+
+    const hasCheatingData = (cheatingData[0]?.count || 0) > 0;
+
+    res.json({
+      has_cheating_data: hasCheatingData,
+      count: cheatingData[0]?.count || 0
+    });
+  } catch (err) {
+    console.error('Lỗi kiểm tra dữ liệu gian lận:', err);
+    res.status(500).json({ error: 'Lỗi khi kiểm tra dữ liệu gian lận', details: err.message });
+  }
+});
+
 // ✅ Xóa bài thi
 router.delete('/:examId', authMiddleware, roleMiddleware(['teacher', 'admin']), async (req, res) => {
   const { examId } = req.params;
   const teacherId = req.user.id || req.user.user_id;
   const role = req.user.role;
+  const { confirmDelete } = req.body; // Nhận xác nhận từ client
 
   try {
     // Kiểm tra quyền sở hữu (nếu là Teacher)
@@ -295,20 +353,95 @@ router.delete('/:examId', authMiddleware, roleMiddleware(['teacher', 'admin']), 
       }
     }
 
-    // Xóa các bản ghi liên quan
-    await req.db.query('DELETE FROM exam_attempt_answers WHERE attempt_id IN (SELECT attempt_id FROM exam_attempts WHERE exam_id = ?)', [examId]);
+    // Kiểm tra xem có dữ liệu gian lận không
+    const [cheatingData] = await req.db.query(
+      `SELECT COUNT(*) as count 
+       FROM anti_cheating_logs acl
+       JOIN exam_attempts ea ON acl.attempt_id = ea.attempt_id
+       WHERE ea.exam_id = ?`,
+      [examId]
+    );
+
+    const hasCheatingData = (cheatingData[0]?.count || 0) > 0;
+
+    // Nếu có dữ liệu gian lận nhưng chưa được xác nhận, trả về lỗi
+    if (hasCheatingData && !confirmDelete) {
+      return res.status(400).json({ 
+        error: 'Bài thi này có dữ liệu gian lận. Vui lòng xác nhận để tiếp tục xóa.',
+        has_cheating_data: true,
+        count: cheatingData[0]?.count || 0
+      });
+    }
+
+    // Lấy danh sách attempt_id trước
+    const [attempts] = await req.db.query(
+      'SELECT attempt_id FROM exam_attempts WHERE exam_id = ?',
+      [examId]
+    );
+    
+    const attemptIds = attempts.map(a => a.attempt_id);
+    
+    if (attemptIds.length > 0) {
+      // Xóa các bản ghi liên quan theo thứ tự đúng (xóa child tables trước)
+      // 1. Xóa anti_cheating_logs trước (foreign key từ exam_attempts)
+      const placeholders = attemptIds.map(() => '?').join(',');
+      await req.db.query(
+        `DELETE FROM anti_cheating_logs WHERE attempt_id IN (${placeholders})`,
+        attemptIds
+      );
+      
+      // 2. Xóa exam_attempt_answers
+      await req.db.query(
+        `DELETE FROM exam_attempt_answers WHERE attempt_id IN (${placeholders})`,
+        attemptIds
+      );
+    }
+    
+    // 3. Xóa exam_attempts
     await req.db.query('DELETE FROM exam_attempts WHERE exam_id = ?', [examId]);
+    
+    // 4. Xóa complaints (foreign key với exams)
+    await req.db.query('DELETE FROM complaints WHERE exam_id = ?', [examId]);
+    
+    // 5. Xóa exam_questions
     await req.db.query('DELETE FROM exam_questions WHERE exam_id = ?', [examId]);
+    
+    // 6. Xóa exam_classes
     await req.db.query('DELETE FROM exam_classes WHERE exam_id = ?', [examId]);
     
-    // Xóa bài thi
+    // 7. Xóa bài thi
     const [result] = await req.db.query('DELETE FROM exams WHERE exam_id = ?', [examId]);
     
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Không tìm thấy bài thi' });
     }
 
-    res.json({ message: 'Xóa bài thi thành công' });
+    // ⭐ GỬI SỰ KIỆN SOCKET ĐỂ CẬP NHẬT UI REAL-TIME
+    if (req.io) {
+      // Emit cho tất cả giáo viên trong cùng lớp (nếu có)
+      const [examInfo] = await req.db.query(
+        'SELECT class_id FROM exams WHERE exam_id = ?',
+        [examId]
+      );
+      
+      if (examInfo.length > 0 && examInfo[0].class_id) {
+        req.io.to(`class_${examInfo[0].class_id}`).emit('exam_deleted', {
+          exam_id: examId,
+          class_id: examInfo[0].class_id
+        });
+      }
+      
+      // Emit cho chính giáo viên xóa
+      req.io.to(`user_${teacherId}`).emit('exam_deleted', {
+        exam_id: examId,
+        class_id: examInfo[0]?.class_id || null
+      });
+    }
+
+    res.json({ 
+      message: 'Xóa bài thi thành công',
+      deleted_cheating_logs: hasCheatingData ? (cheatingData[0]?.count || 0) : 0
+    });
   } catch (err) {
     console.error('Lỗi xóa bài thi:', err);
     res.status(500).json({ error: 'Lỗi khi xóa bài thi', details: err.message });
@@ -477,7 +610,7 @@ const upload = multer({
 });
 
 // ============================================
-// 🧠 HÀM TÌM CỘT TỰ ĐỘNG (AI-POWERED)
+// 🧠 HÀM TÌM CỘT TỰ ĐỘNG (AI-POWERED) - CẢI THIỆN
 // ============================================
 function smartDetectColumns(row) {
   const detected = {
@@ -494,64 +627,122 @@ function smartDetectColumns(row) {
     points: null
   };
 
-  // Lấy tất cả tên cột (keys)
+  // Lấy tất cả tên cột (keys) và normalize
   const columns = Object.keys(row);
+  const normalizedColumns = columns.map(col => ({
+    original: col,
+    normalized: col.trim().toLowerCase().replace(/[_\s]+/g, ' ').trim()
+  }));
 
-  // ⭐ TÌM CỘT "CÂU HỎI"
+  // ⭐ TÌM CỘT "CÂU HỎI" - MỞ RỘNG PATTERNS
   const questionPatterns = [
-    /^(câu hỏi|cau hoi|question|content|nội dung|noi dung|ques|quest)$/i,
-    /^(question_content|question_text|cau_hoi|cauhoi)$/i
+    /câu hỏi|cau hoi|question|content|nội dung|noi dung|ques|quest|hỏi|hoi|bài|bai|đề|de/i,
+    /question_content|question_text|cau_hoi|cauhoi|questioncontent|questiontext/i,
+    /^q$|^câu$|^cau$/i
   ];
-  detected.question = columns.find(col => 
-    questionPatterns.some(pattern => pattern.test(col.trim()))
-  );
+  detected.question = normalizedColumns.find(col => 
+    questionPatterns.some(pattern => pattern.test(col.normalized))
+  )?.original;
 
-  // ⭐ TÌM CỘT "ĐÁP ÁN A, B, C, D, E, F"
+  // Nếu không tìm thấy, thử tìm cột có nhiều ký tự nhất (thường là câu hỏi)
+  if (!detected.question && columns.length > 0) {
+    const longestColumn = columns.reduce((a, b) => {
+      const aValue = String(row[a] || '').length;
+      const bValue = String(row[b] || '').length;
+      return aValue > bValue ? a : b;
+    });
+    // Chỉ dùng nếu cột đó có giá trị dài hơn 20 ký tự
+    if (String(row[longestColumn] || '').length > 20) {
+      detected.question = longestColumn;
+      console.log(`🔍 Auto-detected question column as longest column: ${longestColumn}`);
+    }
+  }
+
+  // ⭐ TÌM CỘT "ĐÁP ÁN A, B, C, D, E, F" - SỬA LẠI ĐỂ TRÁNH TRÙNG LẶP
   const optionLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const usedColumns = new Set(); // Track các cột đã được sử dụng để tránh trùng lặp
+  
   optionLetters.forEach(letter => {
+    // Pattern phải CHỨA chữ cái cụ thể (A, B, C, D...) - KHÔNG DÙNG PATTERN QUÁ RỘNG
     const patterns = [
-      new RegExp(`^(đáp án ${letter}|dap an ${letter}|option ${letter}|${letter}|option_${letter}|DA_${letter}|answer_${letter})$`, 'i'),
-      new RegExp(`^(đáp án|dap an|option|ans|answer)\\s*${letter}$`, 'i'),
-      new RegExp(`^${letter}$`, 'i')
+      new RegExp(`đáp án ${letter}|dap an ${letter}|option ${letter}|^${letter}$|option_${letter}|DA_${letter}|answer_${letter}`, 'i'),
+      new RegExp(`^${letter}\\s*[:\\.]|^${letter}$|^lựa chọn ${letter}|lua chon ${letter}`, 'i'),
+      new RegExp(`choice.*${letter}|select.*${letter}`, 'i'),
+      new RegExp(`phương án ${letter}|phuong an ${letter}`, 'i')
     ];
     
-    detected[`option${letter}`] = columns.find(col => 
-      patterns.some(pattern => pattern.test(col.trim()))
+    // Tìm cột match pattern VÀ chưa được sử dụng
+    const found = normalizedColumns.find(col => 
+      !usedColumns.has(col.original) && // Chưa được sử dụng
+      patterns.some(pattern => pattern.test(col.normalized))
     );
+    
+    if (found) {
+      detected[`option${letter}`] = found.original;
+      usedColumns.add(found.original); // Đánh dấu đã sử dụng
+    } else {
+      // Thử tìm theo số thứ tự (1, 2, 3, 4) và map sang A, B, C, D
+      const index = optionLetters.indexOf(letter);
+      const numberPattern = new RegExp(`^${index + 1}$|^đáp án ${index + 1}|^option ${index + 1}|^${index + 1}\\s*[:\\.]`, 'i');
+      const foundByNumber = normalizedColumns.find(col => 
+        !usedColumns.has(col.original) && numberPattern.test(col.normalized)
+      );
+      if (foundByNumber) {
+        detected[`option${letter}`] = foundByNumber.original;
+        usedColumns.add(foundByNumber.original); // Đánh dấu đã sử dụng
+      }
+    }
   });
 
-  // ⭐ TÌM CỘT "ĐÁP ÁN ĐÚNG"
+  // ⭐ TÌM CỘT "ĐÁP ÁN ĐÚNG" - MỞ RỘNG PATTERNS
   const correctAnswerPatterns = [
-    /^(đáp án đúng|dap an dung|correct answer|correct|answer|đa đúng|dap dung|da_dung|dung)$/i,
-    /^(correct_answer|correctanswer|dapandung|key|answer_key)$/i
+    /đáp án đúng|dap an dung|correct answer|correct|answer|đa đúng|dap dung|da_dung|dung|đúng|dung/i,
+    /correct_answer|correctanswer|dapandung|key|answer_key|answerkey|key_answer/i,
+    /^đáp án$|^dap an$|^answer$|^key$|^đúng$|^dung$/i,
+    /right answer|rightanswer|true answer|trueanswer/i
   ];
-  detected.correctAnswer = columns.find(col => 
-    correctAnswerPatterns.some(pattern => pattern.test(col.trim()))
-  );
+  detected.correctAnswer = normalizedColumns.find(col => 
+    correctAnswerPatterns.some(pattern => pattern.test(col.normalized))
+  )?.original;
 
-  // ⭐ TÌM CỘT "LOẠI CÂU HỎI"
+  // Nếu không tìm thấy, thử tìm cột có giá trị là A, B, C, D hoặc 1, 2, 3, 4
+  if (!detected.correctAnswer && columns.length > 0) {
+    for (const col of columns) {
+      const value = String(row[col] || '').trim().toUpperCase();
+      if (/^[A-F]$|^[1-6]$/.test(value)) {
+        detected.correctAnswer = col;
+        console.log(`🔍 Auto-detected correct answer column: ${col}`);
+        break;
+      }
+    }
+  }
+
+  // ⭐ TÌM CỘT "LOẠI CÂU HỎI" - MỞ RỘNG PATTERNS
   const typePatterns = [
-    /^(loại câu hỏi|loai cau hoi|question type|type|loai|question_type|loaicauhoi)$/i
+    /loại câu hỏi|loai cau hoi|question type|type|loai|question_type|loaicauhoi|kind|category/i,
+    /^type$|^loại$|^loai$|^kind$/i
   ];
-  detected.questionType = columns.find(col => 
-    typePatterns.some(pattern => pattern.test(col.trim()))
-  );
+  detected.questionType = normalizedColumns.find(col => 
+    typePatterns.some(pattern => pattern.test(col.normalized))
+  )?.original;
 
-  // ⭐ TÌM CỘT "ĐỘ KHÓ"
+  // ⭐ TÌM CỘT "ĐỘ KHÓ" - MỞ RỘNG PATTERNS
   const difficultyPatterns = [
-    /^(độ khó|do kho|difficulty|level|mức độ|mucdo|dokho)$/i
+    /độ khó|do kho|difficulty|level|mức độ|mucdo|dokho|hard|easy|medium/i,
+    /^difficulty$|^level$|^độ khó$|^do kho$/i
   ];
-  detected.difficulty = columns.find(col => 
-    difficultyPatterns.some(pattern => pattern.test(col.trim()))
-  );
+  detected.difficulty = normalizedColumns.find(col => 
+    difficultyPatterns.some(pattern => pattern.test(col.normalized))
+  )?.original;
 
-  // ⭐ TÌM CỘT "ĐIỂM"
+  // ⭐ TÌM CỘT "ĐIỂM" - MỞ RỘNG PATTERNS
   const pointsPatterns = [
-    /^(điểm|diem|points|point|score|mark)$/i
+    /điểm|diem|points|point|score|mark|marks|grade/i,
+    /^điểm$|^diem$|^points$|^point$|^score$/i
   ];
-  detected.points = columns.find(col => 
-    pointsPatterns.some(pattern => pattern.test(col.trim()))
-  );
+  detected.points = normalizedColumns.find(col => 
+    pointsPatterns.some(pattern => pattern.test(col.normalized))
+  )?.original;
 
   return detected;
 }
@@ -573,6 +764,11 @@ router.post('/:examId/import-questions', authMiddleware, roleMiddleware(['teache
   const { examId } = req.params;
   const teacherId = req.user.id || req.user.user_id;
 
+  console.log('=== IMPORT QUESTIONS ===');
+  console.log('examId:', examId);
+  console.log('teacherId:', teacherId);
+  console.log('File received:', req.file ? { name: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype } : 'NO FILE');
+
   if (!req.file) {
     return res.status(400).json({ error: 'Vui lòng tải lên file Excel hoặc CSV' });
   }
@@ -585,9 +781,12 @@ router.post('/:examId/import-questions', authMiddleware, roleMiddleware(['teache
     );
 
     if (!exam.length) {
+      console.log('❌ No permission or exam not found');
       await fs.unlink(req.file.path); // Xóa file upload
       return res.status(403).json({ error: 'Bạn không có quyền chỉnh sửa bài thi này' });
     }
+
+    console.log('✅ Exam found:', exam[0].exam_name, 'Subject ID:', exam[0].subject_id);
 
     const subjectId = exam[0].subject_id;
     const filePath = req.file.path;
@@ -612,6 +811,8 @@ router.post('/:examId/import-questions', authMiddleware, roleMiddleware(['teache
 
     // 3. Xóa file upload
     await fs.unlink(filePath);
+
+    console.log(`📊 Parsed ${questions.length} rows from file`);
 
     if (!questions.length) {
       return res.status(400).json({ error: 'File không có dữ liệu câu hỏi' });
@@ -654,8 +855,14 @@ if (questions.length > 0) {
 }
 
 // 5. XỬ LÝ TỪNG CÂU HỎI
+console.log(`🔄 Starting to process ${questions.length} questions...`);
+let processedCount = 0;
+let skippedCount = 0;
+let errorCount = 0;
+
 for (const [index, q] of questions.entries()) {
   try {
+    processedCount++;
     // ⭐ LẤY GIÁ TRỊ TỪ CỘT ĐÃ PHÁT HIỆN
     const question_content = getValueSafely(q, detectedColumns.question);
     const question_type = getValueSafely(q, detectedColumns.questionType, 'SingleChoice');
@@ -663,17 +870,27 @@ for (const [index, q] of questions.entries()) {
     const correct_answer = getValueSafely(q, detectedColumns.correctAnswer);
     const points = parseFloat(getValueSafely(q, detectedColumns.points, '1'));
 
-    // ⭐ LẤY OPTIONS TỪ CÁC CỘT ĐÃ PHÁT HIỆN
+    // ⭐ LẤY OPTIONS TỪ CÁC CỘT ĐÃ PHÁT HIỆN - ĐẢM BẢO KHÔNG TRÙNG LẶP
     const options = [];
+    const usedOptionColumns = new Set(); // Track các cột đã dùng để tránh trùng
+    
     ['A', 'B', 'C', 'D', 'E', 'F'].forEach(letter => {
       const columnName = detectedColumns[`option${letter}`];
-      if (columnName) {
+      if (columnName && !usedOptionColumns.has(columnName)) {
         const optValue = getValueSafely(q, columnName);
-        if (optValue) {
+        if (optValue && optValue.trim() !== '') {
           options.push(optValue);
+          usedOptionColumns.add(columnName);
+          console.log(`   ✅ Option ${letter}: "${optValue.substring(0, 30)}..." from column "${columnName}"`);
+        } else {
+          console.log(`   ⚠️ Option ${letter}: Empty value from column "${columnName}"`);
         }
+      } else if (columnName && usedOptionColumns.has(columnName)) {
+        console.log(`   ❌ Option ${letter}: Column "${columnName}" already used, skipping to avoid duplicate`);
       }
     });
+    
+    console.log(`   📊 Total options collected: ${options.length}`);
 
     // ⭐ DEBUG LOG
     console.log(`📝 Row ${index + 2}:`, {
@@ -685,27 +902,36 @@ for (const [index, q] of questions.entries()) {
 
     // Validate
     if (!question_content) {
+      skippedCount++;
       errors.push(`Dòng ${index + 2}: Thiếu nội dung câu hỏi`);
+      console.log(`⚠️ Row ${index + 2}: Skipped - Missing question content`);
       continue;
     }
 
     if (!['SingleChoice', 'MultipleChoice', 'FillInBlank', 'Essay'].includes(question_type)) {
+      skippedCount++;
       errors.push(`Dòng ${index + 2}: Loại câu hỏi không hợp lệ (phải là: SingleChoice, MultipleChoice, FillInBlank, Essay)`);
+      console.log(`⚠️ Row ${index + 2}: Skipped - Invalid question type: ${question_type}`);
       continue;
     }
 
     if (!['Easy', 'Medium', 'Hard'].includes(difficulty)) {
+      skippedCount++;
       errors.push(`Dòng ${index + 2}: Độ khó không hợp lệ (phải là: Easy, Medium, Hard)`);
+      console.log(`⚠️ Row ${index + 2}: Skipped - Invalid difficulty: ${difficulty}`);
       continue;
     }
 
     if (!correct_answer) {
+      skippedCount++;
       errors.push(`Dòng ${index + 2}: Thiếu đáp án đúng`);
+      console.log(`⚠️ Row ${index + 2}: Skipped - Missing correct answer`);
       continue;
     }
 
     // ⭐ KIỂM TRA TRẮC NGHIỆM PHẢI CÓ ÍT NHẤT 2 ĐÁP ÁN
     if ((question_type === 'SingleChoice' || question_type === 'MultipleChoice') && options.length < 2) {
+      skippedCount++;
       errors.push(`Dòng ${index + 2}: Câu hỏi trắc nghiệm phải có ít nhất 2 đáp án (hiện chỉ có ${options.length})`);
       console.log(`⚠️ Row ${index + 2}: Skipped - Only ${options.length} options`);
       continue;
@@ -753,10 +979,12 @@ for (const [index, q] of questions.entries()) {
     }
 
     // 8. Link câu hỏi với exam
+    console.log(`🔗 Linking question ${questionId} to exam ${examId} with order ${questionOrder} and points ${points}`);
     await req.db.query(
       'INSERT INTO exam_questions (exam_id, question_id, question_order, points) VALUES (?, ?, ?, ?)',
       [examId, questionId, questionOrder++, points]
     );
+    console.log(`✅ Successfully linked question ${questionId} to exam ${examId}`);
 
     insertedQuestions.push({
       question_id: questionId,
@@ -764,10 +992,13 @@ for (const [index, q] of questions.entries()) {
     });
 
   } catch (err) {
+    errorCount++;
     console.error(`❌ Error at row ${index + 2}:`, err);
     errors.push(`Dòng ${index + 2}: ${err.message}`);
   }
 }
+
+console.log(`📊 Processing summary: Total=${processedCount}, Inserted=${insertedQuestions.length}, Skipped=${skippedCount}, Errors=${errorCount}`);
     // 8. Tạo thông báo
     if (insertedQuestions.length > 0) {
       await createNotification(
@@ -781,12 +1012,21 @@ for (const [index, q] of questions.entries()) {
       );
     }
 
+    // 9. Kiểm tra lại số câu hỏi đã được link vào exam
+    const [verifyCount] = await req.db.query(
+      'SELECT COUNT(*) as count FROM exam_questions WHERE exam_id = ?',
+      [examId]
+    );
+    console.log(`✅ Verification: Total questions linked to exam ${examId}: ${verifyCount[0]?.count || 0}`);
+    console.log(`✅ Imported questions count: ${insertedQuestions.length}`);
+
     // 9. Response
     res.json({
       success: true,
       message: `Nhập thành công ${insertedQuestions.length}/${questions.length} câu hỏi`,
       imported: insertedQuestions.length,
       total: questions.length,
+      verified: verifyCount[0]?.count || 0,
       errors: errors.length > 0 ? errors : undefined
     });
 
@@ -1257,6 +1497,105 @@ router.post('/:examId/questions/:questionId', authMiddleware, roleMiddleware(['t
   } catch (error) {
     console.error('❌ [Link] Error:', error);
     res.status(500).json({ error: 'Lỗi khi thêm câu hỏi vào bài thi', details: error.message });
+  }
+});
+
+// ============================================
+// 📥 COPY CÂU HỎI TỪ BÀI THI NÀY SANG BÀI THI KHÁC
+// POST /api/teacher/exams/:targetExamId/copy-questions/:sourceExamId
+// ============================================
+router.post('/:targetExamId/copy-questions/:sourceExamId', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
+  const { targetExamId, sourceExamId } = req.params;
+  const teacherId = req.user.id || req.user.user_id;
+
+  console.log('🔵 [Copy Questions] Copying from exam', sourceExamId, 'to exam', targetExamId);
+
+  try {
+    // 1. Kiểm tra quyền sở hữu cả hai bài thi
+    const [targetExam] = await req.db.query(
+      'SELECT exam_id, exam_name FROM exams WHERE exam_id = ? AND teacher_id = ?',
+      [targetExamId, teacherId]
+    );
+
+    if (!targetExam.length) {
+      return res.status(403).json({ error: 'Bạn không có quyền chỉnh sửa bài thi đích' });
+    }
+
+    const [sourceExam] = await req.db.query(
+      'SELECT exam_id, exam_name FROM exams WHERE exam_id = ? AND teacher_id = ?',
+      [sourceExamId, teacherId]
+    );
+
+    if (!sourceExam.length) {
+      return res.status(403).json({ error: 'Bạn không có quyền truy cập bài thi nguồn' });
+    }
+
+    // 2. Lấy tất cả câu hỏi từ bài thi nguồn
+    const [sourceQuestions] = await req.db.query(
+      `SELECT 
+        question_id,
+        points,
+        question_order
+      FROM exam_questions
+      WHERE exam_id = ?
+      ORDER BY question_order ASC`,
+      [sourceExamId]
+    );
+
+    if (!sourceQuestions.length) {
+      return res.status(400).json({ error: 'Bài thi nguồn không có câu hỏi nào' });
+    }
+
+    // 3. Lấy số thứ tự câu hỏi tiếp theo trong bài thi đích
+    const [maxOrder] = await req.db.query(
+      'SELECT COALESCE(MAX(question_order), 0) as max_order FROM exam_questions WHERE exam_id = ?',
+      [targetExamId]
+    );
+
+    let nextOrder = (maxOrder[0]?.max_order || 0) + 1;
+    let copiedCount = 0;
+
+    // 4. Copy từng câu hỏi vào bài thi đích
+    for (const sourceQ of sourceQuestions) {
+      // Kiểm tra xem câu hỏi đã tồn tại trong bài thi đích chưa
+      const [existing] = await req.db.query(
+        'SELECT * FROM exam_questions WHERE exam_id = ? AND question_id = ?',
+        [targetExamId, sourceQ.question_id]
+      );
+
+      if (existing.length === 0) {
+        // Chỉ copy nếu chưa tồn tại
+        await req.db.query(
+          `INSERT INTO exam_questions (exam_id, question_id, points, question_order)
+           VALUES (?, ?, ?, ?)`,
+          [targetExamId, sourceQ.question_id, sourceQ.points, nextOrder]
+        );
+        copiedCount++;
+        nextOrder++;
+      }
+    }
+
+    // 5. Tạo thông báo
+    await createNotification(
+      req.db,
+      req.io,
+      teacherId,
+      `Đã copy ${copiedCount} câu hỏi từ "${sourceExam[0].exam_name}" vào "${targetExam[0].exam_name}"`,
+      'Info',
+      targetExamId,
+      'Exam'
+    );
+
+    res.json({
+      success: true,
+      message: `Đã copy ${copiedCount}/${sourceQuestions.length} câu hỏi vào bài thi mới`,
+      copied: copiedCount,
+      total: sourceQuestions.length
+    });
+
+  } catch (error) {
+    console.error('❌ [Copy Questions] Error:', error);
+    res.status(500).json({ error: 'Lỗi khi copy câu hỏi', details: error.message });
   }
 });
 

@@ -448,6 +448,36 @@
                                 <textarea name="description" rows="3" placeholder="Mô tả về bài thi..."></textarea>
                             </div>
                             
+                            <div class="form-group">
+                                <label style="font-weight: 600; margin-bottom: 12px; display: block; color: #2d3748;">🔀 Xáo trộn</label>
+                                <div class="shuffle-options">
+                                    <label class="shuffle-checkbox-label">
+                                        <input type="checkbox" name="shuffleQuestions" value="1" class="shuffle-checkbox">
+                                        <span>Xáo trộn thứ tự câu hỏi</span>
+                                    </label>
+                                    <label class="shuffle-checkbox-label">
+                                        <input type="checkbox" name="shuffleOptions" value="1" class="shuffle-checkbox">
+                                        <span>Xáo trộn thứ tự đáp án</span>
+                                    </label>
+                                </div>
+                                <small style="color: #718096; display: block; margin-top: 10px; font-size: 0.85rem; line-height: 1.4;">
+                                    Mỗi học sinh sẽ nhận thứ tự câu hỏi/đáp án khác nhau để tránh gian lận
+                                </small>
+                            </div>
+                            
+                            <div class="form-group" style="margin-top: 25px; padding-top: 25px; border-top: 2px solid #e2e8f0;">
+                                <label style="font-weight: 600; margin-bottom: 12px; display: block; color: #2d3748;">📥 Import đề thi có sẵn (Tùy chọn)</label>
+                                <select id="importExamSelect" name="importExamId" class="form-control" style="margin-bottom: 10px;">
+                                    <option value="">-- Chọn đề thi để import câu hỏi --</option>
+                                </select>
+                                <small style="color: #718096; display: block; margin-top: 5px; font-size: 0.85rem; line-height: 1.4;">
+                                    Chọn một đề thi có sẵn để tự động import tất cả câu hỏi vào bài thi mới này
+                                </small>
+                                <div id="importExamInfo" style="display: none; margin-top: 10px; padding: 10px; background: #edf2f7; border-radius: 6px; font-size: 0.9rem;">
+                                    <span id="importExamInfoText"></span>
+                                </div>
+                            </div>
+                            
                             <div style="margin-top: 20px;">
                                 <button type="submit" class="btn btn-primary">➕ Thêm bài thi</button>
                                 <button type="button" class="btn btn-secondary" onclick="hideAddExam()">Hủy</button>
@@ -1223,6 +1253,23 @@
                         <label>📝 Mô tả bài thi</label>
                         <input type="text" id="aiExamDescription" placeholder="Mô tả về bài thi...">
                     </div>
+                </div>
+
+                <div class="ai-form-group">
+                    <label style="font-weight: 600; margin-bottom: 12px; display: block; color: #2d3748;">🔀 Xáo trộn</label>
+                    <div class="shuffle-options">
+                        <label class="shuffle-checkbox-label">
+                            <input type="checkbox" id="aiShuffleQuestions" value="1" class="shuffle-checkbox">
+                            <span>Xáo trộn thứ tự câu hỏi</span>
+                        </label>
+                        <label class="shuffle-checkbox-label">
+                            <input type="checkbox" id="aiShuffleOptions" value="1" class="shuffle-checkbox">
+                            <span>Xáo trộn thứ tự đáp án</span>
+                        </label>
+                    </div>
+                    <small style="color: #718096; display: block; margin-top: 10px; font-size: 0.85rem; line-height: 1.4;">
+                        Mỗi học sinh sẽ nhận thứ tự câu hỏi/đáp án khác nhau để tránh gian lận
+                    </small>
                 </div>
 
                 <div class="ai-actions">

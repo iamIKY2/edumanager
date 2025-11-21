@@ -254,7 +254,7 @@ router.get('/', authMiddleware, roleMiddleware(['teacher']), async (req, res) =>
 // Thêm bài thi vào lớp
 router.post('/:classId/exams', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
   const { classId } = req.params;
-  const { examName, examDate, examTime, duration, description } = req.body;
+  const { examName, examDate, examTime, duration, description, shuffle_questions, shuffle_options } = req.body;
   const teacherId = req.user.id || req.user.user_id;
 
   if (!examName || !examDate || !duration) {
@@ -286,9 +286,10 @@ router.post('/:classId/exams', authMiddleware, roleMiddleware(['teacher']), asyn
     const examCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     const [result] = await req.db.query(
-      `INSERT INTO exams (exam_name, class_id, subject_id, teacher_id, start_time, duration, description, password, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'upcoming')`,
-      [examName, classId, classResult[0].subject_id, teacherId, startTime, duration, description || '', examCode]
+      `INSERT INTO exams (exam_name, class_id, subject_id, teacher_id, start_time, duration, description, password, status, shuffle_questions, shuffle_options)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'upcoming', ?, ?)`,
+      [examName, classId, classResult[0].subject_id, teacherId, startTime, duration, description || '', examCode, 
+       shuffle_questions || 0, shuffle_options || 0]
     );
 
     await createNotification(
@@ -324,15 +325,55 @@ router.get('/:classId/exams', authMiddleware, roleMiddleware(['teacher']), async
   const { classId } = req.params;
   const teacherId = req.user.id || req.user.user_id;
 
+  console.log('🔍 [GET /:classId/exams] Request received:', {
+    classId,
+    classIdType: typeof classId,
+    teacherId,
+    teacherIdType: typeof teacherId,
+    user: req.user
+  });
+
   try {
-    const [classResult] = await req.db.query(
-      `SELECT * FROM classes WHERE class_id = ? AND teacher_id = ?`,
-      [classId, teacherId]
+    // Kiểm tra lớp có tồn tại không (không cần kiểm tra teacher_id trước)
+    const [classCheck] = await req.db.query(
+      `SELECT class_id, teacher_id, class_name FROM classes WHERE class_id = ?`,
+      [classId]
     );
 
-    if (classResult.length === 0) {
+    console.log('🔍 [GET /:classId/exams] Class check result:', {
+      found: classCheck.length > 0,
+      classData: classCheck[0] || null,
+      classTeacherId: classCheck[0]?.teacher_id,
+      classTeacherIdType: typeof classCheck[0]?.teacher_id
+    });
+
+    if (classCheck.length === 0) {
+      console.error('❌ [GET /:classId/exams] Class not found:', classId);
+      return res.status(404).json({ error: 'Lớp học không tồn tại' });
+    }
+
+    // So sánh teacher_id (chuyển cả hai về cùng kiểu để so sánh)
+    const classTeacherId = classCheck[0].teacher_id;
+    const teacherIdNum = Number(teacherId);
+    const classTeacherIdNum = Number(classTeacherId);
+
+    console.log('🔍 [GET /:classId/exams] Permission check:', {
+      teacherIdNum,
+      classTeacherIdNum,
+      match: teacherIdNum === classTeacherIdNum,
+      stringMatch: String(teacherId) === String(classTeacherId)
+    });
+
+    if (teacherIdNum !== classTeacherIdNum && String(teacherId) !== String(classTeacherId)) {
+      console.error('❌ [GET /:classId/exams] Permission denied:', {
+        requestedTeacherId: teacherId,
+        classTeacherId: classTeacherId,
+        className: classCheck[0].class_name
+      });
       return res.status(403).json({ error: 'Bạn không có quyền truy cập lớp này' });
     }
+
+    console.log('✅ [GET /:classId/exams] Permission granted, loading exams...');
 
     const query = `
       SELECT 
@@ -360,6 +401,7 @@ router.get('/:classId/exams', authMiddleware, roleMiddleware(['teacher']), async
     
     const [exams] = await req.db.query(query, [classId]);
     
+    console.log('✅ [GET /:classId/exams] Exams loaded:', exams.length);
     res.json(exams);
   } catch (err) {
     console.error('❌ Error:', err);
@@ -372,15 +414,55 @@ router.get('/:classId/students', authMiddleware, roleMiddleware(['teacher']), as
   const { classId } = req.params;
   const teacherId = req.user.id || req.user.user_id;
 
+  console.log('🔍 [GET /:classId/students] Request received:', {
+    classId,
+    classIdType: typeof classId,
+    teacherId,
+    teacherIdType: typeof teacherId,
+    user: req.user
+  });
+
   try {
-    const [classResult] = await req.db.query(
-      `SELECT * FROM classes WHERE class_id = ? AND teacher_id = ?`,
-      [classId, teacherId]
+    // Kiểm tra lớp có tồn tại không (không cần kiểm tra teacher_id trước)
+    const [classCheck] = await req.db.query(
+      `SELECT class_id, teacher_id, class_name FROM classes WHERE class_id = ?`,
+      [classId]
     );
 
-    if (classResult.length === 0) {
+    console.log('🔍 [GET /:classId/students] Class check result:', {
+      found: classCheck.length > 0,
+      classData: classCheck[0] || null,
+      classTeacherId: classCheck[0]?.teacher_id,
+      classTeacherIdType: typeof classCheck[0]?.teacher_id
+    });
+
+    if (classCheck.length === 0) {
+      console.error('❌ [GET /:classId/students] Class not found:', classId);
+      return res.status(404).json({ error: 'Lớp học không tồn tại' });
+    }
+
+    // So sánh teacher_id (chuyển cả hai về cùng kiểu để so sánh)
+    const classTeacherId = classCheck[0].teacher_id;
+    const teacherIdNum = Number(teacherId);
+    const classTeacherIdNum = Number(classTeacherId);
+
+    console.log('🔍 [GET /:classId/students] Permission check:', {
+      teacherIdNum,
+      classTeacherIdNum,
+      match: teacherIdNum === classTeacherIdNum,
+      stringMatch: String(teacherId) === String(classTeacherId)
+    });
+
+    if (teacherIdNum !== classTeacherIdNum && String(teacherId) !== String(classTeacherId)) {
+      console.error('❌ [GET /:classId/students] Permission denied:', {
+        requestedTeacherId: teacherId,
+        classTeacherId: classTeacherId,
+        className: classCheck[0].class_name
+      });
       return res.status(403).json({ error: 'Bạn không có quyền truy cập lớp này' });
     }
+
+    console.log('✅ [GET /:classId/students] Permission granted, loading students...');
 
     const [students] = await req.db.query(
       `SELECT u.user_id, u.full_name, u.email, u.username AS student_id, AVG(ea.score) as avg_score, COUNT(ea.exam_id) as exams_completed
@@ -392,6 +474,7 @@ router.get('/:classId/students', authMiddleware, roleMiddleware(['teacher']), as
       [classId]
     );
 
+    console.log('✅ [GET /:classId/students] Students loaded:', students.length);
     res.json(students);
   } catch (err) {
     console.error(err);

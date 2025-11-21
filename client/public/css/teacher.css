@@ -284,6 +284,53 @@ body {
     border-color: #667eea;
 }
 
+/* Shuffle Options Styles */
+.shuffle-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
+    background: #f7fafc;
+    border-radius: 8px;
+    border: 2px solid #e2e8f0;
+}
+
+.shuffle-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.shuffle-checkbox-label:hover {
+    background: #edf2f7;
+}
+
+.shuffle-checkbox {
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+    cursor: pointer;
+    accent-color: #667eea;
+    flex-shrink: 0;
+}
+
+.shuffle-checkbox-label span {
+    color: #4a5568;
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.shuffle-checkbox:checked + span {
+    color: #667eea;
+    font-weight: 600;
+}
+
 /* BUTTONS */
 .btn {
     padding: 12px 25px;

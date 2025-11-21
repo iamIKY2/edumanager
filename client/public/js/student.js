@@ -49,6 +49,23 @@
             initExamCodeInput(); // Khởi tạo input mã code
             loadComplaintExams(); // Load danh sách bài thi cho khiếu nại
             loadComplaints(); // Load lịch sử khiếu nại
+            
+            // ⭐ KHÔI PHỤC SECTION ĐÃ MỞ TRƯỚC ĐÓ (KHI F5)
+            const savedSection = localStorage.getItem('currentSection');
+            if (savedSection && document.getElementById(savedSection)) {
+                showSection(savedSection);
+            }
+            
+            // ⭐ TỰ ĐỘNG REFRESH DANH SÁCH BÀI THI MỖI 30 GIÂY
+            setInterval(() => {
+                loadAvailableTests();
+            }, 30000); // 30 giây
+            
+            // ⭐ LẮNG NGHE SỰ KIỆN EXAM STATUS CHANGED TỪ SERVER
+            socket.on('exam_status_changed', (data) => {
+                console.log('🔄 Exam status changed:', data);
+                loadAvailableTests(); // Refresh danh sách bài thi
+            });
         });
         
         // Đảm bảo user_id được lưu khi fetchUserData
@@ -476,15 +493,46 @@
             arrow.classList.toggle('rotate');
         }
 
-        function showSection(sectionId) {
+        function showSection(sectionId, event) {
             const sections = document.querySelectorAll('.content-section');
             sections.forEach(section => section.classList.remove('active'));
-            document.getElementById(sectionId).classList.add('active');
+            const targetSection = document.getElementById(sectionId);
+            if (!targetSection) {
+                console.error('Section not found:', sectionId);
+                return;
+            }
+            targetSection.classList.add('active');
 
             const menuItems = document.querySelectorAll('.menu-item');
             menuItems.forEach(item => item.classList.remove('active'));
-            if (event && event.target) {
-                event.target.closest('.menu-item')?.classList.add('active');
+            
+            // ⭐ SỬA LỖI: Kiểm tra event có tồn tại và có target không
+            if (event && event.target && typeof event.target.closest === 'function') {
+                const menuItem = event.target.closest('.menu-item');
+                if (menuItem) {
+                    menuItem.classList.add('active');
+                }
+            } else {
+                // Nếu không có event, tìm menu item tương ứng với section
+                const menuItemMap = {
+                    'dashboard': 0,
+                    'join-class': 1,
+                    'my-classes': 1,
+                    'class-detail': 1,
+                    'available-tests': 2,
+                    'test-history': 2,
+                    'my-results': 3,
+                    'statistics': 3,
+                    'ranking': 3,
+                    'complaints': 4
+                };
+                const menuIndex = menuItemMap[sectionId];
+                if (menuIndex !== undefined) {
+                    const allMenuItems = Array.from(document.querySelectorAll('.menu-item'));
+                    if (allMenuItems[menuIndex]) {
+                        allMenuItems[menuIndex].classList.add('active');
+                    }
+                }
             }
 
             const titles = {
@@ -501,15 +549,169 @@
             };
             document.getElementById('pageTitle').textContent = titles[sectionId] || 'EduSystem';
 
-            // Load dữ liệu khi chuyển section
-            if (sectionId === 'complaints') {
+            // ⭐ LƯU SECTION HIỆN TẠI VÀO LOCALSTORAGE (ĐỂ KHÔI PHỤC KHI F5)
+            localStorage.setItem('currentSection', sectionId);
+
+            // ⭐ LOAD DỮ LIỆU KHI CHUYỂN SECTION - ĐẢM BẢO RELOAD KHI QUAY VỀ
+            if (sectionId === 'dashboard') {
+                // Reload dữ liệu trang chủ
+                fetchUserData();
+                loadAvailableTests();
+            } else if (sectionId === 'my-classes') {
+                // Reload danh sách lớp học
+                loadMyClasses();
+            } else if (sectionId === 'complaints') {
                 loadComplaintExams(); // Load lại danh sách bài thi
                 loadComplaints(); // Load lại lịch sử khiếu nại
+            } else if (sectionId === 'available-tests') {
+                loadAvailableTests(); // Refresh danh sách bài thi khả dụng
+            } else if (sectionId === 'test-history') {
+                loadTestHistory(); // Refresh lịch sử làm bài
+            } else if (sectionId === 'my-results') {
+                loadMyResults(); // Load kết quả
+            } else if (sectionId === 'statistics') {
+                loadStatistics(); // Load thống kê
+            } else if (sectionId === 'ranking') {
+                loadRanking(); // Load bảng xếp hạng
+            } else if (sectionId === 'class-detail') {
+                // Nếu đang ở class-detail, không làm gì (dữ liệu đã được load khi viewClassDetail được gọi)
+                // Nhưng nếu quay lại từ trang khác, cần reload
+                const savedClassId = localStorage.getItem('currentClassId');
+                if (savedClassId) {
+                    // Có thể reload lại nếu cần
+                }
             }
 
             if (window.innerWidth <= 768) {
                 toggleSidebar();
             }
+        }
+        
+        // ⭐ HÀM LOAD DANH SÁCH LỚP HỌC
+        function loadMyClasses() {
+            const token = localStorage.getItem('token');
+            const myClassesList = document.getElementById('myClassesList');
+            
+            if (!myClassesList) return;
+            
+            myClassesList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">⏳ Đang tải danh sách lớp học...</p>';
+            
+            fetch('http://127.0.0.1:3000/api/student/classes/my', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Không thể tải danh sách lớp học');
+                return res.json();
+            })
+            .then(classData => {
+                if (classData.myClasses?.length > 0) {
+                    myClassesList.innerHTML = classData.myClasses.map(cls => `
+                        <div class="class-card" onclick="viewClassDetail(${cls.class_id}, '${cls.class_name}', '${cls.subject_name || 'Chưa có môn'}', '${cls.academic_year}')">
+                            <div class="class-card-header">
+                                <div>
+                                    <div class="class-card-title">${cls.class_name}</div>
+                                    <div class="class-card-subject">${cls.subject_name || 'Chưa có môn'}</div>
+                                </div>
+                                <div class="class-card-icon">📚</div>
+                            </div>
+                            <div class="class-card-footer">
+                                <span>📅 ${cls.academic_year}</span>
+                                <span style="color: #667eea; font-weight: 600;">Xem chi tiết →</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    myClassesList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">Chưa tham gia lớp nào. Hãy tham gia lớp học để bắt đầu!</p>';
+                }
+            })
+            .catch(err => {
+                console.error('Error loading classes:', err);
+                myClassesList.innerHTML = '<p style="text-align: center; color: #ff4757;">❌ Lỗi tải dữ liệu lớp học. Vui lòng thử lại.</p>';
+            });
+        }
+        
+        // ⭐ HÀM LOAD KẾT QUẢ CỦA TÔI
+        function loadMyResults() {
+            const token = localStorage.getItem('token');
+            const myResultsList = document.getElementById('myResultsList');
+            
+            if (!myResultsList) return;
+            
+            myResultsList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">⏳ Đang tải kết quả...</p>';
+            
+            // Load từ API
+            fetch('http://127.0.0.1:3000/api/student/exams', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Không thể tải danh sách bài thi');
+                return res.json();
+            })
+            .then(exams => {
+                // Lọc chỉ bài thi đã làm
+                const completedExams = exams.filter(exam => exam.my_attempts > 0);
+                
+                if (completedExams.length > 0) {
+                    // Load chi tiết từng bài thi để lấy điểm
+                    Promise.all(completedExams.map(async exam => {
+                        try {
+                            const detailRes = await fetch(`http://127.0.0.1:3000/api/student/exams/${exam.exam_id}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            const detail = await detailRes.json();
+                            const submittedAttempt = detail.attempts?.find(a => a.status === 'Submitted' || a.status === 'AutoSubmitted');
+                            return {
+                                exam_id: exam.exam_id,
+                                exam_name: exam.exam_name,
+                                start_time: exam.start_time,
+                                attempt_id: submittedAttempt?.attempt_id,
+                                score: submittedAttempt?.score,
+                                total_points: submittedAttempt?.total_points || exam.total_points
+                            };
+                        } catch {
+                            return null;
+                        }
+                    }))
+                    .then(results => {
+                        const validResults = results.filter(r => r !== null && r.attempt_id);
+                        if (validResults.length > 0) {
+                            myResultsList.innerHTML = validResults.map(result => {
+                                const score = parseFloat(result.score || 0);
+                                const total = parseFloat(result.total_points || 0);
+                                const scoreStr = score % 1 === 0 ? score.toString() : score.toFixed(1);
+                                const totalStr = total % 1 === 0 ? total.toString() : total.toFixed(1);
+                                
+                                return `
+                                    <div class="test-item">
+                                        <div class="test-info">
+                                            <div class="test-title">${result.exam_name || 'Bài thi'}</div>
+                                            <div class="test-meta">Ngày: ${result.start_time ? new Date(result.start_time).toLocaleDateString('vi-VN') : 'N/A'}</div>
+                                        </div>
+                                        <div style="font-size: 18px; font-weight: bold; color: #667eea;">
+                                            ${scoreStr}/${totalStr}
+                                        </div>
+                                        <button class="btn btn-primary" onclick="viewResult(${result.exam_id}, ${result.attempt_id})">Xem chi tiết</button>
+                                    </div>
+                                `;
+                            }).join('');
+                        } else {
+                            myResultsList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">Chưa có kết quả nào.</p>';
+                        }
+                    });
+                } else {
+                    myResultsList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">Chưa có kết quả nào.</p>';
+                }
+            })
+            .catch(err => {
+                console.error('Error loading results:', err);
+                myResultsList.innerHTML = '<p style="text-align: center; color: #ff4757;">❌ Lỗi tải kết quả. Vui lòng thử lại.</p>';
+            });
+        }
+        
+        // ⭐ HÀM LOAD BẢNG XẾP HẠNG
+        function loadRanking() {
+            // Reload dữ liệu từ fetchUserData để lấy ranking
+            fetchUserData();
         }
 
         function toggleSidebar() {

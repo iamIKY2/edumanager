@@ -239,10 +239,37 @@ router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async
         [examId, studentId]
       );
       attemptId = result.insertId;
+      
+      // ⭐ EMIT SOCKET ĐỂ THÔNG BÁO GIÁO VIÊN HỌC SINH BẮT ĐẦU LÀM BÀI
+      if (req.io) {
+        const [examInfo] = await req.db.query(
+          'SELECT teacher_id, class_id FROM exams WHERE exam_id = ?',
+          [examId]
+        );
+        if (examInfo.length > 0) {
+          req.io.to(`user_${examInfo[0].teacher_id}`).emit('student_started_exam', {
+            exam_id: examId,
+            student_id: studentId,
+            attempt_id: attemptId,
+            class_id: examInfo[0].class_id
+          });
+        }
+      }
     }
 
+    // ⭐ LẤY THÔNG TIN SHUFFLE TỪ EXAM
+    const [examSettings] = await req.db.query(
+      `SELECT shuffle_questions, shuffle_options FROM exams WHERE exam_id = ?`,
+      [examId]
+    );
+    const shouldShuffleQuestions = examSettings[0]?.shuffle_questions === 1 || examSettings[0]?.shuffle_questions === '1';
+    const shouldShuffleOptions = examSettings[0]?.shuffle_options === 1 || examSettings[0]?.shuffle_options === '1';
+    
+    console.log(`🔍 [Shuffle Check] Exam ${examId}: shuffle_questions=${examSettings[0]?.shuffle_questions}, shuffle_options=${examSettings[0]?.shuffle_options}`);
+    console.log(`   Should shuffle questions: ${shouldShuffleQuestions}, Should shuffle options: ${shouldShuffleOptions}`);
+
     // Lấy câu hỏi
-    const [questions] = await req.db.query(
+    let [questions] = await req.db.query(
       `SELECT 
         eq.question_id,
         eq.points,
@@ -256,16 +283,140 @@ router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async
       [examId]
     );
 
+    // ⭐ XÁO TRỘN CÂU HỎI NẾU BẬT - ĐẢM BẢO MỖI HỌC SINH CÓ THỨ TỰ KHÁC NHAU
+    if (shouldShuffleQuestions && questions.length > 0) {
+      console.log(`🔄 [Shuffle Questions] Starting shuffle for student ${studentId}, attempt ${attemptId}, exam ${examId}`);
+      console.log(`   Original order: ${questions.map((q, idx) => `Q${idx + 1}:ID${q.question_id}`).join(' -> ')}`);
+      
+      // Tạo seed độc nhất từ nhiều yếu tố + thêm timestamp để đảm bảo mỗi học sinh khác nhau
+      const hashSeed = (str) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          const char = str.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash) || 1;
+      };
+      
+      // ⭐ TẠO SEED ĐỘC NHẤT CHO MỖI HỌC SINH - DÙNG NHIỀU YẾU TỐ
+      // Thêm thông tin từ exam để đảm bảo mỗi bài thi khác nhau
+      const examInfo = exam.exam_name || '';
+      const examHash = hashSeed(examInfo);
+      const seedString = `${studentId}_${attemptId}_${examId}_${questions.length}_${examHash}_${studentId * 7919 + attemptId * 1009}`;
+      let seed = hashSeed(seedString);
+      
+      // Đảm bảo seed đủ lớn và phân bố tốt - dùng nhiều phép toán để tăng độ ngẫu nhiên
+      seed = (seed * 7919 + studentId * 1009 + attemptId * 997) % 2147483647;
+      seed = (seed * 16807 + examHash) % 2147483647;
+      if (seed === 0) seed = studentId * 7919 + attemptId * 1009 + 1;
+      
+      console.log(`   Seed string: ${seedString}`);
+      console.log(`   Final seed: ${seed}`);
+      
+      // Cải thiện thuật toán seeded random (Park-Miller LCG)
+      const seededRandom = (initialSeed) => {
+        let value = initialSeed || 1;
+        // Khởi tạo seed tốt hơn với nhiều lần warm-up
+        for (let i = 0; i < 20; i++) {
+          value = ((value * 16807) % 2147483647);
+        }
+        return () => {
+          value = ((value * 16807) % 2147483647);
+          return value / 2147483647;
+        };
+      };
+      const random = seededRandom(seed);
+      
+      // Fisher-Yates shuffle với seeded random - ĐẢM BẢO SHUFFLE THỰC SỰ
+      const shuffledQuestions = [...questions]; // Copy array
+      for (let i = shuffledQuestions.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        // Swap
+        [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
+      }
+      
+      // Gán lại questions đã shuffle
+      questions = shuffledQuestions;
+      
+      console.log(`✅ [Shuffle Questions] Shuffled ${questions.length} questions`);
+      console.log(`   New order: ${questions.map((q, idx) => `Q${idx + 1}:ID${q.question_id}`).join(' -> ')}`);
+    } else if (!shouldShuffleQuestions) {
+      console.log(`ℹ️ [Shuffle Questions] Shuffle is DISABLED for this exam`);
+    }
+
     // Lấy options cho từng câu hỏi
     const questionsWithOptions = await Promise.all(
       questions.map(async (q) => {
-        const [options] = await req.db.query(
+        let [options] = await req.db.query(
           `SELECT option_id, option_content
            FROM question_options
            WHERE question_id = ?
            ORDER BY option_id ASC`,
           [q.question_id]
         );
+
+        // ⭐ XÁO TRỘN OPTIONS NẾU BẬT (chỉ với trắc nghiệm) - ĐẢM BẢO MỖI HỌC SINH CÓ THỨ TỰ KHÁC NHAU
+        if (shouldShuffleOptions && (q.question_type === 'SingleChoice' || q.question_type === 'MultipleChoice') && options.length > 0) {
+          console.log(`🔄 [Shuffle Options] Starting shuffle for question ${q.question_id}, student ${studentId}, attempt ${attemptId}`);
+          console.log(`   Original options order: ${options.map((o, idx) => `${String.fromCharCode(65 + idx)}:${o.option_id}(${o.is_correct ? '✓' : '✗'})`).join(' ')}`);
+          
+          // Tạo seed độc nhất từ nhiều yếu tố + thêm timestamp để đảm bảo mỗi học sinh khác nhau
+          const hashSeed = (str) => {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+              const char = str.charCodeAt(i);
+              hash = ((hash << 5) - hash) + char;
+              hash = hash & hash;
+            }
+            return Math.abs(hash) || 1;
+          };
+          
+          // ⭐ TẠO SEED ĐỘC NHẤT CHO MỖI HỌC SINH VÀ MỖI CÂU HỎI
+          // Thêm thông tin từ question để đảm bảo mỗi câu hỏi khác nhau
+          const questionHash = hashSeed(q.question_content || '');
+          const seedString = `${studentId}_${attemptId}_${q.question_id}_${examId}_${options.length}_${questionHash}_${studentId * 7919 + attemptId * 1009 + q.question_id * 997}`;
+          let seed = hashSeed(seedString);
+          
+          // Đảm bảo seed đủ lớn và phân bố tốt - dùng nhiều phép toán để tăng độ ngẫu nhiên
+          seed = (seed * 7919 + studentId * 1009 + attemptId * 997 + q.question_id * 503) % 2147483647;
+          seed = (seed * 16807 + questionHash) % 2147483647;
+          if (seed === 0) seed = studentId * 7919 + attemptId * 1009 + q.question_id * 997 + 1;
+          
+          console.log(`   Seed string: ${seedString}`);
+          console.log(`   Final seed: ${seed}`);
+          
+          // Cải thiện thuật toán seeded random (Park-Miller LCG)
+          const seededRandom = (initialSeed) => {
+            let value = initialSeed || 1;
+            // Khởi tạo seed tốt hơn với nhiều lần warm-up
+            for (let i = 0; i < 20; i++) {
+              value = ((value * 16807) % 2147483647);
+            }
+            return () => {
+              value = ((value * 16807) % 2147483647);
+              return value / 2147483647;
+            };
+          };
+          
+          const random = seededRandom(seed);
+          
+          // Fisher-Yates shuffle với seeded random - ĐẢM BẢO SHUFFLE THỰC SỰ
+          const shuffledOptions = [...options]; // Copy array để không ảnh hưởng original
+          for (let i = shuffledOptions.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            // Swap
+            [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+          }
+          
+          // Gán lại options đã shuffle
+          options = shuffledOptions;
+          
+          console.log(`✅ [Shuffle Options] Shuffled ${options.length} options`);
+          console.log(`   New order: ${options.map((o, idx) => `${String.fromCharCode(65 + idx)}:${o.option_id}(${o.is_correct ? '✓' : '✗'})`).join(' ')}`);
+        } else if (shouldShuffleOptions && (q.question_type === 'SingleChoice' || q.question_type === 'MultipleChoice')) {
+          console.log(`ℹ️ [Shuffle Options] Skipped - No options or wrong question type for question ${q.question_id}`);
+        }
 
         const [savedAnswer] = await req.db.query(
           `SELECT option_id, answer_text FROM exam_attempt_answers
@@ -619,7 +770,31 @@ router.post('/:examId/submit', authMiddleware, roleMiddleware(['student']), asyn
       [totalScore, isFullyGraded, penaltyAmount, penaltyReason, attempt_id]
     );
 
+    // ⭐ EMIT SOCKET ĐỂ THÔNG BÁO GIÁO VIÊN HỌC SINH ĐÃ NỘP BÀI
+    if (req.io) {
+      const [examInfo] = await req.db.query(
+        'SELECT teacher_id, class_id FROM exams WHERE exam_id = ?',
+        [examId]
+      );
+      if (examInfo.length > 0) {
+        req.io.to(`user_${examInfo[0].teacher_id}`).emit('student_submitted_exam', {
+          exam_id: examId,
+          student_id: studentId,
+          attempt_id: attempt_id,
+          score: totalScore,
+          class_id: examInfo[0].class_id
+        });
+      }
+    }
+
     console.log('✅ Đã nộp bài:', { attempt_id, totalScore, isFullyGraded });
+
+    // Tính tổng điểm của bài thi
+    const [totalPointsResult] = await req.db.query(
+      `SELECT COALESCE(SUM(points), 0) as total FROM exam_questions WHERE exam_id = ?`,
+      [examId]
+    );
+    const totalPoints = parseFloat(totalPointsResult[0]?.total || 0);
 
     // Kiểm tra xem có câu tự luận không
     const [hasEssayQuestions] = await req.db.query(
@@ -642,6 +817,7 @@ router.post('/:examId/submit', authMiddleware, roleMiddleware(['student']), asyn
     res.json({
       success: true,
       score: totalScore,
+      total_points: totalPoints,
       is_fully_graded: isFullyGraded,
       has_essay_questions: (hasEssayQuestions[0].count || 0) > 0,
       penalty_amount: penaltyAmount,

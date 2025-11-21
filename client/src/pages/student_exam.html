@@ -1006,7 +1006,8 @@
             localStorage.removeItem('current_exam');
             // Kiểm tra nếu có câu tự luận chưa chấm
             const hasPendingGrading = (result.has_essay_questions && !result.is_fully_graded) || !result.is_fully_graded;
-            showSubmitModal(result.score, examData.total_points || 100, result.message, hasPendingGrading);
+            // Sử dụng total_points từ server response thay vì examData
+            showSubmitModal(result.score, result.total_points || examData.total_points || 100, result.message, hasPendingGrading);
         } else {
             console.error('❌ Lỗi từ server:', result);
             throw new Error(result.error || 'Lỗi khi nộp bài');
