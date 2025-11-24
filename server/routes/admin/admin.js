@@ -6,7 +6,11 @@ const bcrypt = require('bcrypt');
 const multer = require('multer'); 
 const xlsx = require('xlsx');           
 const fs = require('fs').promises;       
-const { parse } = require('csv-parse');
+
+// Import services
+const socketService = require('../../services/socketService');
+const excelService = require('../../services/excelService');
+const { createNotification } = require('../shared/helpers');
 const { generateAdminReport } = require('../../services/pdfService'); 
 
 
@@ -1658,7 +1662,141 @@ router.post('/questions', authenticateToken, async (req, res) => {
   }
 });
 
-// API xóa câu hỏi
+// ============================================
+// 🗑️ XÓA CÁC CÂU HỎI TRÙNG NHAU TRONG NGÂN HÀNG CÂU HỎI (ADMIN - TẤT CẢ GIÁO VIÊN)
+// DELETE /api/admin/questions/duplicates
+// PHẢI ĐẶT TRƯỚC route /questions/:id để tránh conflict
+// ============================================
+router.delete('/questions/duplicates', authenticateToken, async (req, res) => {
+  try {
+    const db = req.db;
+
+    // Lấy tất cả câu hỏi (admin có quyền xem tất cả)
+    const [allQuestions] = await db.query(
+      `SELECT question_id, question_content, created_at, teacher_id
+       FROM question_bank
+       ORDER BY created_at ASC, question_id ASC`
+    );
+
+    if (allQuestions.length === 0) {
+      return res.json({
+        message: 'Không có câu hỏi nào',
+        deleted_count: 0,
+        duplicates_found: 0
+      });
+    }
+
+    // Nhóm các câu hỏi trùng nhau (dựa trên nội dung đã trim và normalize)
+    const questionGroups = new Map();
+    
+    for (const question of allQuestions) {
+      // Normalize nội dung: trim, loại bỏ khoảng trắng thừa, chuyển về lowercase để so sánh
+      const normalizedContent = question.question_content
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      
+      if (!questionGroups.has(normalizedContent)) {
+        questionGroups.set(normalizedContent, []);
+      }
+      questionGroups.get(normalizedContent).push({
+        question_id: question.question_id,
+        question_content: question.question_content,
+        created_at: question.created_at,
+        teacher_id: question.teacher_id
+      });
+    }
+
+    // Tìm các nhóm có nhiều hơn 1 câu hỏi (trùng nhau)
+    const duplicateGroups = [];
+    for (const [content, questions] of questionGroups.entries()) {
+      if (questions.length > 1) {
+        duplicateGroups.push({
+          content: content,
+          questions: questions
+        });
+      }
+    }
+
+    if (duplicateGroups.length === 0) {
+      return res.json({
+        message: 'Không có câu hỏi trùng nhau',
+        deleted_count: 0,
+        duplicates_found: 0
+      });
+    }
+
+    // Xác định câu hỏi cần xóa (giữ lại câu hỏi đầu tiên trong mỗi nhóm)
+    const duplicateIds = [];
+    const details = [];
+
+    for (const group of duplicateGroups) {
+      // Sắp xếp theo thời gian tạo (câu hỏi cũ nhất được giữ lại)
+      const sortedQuestions = group.questions.sort((a, b) => 
+        new Date(a.created_at) - new Date(b.created_at)
+      );
+
+      const keepId = sortedQuestions[0].question_id;
+      const toDelete = sortedQuestions.slice(1);
+
+      for (const item of toDelete) {
+        duplicateIds.push(item.question_id);
+        details.push({
+          question_id: item.question_id,
+          question_content: item.question_content.substring(0, 100) + (item.question_content.length > 100 ? '...' : ''),
+          kept_id: keepId,
+          group_size: group.questions.length,
+          teacher_id: item.teacher_id
+        });
+      }
+    }
+
+    if (duplicateIds.length === 0) {
+      return res.json({
+        message: 'Không có câu hỏi trùng nhau cần xóa',
+        deleted_count: 0,
+        duplicates_found: duplicateGroups.length
+      });
+    }
+
+    // Xóa các câu hỏi trùng nhau
+    let deletedCount = 0;
+    const errors = [];
+
+    for (const questionId of duplicateIds) {
+      try {
+        // Xóa options trước
+        await db.query('DELETE FROM question_options WHERE question_id = ?', [questionId]);
+        
+        // Xóa khỏi exam_questions (nếu đang được sử dụng)
+        await db.query('DELETE FROM exam_questions WHERE question_id = ?', [questionId]);
+        
+        // Xóa câu hỏi
+        await db.query('DELETE FROM question_bank WHERE question_id = ?', [questionId]);
+        
+        deletedCount++;
+      } catch (error) {
+        console.error(`❌ Error deleting question ${questionId}:`, error);
+        errors.push(`Lỗi khi xóa câu hỏi ID ${questionId}: ${error.message}`);
+      }
+    }
+
+    res.json({
+      message: `Đã xóa ${deletedCount} câu hỏi trùng nhau`,
+      deleted_count: deletedCount,
+      duplicates_found: duplicateGroups.length,
+      total_duplicates: duplicateIds.length,
+      details: details.slice(0, 20), // Chỉ trả về 20 câu đầu để không quá dài
+      errors: errors.length > 0 ? errors : undefined
+    });
+
+  } catch (error) {
+    console.error('❌ Error removing duplicate questions:', error);
+    res.status(500).json({ error: 'Lỗi khi xóa câu hỏi trùng nhau', details: error.message });
+  }
+});
+
+// API xóa câu hỏi (PHẢI ĐẶT SAU route /questions/duplicates)
 router.delete('/questions/:id', authenticateToken, async (req, res) => {
   try {
     const db = req.db;
@@ -2170,25 +2308,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
-// Hàm tạo thông báo
-const createNotification = async (db, io, userId, content, type, relatedId, relatedType) => {
-  try {
-    const [result] = await db.query(
-      'INSERT INTO notifications (user_id, content, type, related_id, related_type) VALUES (?, ?, ?, ?, ?)',
-      [userId, content, type, relatedId, relatedType]
-    );
-    io.to(`user_${userId}`).emit('notification', {
-      notification_id: result.insertId,
-      content,
-      type,
-      related_id: relatedId,
-      related_type: relatedType,
-      created_at: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Lỗi tạo thông báo:', error);
-  }
-};
+// Hàm createNotification đã được di chuyển vào shared/helpers
 
 // API giám sát gian lận toàn hệ thống (có filter)
 router.get('/monitor/cheating', authMiddleware, async (req, res) => {
@@ -2427,10 +2547,9 @@ router.post('/penalize', authMiddleware, async (req, res) => {
         'INSERT INTO admin_logs (admin_id, action_type, details, created_at) VALUES (?, ?, ?, NOW())',
         [admin_id, 'review_cheating', `Cấm thi: ${reason || 'Vi phạm quy định thi'}`]
       );
-      req.io.to(`user_${attempt[0].student_id}`).emit('exam_banned', {
-        exam_id: attempt[0].exam_id,
-        reason: reason || 'Vi phạm quy định thi'
-      });
+      if (req.io) {
+        socketService.emitExamBanned(req.io, attempt[0].student_id, attempt[0].exam_id, reason);
+      }
       await createNotification(
         req.db,
         req.io,
@@ -2461,11 +2580,9 @@ router.post('/penalize', authMiddleware, async (req, res) => {
         'INSERT INTO admin_logs (admin_id, action_type, details, created_at) VALUES (?, ?, ?, NOW())',
         [admin_id, 'edit_score', `Trừ ${points_deducted} điểm: ${reason || 'Vi phạm quy định thi'}`]
       );
-      req.io.to(`user_${attempt[0].student_id}`).emit('points_deducted', {
-        exam_id: attempt[0].exam_id,
-        points_deducted,
-        reason: reason || 'Vi phạm quy định thi'
-      });
+      if (req.io) {
+        socketService.emitPointsDeducted(req.io, attempt[0].student_id, attempt[0].exam_id, points_deducted, reason);
+      }
       await createNotification(
         req.db,
         req.io,
@@ -2575,28 +2692,15 @@ router.post('/questions/import', authMiddleware, upload.single('file'), async (r
       }
     }
 
-    let questions = [];
     const filePath = req.file.path;
-    const fileType = req.file.mimetype.includes('csv') ? 'CSV' : 'Excel';
-
-    // Xử lý file Excel
-    if (fileType === 'Excel') {
-      const workbook = xlsx.readFile(filePath);
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      questions = xlsx.utils.sheet_to_json(sheet);
-    }
-    // Xử lý file CSV
-    else if (fileType === 'CSV') {
-      const csvData = await fs.readFile(filePath);
-      questions = await new Promise((resolve, reject) => {
-        parse(csvData, { columns: true, trim: true }, (err, output) => {
-          if (err) reject(err);
-          resolve(output);
-        });
-      });
-    } else {
+    
+    // Parse file Excel/CSV
+    let questions;
+    try {
+      questions = await excelService.parseFile(filePath, req.file.mimetype);
+    } catch (error) {
       await fs.unlink(filePath);
-      return res.status(400).json({ error: 'Định dạng file không được hỗ trợ (chỉ hỗ trợ Excel hoặc CSV)' });
+      return res.status(400).json({ error: error.message || 'Định dạng file không được hỗ trợ (chỉ hỗ trợ Excel hoặc CSV)' });
     }
 
     await fs.unlink(filePath);

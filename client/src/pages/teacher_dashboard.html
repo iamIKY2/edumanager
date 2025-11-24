@@ -253,8 +253,54 @@
                                             </div>
                                         </div>
                                         
-                                        <h3 style="color: #2d3748; margin-bottom: 15px; font-size: 1.3rem;">📋 Danh sách câu hỏi</h3>
-                                        <div id="examDetailQuestions" class="question-list"></div>
+                                        <!-- Tabs cho Exam Detail -->
+                                        <div class="class-tabs" style="margin-bottom: 20px;">
+                                            <button class="tab active" data-tab="exam-questions" onclick="switchExamDetailTab('questions')">
+                                                📋 Câu hỏi
+                                            </button>
+                                            <button class="tab" data-tab="exam-students-status" onclick="switchExamDetailTab('students-status')">
+                                                👥 Trạng thái nộp bài
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Tab: Danh sách câu hỏi -->
+                                        <div id="examQuestionsTab" class="exam-detail-tab-content active">
+                                            <h3 style="color: #2d3748; margin-bottom: 15px; font-size: 1.3rem;">📋 Danh sách câu hỏi</h3>
+                                            <div id="examDetailQuestions" class="question-list"></div>
+                                        </div>
+                                        
+                                        <!-- Tab: Trạng thái nộp bài -->
+                                        <div id="examStudentsStatusTab" class="exam-detail-tab-content" style="display: none;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                                <h3 style="color: #2d3748; font-size: 1.3rem; margin: 0;">👥 Trạng thái nộp bài của học sinh</h3>
+                                                <button class="btn btn-secondary" onclick="refreshStudentsStatus()" style="padding: 8px 16px;">
+                                                    🔄 Làm mới
+                                                </button>
+                                            </div>
+                                            
+                                            <!-- Thống kê tổng quan -->
+                                            <div id="examStatusStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                                                <!-- Stats sẽ được render ở đây -->
+                                            </div>
+                                            
+                                            <!-- Bộ lọc và tìm kiếm -->
+                                            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                                                <input type="text" id="searchStudentStatus" class="search-input" placeholder="🔍 Tìm học sinh..." style="flex: 1; min-width: 200px;" oninput="filterStudentStatus()">
+                                                <select id="filterStudentStatus" class="search-input" style="width: 200px;" onchange="filterStudentStatus()">
+                                                    <option value="all">Tất cả</option>
+                                                    <option value="not_started">Chưa bắt đầu</option>
+                                                    <option value="InProgress">Đang làm bài</option>
+                                                    <option value="Submitted">Đã nộp bài</option>
+                                                    <option value="AutoSubmitted">Tự động nộp</option>
+                                                    <option value="banned">Bị cấm thi</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <!-- Danh sách học sinh -->
+                                            <div id="examStudentsStatusList" style="display: grid; gap: 15px;">
+                                                <!-- Danh sách sẽ được render ở đây -->
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -381,6 +427,52 @@
                             <div style="margin-top: 20px;">
                                 <button type="submit" class="btn btn-primary">✨ Tạo lớp</button>
                                 <button type="button" class="btn btn-secondary" onclick="hideCreateClass()">Hủy</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Edit Class Form -->
+                <div id="editClassForm" style="display: none;">
+                    <button class="back-btn" onclick="hideEditClass()">← Quay lại</button>
+                    
+                    <div class="card">
+                        <h2 class="card-title" style="margin-bottom: 20px;">Chỉnh sửa lớp học</h2>
+                        <form id="editClassFormElement" onsubmit="handleEditClass(event)">
+                            <div class="form-group">
+                                <label>Tên lớp học <span style="color: #f56565;">*</span></label>
+                                <input type="text" name="className" id="editClassName" required placeholder="VD: Toán 10A1, Lập trình Python...">
+                            </div>
+                            <div class="form-group">
+                                <label>Môn học <span style="color: #f56565;">*</span></label>
+                                <input type="text" name="subject" id="editSubject" required placeholder="VD: Toán học, Tin học...">
+                            </div>
+                            <div class="form-group">
+                                <label>Mô tả</label>
+                                <textarea name="description" id="editDescription" rows="4" placeholder="Mô tả về lớp học, mục tiêu, yêu cầu..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Năm học</label>
+                                <input type="text" name="academicYear" id="editAcademicYear" placeholder="VD: 2024-2025" value="2024-2025">
+                            </div>
+                            <div class="form-group">
+                                <label>Icon lớp học</label>
+                                <select name="icon" id="editIcon">
+                                    <option value="📚">📚 Sách</option>
+                                    <option value="📖">📖 Văn học</option>
+                                    <option value="📐">📐 Toán học</option>
+                                    <option value="🧪">🧪 Hóa học</option>
+                                    <option value="⚛️">⚛️ Vật lý</option>
+                                    <option value="🌍">🌍 Địa lý</option>
+                                    <option value="🎨">🎨 Mỹ thuật</option>
+                                    <option value="🎵">🎵 Âm nhạc</option>
+                                    <option value="💻">💻 Tin học</option>
+                                    <option value="🇬🇧">🇬🇧 Tiếng Anh</option>
+                                </select>
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <button type="submit" class="btn btn-primary">💾 Lưu thay đổi</button>
+                                <button type="button" class="btn btn-secondary" onclick="hideEditClass()">Hủy</button>
                             </div>
                         </form>
                     </div>
@@ -720,6 +812,7 @@
                         <div>
                             <button class="btn btn-primary" onclick="showNotification('Tính năng thêm câu hỏi đang phát triển', 'info')">➕ Thêm câu hỏi</button>
                             <button class="btn btn-secondary" onclick="showNotification('Tính năng import đang phát triển', 'info')">📥 Import Excel</button>
+                            <button class="btn btn-warning" onclick="removeDuplicateQuestions()" style="background: #f59e0b; color: white;">🗑️ Xóa câu hỏi trùng</button>
                         </div>
                     </div>
 
@@ -868,7 +961,7 @@
 
                     <!-- Thống kê học sinh -->
                     <h3 style="color: #2d3748; margin: 20px 0 15px 0; font-size: 1.2rem;">👥 Thống kê học sinh</h3>
-                    <div class="stats-grid">
+                    <div class="stats-grid" style="margin-bottom: 30px;">
                         <div class="stat-card">
                             <div class="stat-label">Đã làm bài thi</div>
                             <div class="stat-number" id="statStudentsWithExams" style="font-size: 1.8rem; color: #48bb78;">0</div>
@@ -878,6 +971,38 @@
                             <div class="stat-label">Chưa làm bài</div>
                             <div class="stat-number" id="statStudentsWithoutExams" style="font-size: 1.8rem; color: #f56565;">0</div>
                             <div style="font-size: 0.85rem; color: #718096; margin-top: 5px;">Cần theo dõi</div>
+                        </div>
+                    </div>
+
+                    <!-- Top học sinh -->
+                    <h3 style="color: #2d3748; margin: 20px 0 15px 0; font-size: 1.2rem;">🏆 Top học sinh xuất sắc</h3>
+                    <div class="card" style="background: #f7fafc; padding: 20px; margin-bottom: 30px;">
+                        <div id="topStudentsList" style="display: grid; gap: 10px;">
+                            <p style="text-align: center; color: #718096;">⏳ Đang tải...</p>
+                        </div>
+                    </div>
+
+                    <!-- Thống kê theo môn học -->
+                    <h3 style="color: #2d3748; margin: 20px 0 15px 0; font-size: 1.2rem;">📚 Thống kê theo môn học</h3>
+                    <div class="card" style="background: #f7fafc; padding: 20px; margin-bottom: 30px;">
+                        <div id="subjectStatsList" style="display: grid; gap: 10px;">
+                            <p style="text-align: center; color: #718096;">⏳ Đang tải...</p>
+                        </div>
+                    </div>
+
+                    <!-- Top bài thi -->
+                    <h3 style="color: #2d3748; margin: 20px 0 15px 0; font-size: 1.2rem;">📝 Top bài thi</h3>
+                    <div class="card" style="background: #f7fafc; padding: 20px; margin-bottom: 30px;">
+                        <div id="topExamsList" style="display: grid; gap: 10px;">
+                            <p style="text-align: center; color: #718096;">⏳ Đang tải...</p>
+                        </div>
+                    </div>
+
+                    <!-- Biểu đồ xu hướng điểm số -->
+                    <h3 style="color: #2d3748; margin: 20px 0 15px 0; font-size: 1.2rem;">📈 Xu hướng điểm số (6 tháng gần nhất)</h3>
+                    <div class="card" style="padding: 20px; margin-bottom: 30px;">
+                        <div style="height: 300px;">
+                            <canvas id="monthlyTrendChart"></canvas>
                         </div>
                     </div>
                 </div>

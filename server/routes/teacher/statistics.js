@@ -277,6 +277,88 @@ router.get('/', authMiddleware, roleMiddleware(['teacher']), async (req, res) =>
     const studentsWithExams = parseInt(studentExamStats[0]?.students_with_exams) || 0;
     const studentsWithoutExams = totalStudents - studentsWithExams;
 
+    // 10. Thống kê theo môn học
+    const [subjectStats] = await db.query(
+      `SELECT 
+        s.subject_name,
+        COUNT(DISTINCT e.exam_id) as exam_count,
+        COUNT(DISTINCT ea.attempt_id) as attempt_count,
+        AVG(ea.score) as avg_score,
+        COUNT(DISTINCT CASE WHEN ea.score >= 5 THEN ea.attempt_id END) as passed_count
+       FROM exams e
+       LEFT JOIN subjects s ON e.subject_id = s.subject_id
+       LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id 
+         AND ea.status IN ('Submitted', 'AutoSubmitted')
+         AND ea.score IS NOT NULL
+       WHERE e.teacher_id = ? AND e.status != 'deleted'
+       GROUP BY s.subject_id, s.subject_name
+       HAVING exam_count > 0
+       ORDER BY exam_count DESC
+       LIMIT 10`,
+      [teacherId]
+    );
+
+    // 11. Top học sinh (điểm trung bình cao nhất)
+    const [topStudents] = await db.query(
+      `SELECT 
+        u.user_id,
+        u.full_name,
+        u.username,
+        COUNT(DISTINCT ea.attempt_id) as exam_count,
+        AVG(ea.score) as avg_score,
+        MAX(ea.score) as max_score
+       FROM exam_attempts ea
+       JOIN exams e ON ea.exam_id = e.exam_id
+       JOIN users u ON ea.student_id = u.user_id
+       WHERE e.teacher_id = ?
+         AND ea.status IN ('Submitted', 'AutoSubmitted')
+         AND ea.score IS NOT NULL
+       GROUP BY u.user_id, u.full_name, u.username
+       HAVING exam_count >= 2
+       ORDER BY avg_score DESC
+       LIMIT 10`,
+      [teacherId]
+    );
+
+    // 12. Top bài thi (số lượng học sinh làm nhiều nhất)
+    const [topExams] = await db.query(
+      `SELECT 
+        e.exam_id,
+        e.exam_name,
+        c.class_name,
+        COUNT(DISTINCT ea.attempt_id) as attempt_count,
+        AVG(ea.score) as avg_score,
+        MAX(ea.score) as max_score,
+        MIN(ea.score) as min_score
+       FROM exams e
+       LEFT JOIN classes c ON e.class_id = c.class_id
+       LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id
+         AND ea.status IN ('Submitted', 'AutoSubmitted')
+       WHERE e.teacher_id = ? AND e.status != 'deleted'
+       GROUP BY e.exam_id, e.exam_name, c.class_name
+       ORDER BY attempt_count DESC
+       LIMIT 10`,
+      [teacherId]
+    );
+
+    // 13. Thống kê điểm số theo tháng (6 tháng gần nhất)
+    const [monthlyStats] = await db.query(
+      `SELECT 
+        DATE_FORMAT(ea.end_time, '%Y-%m') as month,
+        COUNT(DISTINCT ea.attempt_id) as attempt_count,
+        AVG(ea.score) as avg_score,
+        COUNT(DISTINCT CASE WHEN ea.score >= 5 THEN ea.attempt_id END) as passed_count
+       FROM exam_attempts ea
+       JOIN exams e ON ea.exam_id = e.exam_id
+       WHERE e.teacher_id = ?
+         AND ea.status IN ('Submitted', 'AutoSubmitted')
+         AND ea.score IS NOT NULL
+         AND ea.end_time >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+       GROUP BY DATE_FORMAT(ea.end_time, '%Y-%m')
+       ORDER BY month ASC`,
+      [teacherId]
+    );
+
     res.json({
       // Thống kê cơ bản
       total_classes: parseInt(classStats[0].total_classes) || 0,
@@ -313,6 +395,48 @@ router.get('/', authMiddleware, roleMiddleware(['teacher']), async (req, res) =>
       
       // Thống kê câu hỏi
       total_questions: parseInt(questionStats[0]?.total_questions) || 0,
+      
+      // Thống kê theo môn học
+      subject_stats: subjectStats.map(s => ({
+        subject_name: s.subject_name || 'Chưa có môn',
+        exam_count: parseInt(s.exam_count) || 0,
+        attempt_count: parseInt(s.attempt_count) || 0,
+        avg_score: parseFloat(s.avg_score || 0).toFixed(1),
+        pass_rate: s.attempt_count > 0 
+          ? ((parseInt(s.passed_count) / parseInt(s.attempt_count)) * 100).toFixed(1)
+          : '0.0'
+      })),
+      
+      // Top học sinh
+      top_students: topStudents.map(s => ({
+        user_id: s.user_id,
+        full_name: s.full_name,
+        username: s.username,
+        exam_count: parseInt(s.exam_count) || 0,
+        avg_score: parseFloat(s.avg_score || 0).toFixed(1),
+        max_score: parseFloat(s.max_score || 0).toFixed(1)
+      })),
+      
+      // Top bài thi
+      top_exams: topExams.map(e => ({
+        exam_id: e.exam_id,
+        exam_name: e.exam_name,
+        class_name: e.class_name || 'Chưa có lớp',
+        attempt_count: parseInt(e.attempt_count) || 0,
+        avg_score: e.avg_score ? parseFloat(e.avg_score).toFixed(1) : '0.0',
+        max_score: e.max_score ? parseFloat(e.max_score).toFixed(1) : '0.0',
+        min_score: e.min_score ? parseFloat(e.min_score).toFixed(1) : '0.0'
+      })),
+      
+      // Thống kê theo tháng
+      monthly_stats: monthlyStats.map(m => ({
+        month: m.month,
+        attempt_count: parseInt(m.attempt_count) || 0,
+        avg_score: parseFloat(m.avg_score || 0).toFixed(1),
+        pass_rate: m.attempt_count > 0
+          ? ((parseInt(m.passed_count) / parseInt(m.attempt_count)) * 100).toFixed(1)
+          : '0.0'
+      })),
       
       // Thống kê theo lớp (nếu có)
       class_stats: classSpecificStats

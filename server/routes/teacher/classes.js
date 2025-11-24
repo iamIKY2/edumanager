@@ -590,19 +590,15 @@ router.delete('/:classId/students/:studentId', authMiddleware, roleMiddleware(['
   }
 });
 
-// Cập nhật trạng thái lớp học
+// Cập nhật thông tin lớp học
 router.put('/:classId', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
   const { classId } = req.params;
-  const { status } = req.body;
+  const { status, className, subject, subjectId, description, academicYear, icon } = req.body;
   const teacherId = req.user.id || req.user.user_id;
-
-  if (!status || !['active', 'archived', 'deleted'].includes(status)) {
-    return res.status(400).json({ error: 'Trạng thái không hợp lệ' });
-  }
 
   try {
     const [classResult] = await req.db.query(
-      `SELECT class_name FROM classes WHERE class_id = ? AND teacher_id = ?`,
+      `SELECT class_name, subject_id FROM classes WHERE class_id = ? AND teacher_id = ?`,
       [classId, teacherId]
     );
 
@@ -610,25 +606,120 @@ router.put('/:classId', authMiddleware, roleMiddleware(['teacher']), async (req,
       return res.status(403).json({ error: 'Bạn không có quyền cập nhật lớp này' });
     }
 
+    // Nếu chỉ cập nhật trạng thái
+    if (status && !className && !subject && !description && !academicYear && !icon) {
+      if (!['active', 'archived', 'deleted'].includes(status)) {
+        return res.status(400).json({ error: 'Trạng thái không hợp lệ' });
+      }
+
+      await req.db.query(
+        `UPDATE classes SET status = ? WHERE class_id = ?`,
+        [status, classId]
+      );
+
+      await createNotification(
+        req.db,
+        req.io,
+        teacherId,
+        `Lớp ${classResult[0].class_name} đã được ${status === 'archived' ? 'lưu trữ' : status === 'deleted' ? 'xóa' : 'kích hoạt'}`,
+        'Info',
+        classId,
+        'Class'
+      );
+
+      return res.json({ message: 'Cập nhật trạng thái lớp học thành công' });
+    }
+
+    // Cập nhật thông tin lớp học
+    let finalSubjectId = classResult[0].subject_id;
+
+    if (subjectId) {
+      finalSubjectId = subjectId;
+    } else if (subject) {
+      const [subjectResult] = await req.db.query(
+        `SELECT subject_id FROM subjects WHERE subject_name = ?`,
+        [subject]
+      );
+      
+      if (subjectResult.length > 0) {
+        finalSubjectId = subjectResult[0].subject_id;
+      } else {
+        const [insertResult] = await req.db.query(
+          `INSERT INTO subjects (subject_name, description, created_by) VALUES (?, ?, ?)`,
+          [subject, `Môn học: ${subject}`, teacherId]
+        );
+        finalSubjectId = insertResult.insertId;
+      }
+    }
+
+    // Xây dựng câu lệnh UPDATE động
+    const updateFields = [];
+    const updateValues = [];
+
+    if (className) {
+      updateFields.push('class_name = ?');
+      updateValues.push(className);
+    }
+    if (finalSubjectId !== classResult[0].subject_id) {
+      updateFields.push('subject_id = ?');
+      updateValues.push(finalSubjectId);
+    }
+    if (description !== undefined) {
+      updateFields.push('description = ?');
+      updateValues.push(description || '');
+    }
+    if (academicYear) {
+      updateFields.push('academic_year = ?');
+      updateValues.push(academicYear);
+    }
+    if (icon) {
+      updateFields.push('icon = ?');
+      updateValues.push(icon);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'Không có thông tin nào để cập nhật' });
+    }
+
+    updateValues.push(classId);
     await req.db.query(
-      `UPDATE classes SET status = ? WHERE class_id = ?`,
-      [status, classId]
+      `UPDATE classes SET ${updateFields.join(', ')} WHERE class_id = ?`,
+      updateValues
     );
 
     await createNotification(
       req.db,
       req.io,
       teacherId,
-      `Lớp ${classResult[0].class_name} đã được ${status === 'archived' ? 'lưu trữ' : status === 'deleted' ? 'xóa' : 'kích hoạt'}`,
+      `Lớp "${className || classResult[0].class_name}" đã được cập nhật`,
       'Info',
       classId,
       'Class'
     );
 
-    res.json({ message: 'Cập nhật trạng thái lớp học thành công' });
+    // Lấy thông tin lớp đã cập nhật
+    const [updatedClass] = await req.db.query(
+      `SELECT c.class_id, c.class_name, s.subject_name, c.description, c.academic_year, c.class_code, c.icon, c.status,
+              COUNT(DISTINCT cs.student_id) as students,
+              COUNT(DISTINCT e.exam_id) as exams,
+              AVG(ea.score) as avg_score
+       FROM classes c
+       LEFT JOIN subjects s ON c.subject_id = s.subject_id
+       LEFT JOIN class_students cs ON c.class_id = cs.class_id
+       LEFT JOIN exams e ON c.class_id = e.exam_id
+       LEFT JOIN exam_attempts ea ON e.exam_id = ea.exam_id
+       WHERE c.class_id = ?
+       GROUP BY c.class_id`,
+      [classId]
+    );
+
+    res.json({
+      message: 'Cập nhật lớp học thành công',
+      class: updatedClass[0]
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Lỗi khi cập nhật trạng thái lớp', details: err.message });
+    res.status(500).json({ error: 'Lỗi khi cập nhật lớp học', details: err.message });
   }
 });
 

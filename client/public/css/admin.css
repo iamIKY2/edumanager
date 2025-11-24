@@ -6,7 +6,7 @@
     --header-height: 60px;
     
     /* Override với admin specific colors */
-    --bg-sidebar: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
+    --bg-sidebar: linear-gradient(180deg, #4b5d7a 0%, #6b7c95 100%);
 }
         
         /* Dark mode colors */
@@ -165,7 +165,7 @@
         }
 
         .nav-link {
-            color: #CBD5E1;
+            color: #E1E7F5;
             padding: 12px 20px;
             border-radius: 8px;
             margin: 0 10px;
@@ -180,7 +180,7 @@
         }
 
         .nav-link:hover, .nav-link.active {
-            background-color: rgba(255,255,255,0.1);
+            background-color: rgba(255,255,255,0.15);
             color: #FFFFFF;
         }
         
@@ -193,6 +193,29 @@
             margin-left: var(--sidebar-width);
             padding: 20px;
             min-height: 100vh;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .btn-primary:hover,
+        .btn-primary:focus {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+            color: #fff;
+        }
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .btn-outline-primary:hover,
+        .btn-outline-primary:focus {
+            background-color: var(--primary-soft-bg);
+            color: var(--primary-dark);
+            border-color: var(--primary-dark);
         }
 
         .header {
@@ -230,6 +253,28 @@
             justify-content: center;
             font-size: 28px;
             margin-bottom: 15px;
+            background: var(--primary-soft-bg);
+            color: var(--primary-color);
+        }
+        .stat-icon.primary-icon {
+            background: var(--primary-soft-bg);
+            color: var(--primary-color);
+        }
+        .stat-icon.success-icon {
+            background: var(--success-soft-bg);
+            color: var(--success-color);
+        }
+        .stat-icon.warning-icon {
+            background: var(--warning-soft-bg);
+            color: var(--warning-color);
+        }
+        .stat-icon.danger-icon {
+            background: var(--danger-soft-bg);
+            color: var(--danger-color);
+        }
+        .stat-icon.info-icon {
+            background: var(--info-soft-bg);
+            color: var(--info-color);
         }
 
         .stat-value {
@@ -609,12 +654,12 @@
             white-space: nowrap;
         }
         #settingsTabs .nav-link:hover {
-            color: #0d6efd !important;
-            background-color: rgba(13, 110, 253, 0.1) !important;
+            color: #7f8ac5 !important;
+            background-color: rgba(127, 138, 197, 0.18) !important;
             border-color: transparent transparent #dee2e6;
         }
         #settingsTabs .nav-link.active {
-            color: #0d6efd !important;
+            color: #7f8ac5 !important;
             background-color: transparent !important;
             border-color: #dee2e6 #dee2e6 #fff;
             font-weight: 500;

@@ -4,26 +4,6 @@ const router = express.Router();
 const authMiddleware = require('../../middleware/auth');
 const roleMiddleware = require('../../middleware/role');
 
-// Hàm tạo thông báo (di chuyển vào shared/helpers.js)
-const createNotification = async (db, io, userId, content, type, relatedId, relatedType) => {
-  try {
-    const [result] = await db.query(
-      'INSERT INTO notifications (user_id, content, type, related_id, related_type) VALUES (?, ?, ?, ?, ?)',
-      [userId, content, type, relatedId, relatedType]
-    );
-    io.to(`user_${userId}`).emit('notification', {
-      notification_id: result.insertId,
-      content,
-      type,
-      related_id: relatedId,
-      related_type: relatedType,
-      created_at: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Lỗi tạo thông báo:', error);
-  }
-};
-
 // Lấy chi tiết lớp học (cho cả học sinh và giáo viên)
 router.get('/:classId/detail', authMiddleware, roleMiddleware(['student', 'teacher']), async (req, res) => {
   const { classId } = req.params;

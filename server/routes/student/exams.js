@@ -247,12 +247,15 @@ router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async
           [examId]
         );
         if (examInfo.length > 0) {
-          req.io.to(`user_${examInfo[0].teacher_id}`).emit('student_started_exam', {
-            exam_id: examId,
-            student_id: studentId,
-            attempt_id: attemptId,
-            class_id: examInfo[0].class_id
-          });
+          const socketService = require('../../services/socketService');
+          socketService.emitStudentStartedExam(
+            req.io,
+            examInfo[0].teacher_id,
+            examId,
+            studentId,
+            attemptId,
+            examInfo[0].class_id
+          );
         }
       }
     }
@@ -777,13 +780,16 @@ router.post('/:examId/submit', authMiddleware, roleMiddleware(['student']), asyn
         [examId]
       );
       if (examInfo.length > 0) {
-        req.io.to(`user_${examInfo[0].teacher_id}`).emit('student_submitted_exam', {
-          exam_id: examId,
-          student_id: studentId,
-          attempt_id: attempt_id,
-          score: totalScore,
-          class_id: examInfo[0].class_id
-        });
+        const socketService = require('../../services/socketService');
+        socketService.emitStudentSubmittedExam(
+          req.io,
+          examInfo[0].teacher_id,
+          examId,
+          studentId,
+          attempt_id,
+          totalScore,
+          examInfo[0].class_id
+        );
       }
     }
 

@@ -111,7 +111,7 @@
             <div class="row g-4 mb-4">
                 <div class="col-xl-3 col-md-6">
                     <div class="stat-card">
-                        <div class="stat-icon" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
+                        <div class="stat-icon primary-icon">
                             <i class="bi bi-people-fill"></i>
                         </div>
                         <div class="stat-label">Tổng Sinh Viên</div>
@@ -123,7 +123,7 @@
                 </div>
                 <div class="col-xl-3 col-md-6">
                     <div class="stat-card">
-                        <div class="stat-icon" style="background-color: rgba(25, 135, 84, 0.1); color: #198754;">
+                        <div class="stat-icon success-icon">
                             <i class="bi bi-person-badge"></i>
                         </div>
                         <div class="stat-label">Tổng Giáo Viên</div>
@@ -135,7 +135,7 @@
                 </div>
                 <div class="col-xl-3 col-md-6">
                     <div class="stat-card">
-                        <div class="stat-icon" style="background-color: rgba(253, 126, 20, 0.1); color: #fd7e14;">
+                        <div class="stat-icon warning-icon">
                             <i class="bi bi-file-earmark-text"></i>
                         </div>
                         <div class="stat-label">Kỳ Thi Đang Diễn Ra</div>
@@ -147,7 +147,7 @@
                 </div>
                 <div class="col-xl-3 col-md-6">
                     <div class="stat-card">
-                        <div class="stat-icon" style="background-color: rgba(111, 66, 193, 0.1); color: #6f42c1;">
+                        <div class="stat-icon info-icon">
                             <i class="bi bi-patch-question"></i>
                         </div>
                         <div class="stat-label">Câu Hỏi Trong Hệ Thống</div>
@@ -414,7 +414,7 @@
     <div class="row g-4 mb-4">
         <div class="col-xl-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                <div class="stat-icon danger-icon">
                     <i class="bi bi-exclamation-triangle-fill"></i>
                 </div>
                 <div class="stat-label">Tổng vi phạm</div>
@@ -423,7 +423,7 @@
         </div>
         <div class="col-xl-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon" style="background-color: rgba(253, 126, 20, 0.1); color: #fd7e14;">
+                <div class="stat-icon warning-icon">
                     <i class="bi bi-people-fill"></i>
                 </div>
                 <div class="stat-label">Học sinh vi phạm</div>
@@ -432,7 +432,7 @@
         </div>
         <div class="col-xl-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon" style="background-color: rgba(111, 66, 193, 0.1); color: #6f42c1;">
+                <div class="stat-icon info-icon">
                     <i class="bi bi-file-earmark-text"></i>
                 </div>
                 <div class="stat-label">Bài thi bị ảnh hưởng</div>
@@ -441,7 +441,7 @@
         </div>
         <div class="col-xl-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                <div class="stat-icon danger-icon">
                     <i class="bi bi-ban"></i>
                 </div>
                 <div class="stat-label">Học sinh bị cấm</div>
@@ -567,6 +567,9 @@
                 <a class="btn btn-outline-primary me-2" href="/sample_questions.xlsx" download>
                     <i class="bi bi-download"></i> Tải file mẫu
                 </a>
+                <button class="btn btn-warning me-2" onclick="removeDuplicateQuestions()" style="background: #f59e0b; color: white; border: none;">
+                    <i class="bi bi-trash"></i> Xóa câu hỏi trùng
+                </button>
                 <button class="btn btn-primary" id="addQuestionBtn">
                     <i class="bi bi-plus-lg"></i> Thêm câu hỏi
                 </button>
@@ -808,7 +811,7 @@
     <div class="row g-4 mb-4">
         <div class="col-xl-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
+                <div class="stat-icon primary-icon">
                     <i class="bi bi-graph-up"></i>
                 </div>
                 <div class="stat-label">Tổng số bài thi</div>
@@ -820,7 +823,7 @@
         </div>
         <div class="col-xl-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon" style="background-color: rgba(25, 135, 84, 0.1); color: #198754;">
+                <div class="stat-icon success-icon">
                     <i class="bi bi-check-circle"></i>
                 </div>
                 <div class="stat-label">Tỷ lệ hoàn thành</div>
@@ -832,7 +835,7 @@
         </div>
         <div class="col-xl-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon" style="background-color: rgba(253, 126, 20, 0.1); color: #fd7e14;">
+                <div class="stat-icon warning-icon">
                     <i class="bi bi-star"></i>
                 </div>
                 <div class="stat-label">Điểm trung bình</div>
@@ -844,7 +847,7 @@
         </div>
         <div class="col-xl-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                <div class="stat-icon danger-icon">
                     <i class="bi bi-exclamation-triangle"></i>
                 </div>
                 <div class="stat-label">Cảnh báo gian lận</div>
@@ -884,7 +887,7 @@
                         <strong id="excellentPercent">0%</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
-                        <span><i class="bi bi-circle-fill" style="color: #0d6efd;"></i> Khá (6.5-8)</span>
+                        <span><i class="bi bi-circle-fill" style="color: #7f8ac5;"></i> Khá (6.5-8)</span>
                         <strong id="goodPercent">0%</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
@@ -1317,8 +1320,27 @@
                                         <small class="text-muted">Ngôn ngữ hiển thị của hệ thống</small>
                                     </div>
                                     <div class="mb-3">
+                                        <label class="form-label">Màu tabs sidebar</label>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <input type="color" class="form-control form-control-color" id="tabColor" value="#8ea7e9" title="Chọn màu tabs">
+                                            <input type="text" class="form-control" id="tabColorHex" value="#8ea7e9" placeholder="#8ea7e9" style="max-width: 120px;">
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="resetTabColor()">Mặc định</button>
+                                        </div>
+                                        <small class="text-muted">Màu hiển thị khi tabs được chọn hoặc hover (chỉ áp dụng cho sidebar)</small>
+                                        <div class="mt-2">
+                                            <div class="d-flex gap-2 flex-wrap">
+                                                <button type="button" class="btn btn-sm" style="background: #667eea; color: white; border: none;" onclick="setTabColor('#667eea')">Tím</button>
+                                                <button type="button" class="btn btn-sm" style="background: #4299e1; color: white; border: none;" onclick="setTabColor('#4299e1')">Xanh dương</button>
+                                                <button type="button" class="btn btn-sm" style="background: #48bb78; color: white; border: none;" onclick="setTabColor('#48bb78')">Xanh lá</button>
+                                                <button type="button" class="btn btn-sm" style="background: #ed8936; color: white; border: none;" onclick="setTabColor('#ed8936')">Cam</button>
+                                                <button type="button" class="btn btn-sm" style="background: #f56565; color: white; border: none;" onclick="setTabColor('#f56565')">Đỏ</button>
+                                                <button type="button" class="btn btn-sm" style="background: #9f7aea; color: white; border: none;" onclick="setTabColor('#9f7aea')">Tím nhạt</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
                                         <label class="form-label">Màu chủ đạo</label>
-                                        <input type="color" class="form-control form-control-color" id="primaryColor" value="#0d6efd" title="Chọn màu chủ đạo">
+                                        <input type="color" class="form-control form-control-color" id="primaryColor" value="#7f8ac5" title="Chọn màu chủ đạo">
                                         <small class="text-muted">Màu chủ đạo của giao diện</small>
                                     </div>
                                     <div class="mb-3">

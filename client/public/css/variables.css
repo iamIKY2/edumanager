@@ -2,38 +2,44 @@
    COLOR SYSTEM - ĐỒNG BỘ MÀU SẮC
    ============================================ */
 :root {
-    /* Primary Colors - Màu chính */
-    --primary-color: #667eea;
-    --primary-dark: #5568d3;
-    --primary-light: #8b9ef0;
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --primary-gradient-hover: linear-gradient(135deg, #5568d3 0%, #6a3d8f 100%);
+    /* Primary Colors - Màu chính (tone dịu) */
+    --primary-color: #7f8ac5;
+    --primary-dark: #6a75af;
+    --primary-light: #a3aedc;
+    --primary-gradient: linear-gradient(135deg, #7f8ac5 0%, #a5b4db 100%);
+    --primary-gradient-hover: linear-gradient(135deg, #6a75af 0%, #9aa6cf 100%);
+    --primary-soft-bg: rgba(127, 138, 197, 0.18);
     
     /* Secondary Colors - Màu phụ */
-    --secondary-color: #764ba2;
-    --secondary-dark: #5d3a7f;
-    --secondary-light: #8f5fb8;
+    --secondary-color: #98b6c6;
+    --secondary-dark: #7d99a8;
+    --secondary-light: #c3d9e3;
+    --secondary-soft-bg: rgba(152, 182, 198, 0.2);
     
     /* Success Colors */
     --success-color: #26de81;
     --success-dark: #1fb86a;
     --success-light: #4ee99a;
     --success-gradient: linear-gradient(45deg, #43e97b, #38f9d7);
+    --success-soft-bg: rgba(38, 222, 129, 0.15);
     
     /* Warning Colors */
     --warning-color: #ffa502;
     --warning-dark: #e69400;
     --warning-light: #ffb833;
+    --warning-soft-bg: rgba(255, 165, 2, 0.18);
     
     /* Danger/Error Colors */
     --danger-color: #ff4757;
     --danger-dark: #e63946;
     --danger-light: #ff6b7a;
+    --danger-soft-bg: rgba(255, 71, 87, 0.15);
     
     /* Info Colors */
     --info-color: #4facfe;
     --info-dark: #2d8fe8;
     --info-light: #6bb5ff;
+    --info-soft-bg: rgba(79, 172, 254, 0.18);
     
     /* Neutral Colors */
     --white: #ffffff;
@@ -53,7 +59,7 @@
     --bg-primary: var(--gray-50);
     --bg-secondary: var(--white);
     --bg-tertiary: var(--gray-100);
-    --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --bg-gradient: linear-gradient(135deg, #f4f6fb 0%, #e9effa 100%);
     --bg-glass: rgba(255, 255, 255, 0.95);
     
     /* Text Colors */

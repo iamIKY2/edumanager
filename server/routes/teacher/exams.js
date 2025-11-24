@@ -3,32 +3,12 @@ const router = express.Router();
 const authMiddleware = require('../../middleware/auth');
 const roleMiddleware = require('../../middleware/role');
 const multer = require('multer');
-const xlsx = require('xlsx');
-const { parse } = require('csv-parse');
 const fs = require('fs').promises;
 
-
-// Hàm tạo thông báo (sẽ di chuyển vào helpers sau)
-const createNotification = async (db, io, userId, content, type, relatedId, relatedType) => {
-  try {
-    const [result] = await db.query(
-      'INSERT INTO notifications (user_id, content, type, related_id, related_type) VALUES (?, ?, ?, ?, ?)',
-      [userId, content, type, relatedId, relatedType]
-    );
-    if (io) {
-      io.to(`user_${userId}`).emit('notification', {
-        notification_id: result.insertId,
-        content,
-        type,
-        related_id: relatedId,
-        related_type: relatedType,
-        created_at: new Date().toISOString()
-      });
-    }
-  } catch (error) {
-    console.error('Lỗi tạo thông báo:', error);
-  }
-};
+// Import services
+const socketService = require('../../services/socketService');
+const excelService = require('../../services/excelService');
+const { createNotification } = require('../shared/helpers');
 
 // ✅ LẤY DANH SÁCH CÂU HỎI TRONG NGÂN HÀNG (PHẢI ĐẶT TRƯỚC CÁC ROUTE /:examId)
 router.get('/question-bank', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
@@ -333,6 +313,104 @@ router.get('/:examId/check-cheating-data', authMiddleware, roleMiddleware(['teac
   }
 });
 
+// ✅ Cập nhật bài thi
+router.put('/:examId', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
+  const { examId } = req.params;
+  const teacherId = req.user.id || req.user.user_id;
+  const { examName, examDate, examTime, duration, description, status } = req.body;
+
+  try {
+    // Kiểm tra quyền sở hữu
+    const [exam] = await req.db.query(
+      'SELECT exam_id, class_id FROM exams WHERE exam_id = ? AND teacher_id = ?',
+      [examId, teacherId]
+    );
+
+    if (!exam.length) {
+      return res.status(403).json({ error: 'Bạn không có quyền chỉnh sửa bài thi này' });
+    }
+
+    // Tạo start_time từ examDate và examTime
+    let startTime;
+    if (examDate && examTime) {
+      startTime = `${examDate} ${examTime}:00`;
+    } else if (examDate) {
+      // Nếu chỉ có ngày, giữ nguyên giờ cũ
+      const [oldExam] = await req.db.query(
+        'SELECT start_time FROM exams WHERE exam_id = ?',
+        [examId]
+      );
+      if (oldExam.length) {
+        const oldTime = new Date(oldExam[0].start_time);
+        const hours = String(oldTime.getHours()).padStart(2, '0');
+        const minutes = String(oldTime.getMinutes()).padStart(2, '0');
+        startTime = `${examDate} ${hours}:${minutes}:00`;
+      } else {
+        startTime = `${examDate} 00:00:00`;
+      }
+    }
+
+    // Cập nhật bài thi
+    const updateFields = [];
+    const updateValues = [];
+
+    if (examName) {
+      updateFields.push('exam_name = ?');
+      updateValues.push(examName);
+    }
+    if (startTime) {
+      updateFields.push('start_time = ?');
+      updateValues.push(startTime);
+    }
+    if (duration !== undefined && duration !== null) {
+      updateFields.push('duration = ?');
+      updateValues.push(parseInt(duration));
+    }
+    if (description !== undefined) {
+      updateFields.push('description = ?');
+      updateValues.push(description || '');
+    }
+    if (status) {
+      updateFields.push('status = ?');
+      updateValues.push(status);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'Không có dữ liệu để cập nhật' });
+    }
+
+    updateValues.push(examId, teacherId);
+
+    const query = `
+      UPDATE exams 
+      SET ${updateFields.join(', ')} 
+      WHERE exam_id = ? AND teacher_id = ?
+    `;
+
+    await req.db.query(query, updateValues);
+
+    // Gửi thông báo
+    await createNotification(
+      req.db,
+      req.io,
+      teacherId,
+      `Bài thi "${examName || 'đã được cập nhật'}" đã được chỉnh sửa`,
+      'Info',
+      examId,
+      'Exam'
+    );
+
+    res.json({ 
+      message: 'Cập nhật bài thi thành công',
+      exam_id: examId
+    });
+
+  } catch (err) {
+    console.error('Lỗi cập nhật bài thi:', err);
+    res.status(500).json({ error: 'Lỗi khi cập nhật bài thi', details: err.message });
+  }
+});
+
 // ✅ Xóa bài thi
 router.delete('/:examId', authMiddleware, roleMiddleware(['teacher', 'admin']), async (req, res) => {
   const { examId } = req.params;
@@ -418,24 +496,13 @@ router.delete('/:examId', authMiddleware, roleMiddleware(['teacher', 'admin']), 
 
     // ⭐ GỬI SỰ KIỆN SOCKET ĐỂ CẬP NHẬT UI REAL-TIME
     if (req.io) {
-      // Emit cho tất cả giáo viên trong cùng lớp (nếu có)
       const [examInfo] = await req.db.query(
         'SELECT class_id FROM exams WHERE exam_id = ?',
         [examId]
       );
       
-      if (examInfo.length > 0 && examInfo[0].class_id) {
-        req.io.to(`class_${examInfo[0].class_id}`).emit('exam_deleted', {
-          exam_id: examId,
-          class_id: examInfo[0].class_id
-        });
-      }
-      
-      // Emit cho chính giáo viên xóa
-      req.io.to(`user_${teacherId}`).emit('exam_deleted', {
-        exam_id: examId,
-        class_id: examInfo[0]?.class_id || null
-      });
+      const classId = examInfo.length > 0 ? examInfo[0].class_id : null;
+      socketService.emitExamDeleted(req.io, examId, classId, teacherId);
     }
 
     res.json({ 
@@ -524,10 +591,7 @@ router.post('/:examId/penalize', authMiddleware, roleMiddleware(['teacher']), as
       );
       
       if (req.io) {
-        req.io.to(`user_${attempt[0].student_id}`).emit('exam_banned', {
-          exam_id: examId,
-          reason: reason || 'Vi phạm quy định thi'
-        });
+        socketService.emitExamBanned(req.io, attempt[0].student_id, examId, reason);
       }
       
       await createNotification(
@@ -556,11 +620,7 @@ router.post('/:examId/penalize', authMiddleware, roleMiddleware(['teacher']), as
       );
       
       if (req.io) {
-        req.io.to(`user_${attempt[0].student_id}`).emit('points_deducted', {
-          exam_id: examId,
-          points_deducted,
-          reason: reason || 'Vi phạm quy định thi'
-        });
+        socketService.emitPointsDeducted(req.io, attempt[0].student_id, examId, points_deducted, reason);
       }
       
       await createNotification(
@@ -793,21 +853,7 @@ router.post('/:examId/import-questions', authMiddleware, roleMiddleware(['teache
     let questions = [];
 
     // 2. Parse file Excel/CSV
-    if (req.file.mimetype.includes('csv')) {
-      // Parse CSV
-      const csvData = await fs.readFile(filePath);
-      questions = await new Promise((resolve, reject) => {
-        parse(csvData, { columns: true, trim: true }, (err, output) => {
-          if (err) reject(err);
-          resolve(output);
-        });
-      });
-    } else {
-      // Parse Excel
-      const workbook = xlsx.readFile(filePath);
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      questions = xlsx.utils.sheet_to_json(sheet);
-    }
+    questions = await excelService.parseFile(filePath, req.file.mimetype);
 
     // 3. Xóa file upload
     await fs.unlink(filePath);
@@ -1395,7 +1441,142 @@ router.post('/question-bank', authMiddleware, roleMiddleware(['teacher']), async
 });
 
 
+// ============================================
+// 🗑️ XÓA CÁC CÂU HỎI TRÙNG NHAU TRONG NGÂN HÀNG CÂU HỎI
+// DELETE /api/teacher/exams/question-bank/duplicates
+// PHẢI ĐẶT TRƯỚC route /question-bank/:questionId để tránh conflict
+// ============================================
+router.delete('/question-bank/duplicates', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
+  const teacherId = req.user.id || req.user.user_id;
+
+  try {
+    // Lấy tất cả câu hỏi của giáo viên
+    const [allQuestions] = await req.db.query(
+      `SELECT question_id, question_content, created_at
+       FROM question_bank
+       WHERE teacher_id = ?
+       ORDER BY created_at ASC, question_id ASC`,
+      [teacherId]
+    );
+
+    if (allQuestions.length === 0) {
+      return res.json({
+        message: 'Không có câu hỏi nào',
+        deleted_count: 0,
+        duplicates_found: 0
+      });
+    }
+
+    // Nhóm các câu hỏi trùng nhau (dựa trên nội dung đã trim và normalize)
+    const questionGroups = new Map();
+    
+    for (const question of allQuestions) {
+      // Normalize nội dung: trim, loại bỏ khoảng trắng thừa, chuyển về lowercase để so sánh
+      const normalizedContent = question.question_content
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      
+      if (!questionGroups.has(normalizedContent)) {
+        questionGroups.set(normalizedContent, []);
+      }
+      questionGroups.get(normalizedContent).push({
+        question_id: question.question_id,
+        question_content: question.question_content,
+        created_at: question.created_at
+      });
+    }
+
+    // Tìm các nhóm có nhiều hơn 1 câu hỏi (trùng nhau)
+    const duplicateGroups = [];
+    for (const [content, questions] of questionGroups.entries()) {
+      if (questions.length > 1) {
+        duplicateGroups.push({
+          content: content,
+          questions: questions
+        });
+      }
+    }
+
+    if (duplicateGroups.length === 0) {
+      return res.json({
+        message: 'Không có câu hỏi trùng nhau',
+        deleted_count: 0,
+        duplicates_found: 0
+      });
+    }
+
+    // Xác định câu hỏi cần xóa (giữ lại câu hỏi đầu tiên trong mỗi nhóm)
+    const duplicateIds = [];
+    const details = [];
+
+    for (const group of duplicateGroups) {
+      // Sắp xếp theo thời gian tạo (câu hỏi cũ nhất được giữ lại)
+      const sortedQuestions = group.questions.sort((a, b) => 
+        new Date(a.created_at) - new Date(b.created_at)
+      );
+
+      const keepId = sortedQuestions[0].question_id;
+      const toDelete = sortedQuestions.slice(1);
+
+      for (const item of toDelete) {
+        duplicateIds.push(item.question_id);
+        details.push({
+          question_id: item.question_id,
+          question_content: item.question_content.substring(0, 100) + (item.question_content.length > 100 ? '...' : ''),
+          kept_id: keepId,
+          group_size: group.questions.length
+        });
+      }
+    }
+
+    if (duplicateIds.length === 0) {
+      return res.json({
+        message: 'Không có câu hỏi trùng nhau cần xóa',
+        deleted_count: 0,
+        duplicates_found: duplicateGroups.length
+      });
+    }
+
+    // Xóa các câu hỏi trùng nhau
+    let deletedCount = 0;
+    const errors = [];
+
+    for (const questionId of duplicateIds) {
+      try {
+        // Xóa options trước
+        await req.db.query('DELETE FROM question_options WHERE question_id = ?', [questionId]);
+        
+        // Xóa khỏi exam_questions (nếu đang được sử dụng)
+        await req.db.query('DELETE FROM exam_questions WHERE question_id = ?', [questionId]);
+        
+        // Xóa câu hỏi
+        await req.db.query('DELETE FROM question_bank WHERE question_id = ?', [questionId]);
+        
+        deletedCount++;
+      } catch (error) {
+        console.error(`❌ Error deleting question ${questionId}:`, error);
+        errors.push(`Lỗi khi xóa câu hỏi ID ${questionId}: ${error.message}`);
+      }
+    }
+
+    res.json({
+      message: `Đã xóa ${deletedCount} câu hỏi trùng nhau`,
+      deleted_count: deletedCount,
+      duplicates_found: duplicateGroups.length,
+      total_duplicates: duplicateIds.length,
+      details: details.slice(0, 20), // Chỉ trả về 20 câu đầu để không quá dài
+      errors: errors.length > 0 ? errors : undefined
+    });
+
+  } catch (error) {
+    console.error('❌ Error removing duplicate questions:', error);
+    res.status(500).json({ error: 'Lỗi khi xóa câu hỏi trùng nhau', details: error.message });
+  }
+});
+
 // ✅ XÓA CÂU HỎI KHỎI NGÂN HÀNG (DELETE /api/teacher/exams/question-bank/:questionId)
+// PHẢI ĐẶT SAU route /question-bank/duplicates
 router.delete('/question-bank/:questionId', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
   const { questionId } = req.params;
   const teacherId = req.user.id || req.user.user_id;

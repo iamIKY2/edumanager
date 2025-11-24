@@ -26,6 +26,9 @@ if (!token) {
     throw new Error('No token');
 }
 
+const ADMIN_PRIMARY_COLOR = '#7f8ac5';
+const ADMIN_PRIMARY_BG = 'rgba(127, 138, 197, 0.18)';
+
 
 // Biến toàn cục để lưu dữ liệu gốc cho lọc users và chi tiết môn học
 let allUsers = [];
@@ -393,7 +396,13 @@ async function loadSettingsData() {
             if (languageEl) languageEl.value = settings.display.language || 'vi';
             
             const primaryColorEl = document.getElementById('primaryColor');
-            if (primaryColorEl) primaryColorEl.value = settings.display.primaryColor || '#0d6efd';
+            if (primaryColorEl) primaryColorEl.value = settings.display.primaryColor || ADMIN_PRIMARY_COLOR;
+            
+            const tabColorEl = document.getElementById('tabColor');
+            if (tabColorEl) tabColorEl.value = settings.display.tabColor || '#667eea';
+            
+            const tabColorHexEl = document.getElementById('tabColorHex');
+            if (tabColorHexEl) tabColorHexEl.value = settings.display.tabColor || '#667eea';
             
             const fontSizeEl = document.getElementById('fontSize');
             if (fontSizeEl) fontSizeEl.value = settings.display.fontSize || 'medium';
@@ -588,6 +597,7 @@ if (saveSettingsBtn) {
             display: {
                 language: document.getElementById('language').value,
                 primaryColor: document.getElementById('primaryColor').value,
+                tabColor: document.getElementById('tabColor')?.value || '#8ea7e9',
                 fontSize: document.getElementById('fontSize').value,
                 compactMode: document.getElementById('compactMode').checked,
                 showAnimations: document.getElementById('showAnimations').checked,
@@ -741,7 +751,12 @@ if (resetSettingsBtn) {
             
             // Reset display settings
             document.getElementById('language').value = 'vi';
-            document.getElementById('primaryColor').value = '#0d6efd';
+            document.getElementById('primaryColor').value = ADMIN_PRIMARY_COLOR;
+            const tabColorInput = document.getElementById('tabColor');
+            const tabColorHexInput = document.getElementById('tabColorHex');
+            if (tabColorInput) tabColorInput.value = '#8ea7e9';
+            if (tabColorHexInput) tabColorHexInput.value = '#8ea7e9';
+            setTabColor('#8ea7e9');
             document.getElementById('fontSize').value = 'medium';
             document.getElementById('compactMode').checked = false;
             document.getElementById('showAnimations').checked = true;
@@ -837,9 +852,39 @@ function applySystemSettings(settings) {
     }
 }
 
+// ÁP DỤNG MÀU TABS
+function applyTabColor(color) {
+    if (!color) return;
+    
+    // Tạo hoặc cập nhật style cho tabs
+    let style = document.getElementById('dynamic-tab-color');
+    if (!style) {
+        style = document.createElement('style');
+        style.id = 'dynamic-tab-color';
+        document.head.appendChild(style);
+    }
+    
+    style.textContent = `
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: ${color} !important;
+            color: #FFFFFF !important;
+        }
+        .sidebar .nav-link:hover i,
+        .sidebar .nav-link.active i {
+            color: #FFFFFF !important;
+        }
+    `;
+}
+
 // DISPLAY SETTINGS - ÁP DỤNG NGAY
 function applyDisplaySettings(displaySettings) {
     if (!displaySettings) return;
+    
+    // Áp dụng màu tabs
+    if (displaySettings.tabColor) {
+        applyTabColor(displaySettings.tabColor);
+    }
     
     // Áp dụng màu chủ đạo
     if (displaySettings.primaryColor) {
@@ -914,39 +959,46 @@ function applyDisplaySettings(displaySettings) {
     }
 }
 
+function buildDisplaySettings(overrides = {}) {
+    const getValue = (id, fallback, prop = 'value') => {
+        const el = document.getElementById(id);
+        if (!el) return fallback;
+        return prop === 'checked' ? el.checked : (el.value || fallback);
+    };
+    
+    return {
+        primaryColor: getValue('primaryColor', '#7f8ac5'),
+        tabColor: getValue('tabColor', '#8ea7e9'),
+        language: getValue('language', 'vi'),
+        fontSize: getValue('fontSize', 'medium'),
+        compactMode: getValue('compactMode', false, 'checked'),
+        showAnimations: getValue('showAnimations', true, 'checked'),
+        showTooltips: getValue('showTooltips', true, 'checked'),
+        itemsPerPage: parseInt(getValue('itemsPerPage', 25), 10) || 25,
+        ...overrides
+    };
+}
+
+function saveDisplaySettings(settings) {
+    applyDisplaySettings(settings);
+    localStorage.setItem('displaySettings', JSON.stringify(settings));
+}
+
 // Sử dụng setTimeout để đảm bảo DOM đã sẵn sàng
 setTimeout(function() {
     const primaryColorEl = document.getElementById('primaryColor');
     if (primaryColorEl) {
         primaryColorEl.addEventListener('input', function() {
-            const displaySettings = {
-                primaryColor: this.value,
-                language: document.getElementById('language')?.value || 'vi',
-                fontSize: document.getElementById('fontSize')?.value || 'medium',
-                compactMode: document.getElementById('compactMode')?.checked || false,
-                showAnimations: document.getElementById('showAnimations')?.checked !== false,
-                showTooltips: document.getElementById('showTooltips')?.checked !== false,
-                itemsPerPage: parseInt(document.getElementById('itemsPerPage')?.value || 25)
-            };
-            applyDisplaySettings(displaySettings);
-            localStorage.setItem('displaySettings', JSON.stringify(displaySettings));
+            const displaySettings = buildDisplaySettings({ primaryColor: this.value });
+            saveDisplaySettings(displaySettings);
         });
     }
     
     const languageEl = document.getElementById('language');
     if (languageEl) {
         languageEl.addEventListener('change', function() {
-            const displaySettings = {
-                primaryColor: document.getElementById('primaryColor')?.value || '#0d6efd',
-                language: this.value,
-                fontSize: document.getElementById('fontSize')?.value || 'medium',
-                compactMode: document.getElementById('compactMode')?.checked || false,
-                showAnimations: document.getElementById('showAnimations')?.checked !== false,
-                showTooltips: document.getElementById('showTooltips')?.checked !== false,
-                itemsPerPage: parseInt(document.getElementById('itemsPerPage')?.value || 25)
-            };
-            applyDisplaySettings(displaySettings);
-            localStorage.setItem('displaySettings', JSON.stringify(displaySettings));
+            const displaySettings = buildDisplaySettings({ language: this.value });
+            saveDisplaySettings(displaySettings);
             showNotification('Ngôn ngữ đã thay đổi. Vui lòng làm mới trang để áp dụng đầy đủ.', 'info');
         });
     }
@@ -954,51 +1006,46 @@ setTimeout(function() {
     const fontSizeEl = document.getElementById('fontSize');
     if (fontSizeEl) {
         fontSizeEl.addEventListener('change', function() {
-            const displaySettings = {
-                primaryColor: document.getElementById('primaryColor')?.value || '#0d6efd',
-                language: document.getElementById('language')?.value || 'vi',
-                fontSize: this.value,
-                compactMode: document.getElementById('compactMode')?.checked || false,
-                showAnimations: document.getElementById('showAnimations')?.checked !== false,
-                showTooltips: document.getElementById('showTooltips')?.checked !== false,
-                itemsPerPage: parseInt(document.getElementById('itemsPerPage')?.value || 25)
-            };
-            applyDisplaySettings(displaySettings);
-            localStorage.setItem('displaySettings', JSON.stringify(displaySettings));
+            const displaySettings = buildDisplaySettings({ fontSize: this.value });
+            saveDisplaySettings(displaySettings);
         });
     }
     
     const compactModeEl = document.getElementById('compactMode');
     if (compactModeEl) {
         compactModeEl.addEventListener('change', function() {
-            const displaySettings = {
-                primaryColor: document.getElementById('primaryColor')?.value || '#0d6efd',
-                language: document.getElementById('language')?.value || 'vi',
-                fontSize: document.getElementById('fontSize')?.value || 'medium',
-                compactMode: this.checked,
-                showAnimations: document.getElementById('showAnimations')?.checked !== false,
-                showTooltips: document.getElementById('showTooltips')?.checked !== false,
-                itemsPerPage: parseInt(document.getElementById('itemsPerPage')?.value || 25)
-            };
-            applyDisplaySettings(displaySettings);
-            localStorage.setItem('displaySettings', JSON.stringify(displaySettings));
+            const displaySettings = buildDisplaySettings({ compactMode: this.checked });
+            saveDisplaySettings(displaySettings);
         });
     }
     
     const showAnimationsEl = document.getElementById('showAnimations');
     if (showAnimationsEl) {
         showAnimationsEl.addEventListener('change', function() {
-            const displaySettings = {
-                primaryColor: document.getElementById('primaryColor')?.value || '#0d6efd',
-                language: document.getElementById('language')?.value || 'vi',
-                fontSize: document.getElementById('fontSize')?.value || 'medium',
-                compactMode: document.getElementById('compactMode')?.checked || false,
-                showAnimations: this.checked,
-                showTooltips: document.getElementById('showTooltips')?.checked !== false,
-                itemsPerPage: parseInt(document.getElementById('itemsPerPage')?.value || 25)
-            };
-            applyDisplaySettings(displaySettings);
-            localStorage.setItem('displaySettings', JSON.stringify(displaySettings));
+            const displaySettings = buildDisplaySettings({ showAnimations: this.checked });
+            saveDisplaySettings(displaySettings);
+        });
+    }
+    
+    // Xử lý màu tabs
+    const tabColorEl = document.getElementById('tabColor');
+    const tabColorHexEl = document.getElementById('tabColorHex');
+    
+    if (tabColorEl) {
+        tabColorEl.addEventListener('input', function() {
+            const color = this.value;
+            if (tabColorHexEl) tabColorHexEl.value = color;
+            updateTabColor(color);
+        });
+    }
+    
+    if (tabColorHexEl) {
+        tabColorHexEl.addEventListener('input', function() {
+            const color = this.value;
+            if (/^#[0-9A-F]{6}$/i.test(color)) {
+                if (tabColorEl) tabColorEl.value = color;
+                updateTabColor(color);
+            }
         });
     }
     
@@ -1008,11 +1055,39 @@ setTimeout(function() {
         try {
             const settings = JSON.parse(savedDisplaySettings);
             applyDisplaySettings(settings);
+            if (settings.tabColor) {
+                if (tabColorEl) tabColorEl.value = settings.tabColor;
+                if (tabColorHexEl) tabColorHexEl.value = settings.tabColor;
+            }
         } catch (e) {
             console.error('Lỗi parse display settings:', e);
         }
     }
 }, 500);
+
+// Cập nhật màu tabs và lưu vào settings
+function updateTabColor(color) {
+    const displaySettings = buildDisplaySettings({ tabColor: color });
+    saveDisplaySettings(displaySettings);
+    showNotification('Màu tabs đã được cập nhật!', 'success');
+}
+
+// Đặt màu tabs từ nút preset
+function setTabColor(color) {
+    const tabColorEl = document.getElementById('tabColor');
+    const tabColorHexEl = document.getElementById('tabColorHex');
+    
+    if (tabColorEl) tabColorEl.value = color;
+    if (tabColorHexEl) tabColorHexEl.value = color;
+    
+    updateTabColor(color);
+}
+
+// Reset màu tabs về mặc định
+function resetTabColor() {
+    const defaultColor = '#8ea7e9';
+    setTabColor(defaultColor);
+}
 
 // Hàm cập nhật biểu đồ userChart
 function updateUserChart(role, data) {
@@ -1032,8 +1107,8 @@ function updateUserChart(role, data) {
             datasets: [{
                 label: label,
                 data: chartData || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                borderColor: role === 'Student' ? '#0d6efd' : '#198754',
-                backgroundColor: role === 'Student' ? 'rgba(13, 110, 253, 0.1)' : 'rgba(25, 135, 84, 0.1)',
+                borderColor: role === 'Student' ? ADMIN_PRIMARY_COLOR : '#198754',
+                backgroundColor: role === 'Student' ? ADMIN_PRIMARY_BG : 'rgba(25, 135, 84, 0.15)',
                 tension: 0.4,
                 fill: true
             }]
@@ -1125,7 +1200,8 @@ async function loadDashboardData() {
             userChartCtx.isStudent = isStudent;
             
             const currentData = isStudent ? chartData.student : chartData.teacher;
-            const currentColor = isStudent ? '#0d6efd' : '#198754';
+            const currentColor = isStudent ? ADMIN_PRIMARY_COLOR : '#198754';
+            const areaBackground = isStudent ? ADMIN_PRIMARY_BG : 'rgba(25, 135, 84, 0.15)';
             const currentLabel = isStudent ? 'Sinh viên mới' : 'Giáo viên mới';
             
             let chartConfig = {
@@ -1134,7 +1210,7 @@ async function loadDashboardData() {
                     label: currentLabel,
                     data: currentData,
                     borderColor: currentColor,
-                        backgroundColor: userChartType === 'area' ? (currentColor === '#0d6efd' ? 'rgba(13, 110, 253, 0.1)' : 'rgba(25, 135, 84, 0.1)') : currentColor,
+                    backgroundColor: userChartType === 'area' ? areaBackground : currentColor,
                     tension: userChartType === 'line' || userChartType === 'area' ? 0.4 : 0,
                     fill: userChartType === 'area'
                 }]
@@ -1196,8 +1272,8 @@ async function loadDashboardData() {
                     label: 'Số sinh viên',
                     data: scoreData.data || [],
                     backgroundColor: scoreChartType === 'pie' || scoreChartType === 'doughnut' 
-                        ? ['#dc3545', '#fd7e14', '#ffc107', '#198754', '#0d6efd']
-                        : '#0d6efd'
+                        ? ['#dc3545', '#fd7e14', '#ffc107', '#198754', ADMIN_PRIMARY_COLOR]
+                        : ADMIN_PRIMARY_COLOR
                 }]
             };
             
@@ -1360,7 +1436,7 @@ function setupChartTypeListeners() {
                 const newType = e.target.value;
                 const isStudent = userChartCtx.isStudent !== false;
                 const currentData = isStudent ? userChartCtx.chartData.student : userChartCtx.chartData.teacher;
-                const currentColor = isStudent ? '#0d6efd' : '#198754';
+                const currentColor = isStudent ? ADMIN_PRIMARY_COLOR : '#198754';
                 const currentLabel = isStudent ? 'Sinh viên mới' : 'Giáo viên mới';
                 
                 const chartConfig = {
@@ -1369,7 +1445,7 @@ function setupChartTypeListeners() {
                         label: currentLabel,
                         data: currentData,
                         borderColor: currentColor,
-                        backgroundColor: newType === 'area' ? (currentColor === '#0d6efd' ? 'rgba(13, 110, 253, 0.1)' : 'rgba(25, 135, 84, 0.1)') : currentColor,
+                        backgroundColor: newType === 'area' ? (isStudent ? ADMIN_PRIMARY_BG : 'rgba(25, 135, 84, 0.15)') : currentColor,
                         tension: newType === 'line' || newType === 'area' ? 0.4 : 0,
                         fill: newType === 'area'
                     }]
@@ -1448,8 +1524,8 @@ function setupChartTypeListeners() {
                             label: 'Số sinh viên',
                             data: scoreData.data || [],
                             backgroundColor: e.target.value === 'pie' || e.target.value === 'doughnut'
-                                ? ['#dc3545', '#fd7e14', '#ffc107', '#198754', '#0d6efd']
-                                : '#0d6efd'
+                                ? ['#dc3545', '#fd7e14', '#ffc107', '#198754', ADMIN_PRIMARY_COLOR]
+                                : ADMIN_PRIMARY_COLOR
                         }]
                     };
                     
@@ -1531,10 +1607,10 @@ function setupUserRoleButtons() {
                 userChartCtx.isStudent = true;
                 userChartCtx.chartInstance.data.datasets[0].label = 'Sinh viên mới';
                 userChartCtx.chartInstance.data.datasets[0].data = userChartCtx.chartData.student;
-                userChartCtx.chartInstance.data.datasets[0].borderColor = '#0d6efd';
+                userChartCtx.chartInstance.data.datasets[0].borderColor = ADMIN_PRIMARY_COLOR;
                 userChartCtx.chartInstance.data.datasets[0].backgroundColor = chartType === 'area' 
-                    ? 'rgba(13, 110, 253, 0.1)' 
-                    : '#0d6efd';
+                    ? ADMIN_PRIMARY_BG 
+                    : ADMIN_PRIMARY_COLOR;
                 userChartCtx.chartInstance.update();
             }
         });
@@ -1546,10 +1622,10 @@ function setupUserRoleButtons() {
                 const chartType = userChartCtx.currentType || 'line';
                 userChartCtx.isStudent = false;
                 userChartCtx.chartInstance.data.datasets[0].label = 'Giáo viên mới';
-                userChartCtx.chartInstance.data.datasets[0].data = userChartCtx.chartData.teacher;
+        userChartCtx.chartInstance.data.datasets[0].data = userChartCtx.chartData.teacher;
                 userChartCtx.chartInstance.data.datasets[0].borderColor = '#198754';
                 userChartCtx.chartInstance.data.datasets[0].backgroundColor = chartType === 'area'
-                    ? 'rgba(25, 135, 84, 0.1)'
+                    ? 'rgba(25, 135, 84, 0.15)'
                     : '#198754';
                 userChartCtx.chartInstance.update();
             }
@@ -2144,6 +2220,60 @@ async function deleteExam(examId) {
         loadExamsData();
     } catch (err) {
         showNotification('Lỗi: ' + err.message, 'error');
+    }
+}
+
+// Xóa các câu hỏi trùng nhau trong ngân hàng câu hỏi (Admin)
+async function removeDuplicateQuestions() {
+    if (!confirm('⚠️ Bạn có chắc chắn muốn xóa tất cả các câu hỏi trùng nhau trong toàn bộ hệ thống?\n\nHệ thống sẽ giữ lại câu hỏi được tạo sớm nhất trong mỗi nhóm trùng và xóa các câu hỏi còn lại.\n\nHành động này không thể hoàn tác!')) {
+        return;
+    }
+
+    const token = localStorage.getItem('token');
+    const tbody = document.querySelector('#questionsTableBody') || document.querySelector('#questions-section tbody');
+    
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center"><p>⏳ Đang xóa câu hỏi trùng nhau...</p></td></tr>';
+    }
+
+    try {
+        const response = await fetch('http://localhost:3000/api/admin/questions/duplicates', {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi khi xóa câu hỏi trùng nhau');
+        }
+
+        const result = await response.json();
+        
+        if (result.deleted_count > 0) {
+            showNotification(
+                `✅ Đã xóa ${result.deleted_count} câu hỏi trùng nhau!\nTìm thấy ${result.duplicates_found} nhóm câu hỏi trùng.`,
+                'success'
+            );
+            
+            // Reload danh sách câu hỏi
+            await loadQuestionsData(1);
+        } else {
+            showNotification('ℹ️ Không có câu hỏi trùng nhau nào để xóa.', 'info');
+            if (tbody) {
+                await loadQuestionsData(1);
+            }
+        }
+
+    } catch (error) {
+        console.error('❌ Error removing duplicate questions:', error);
+        showNotification(`❌ ${error.message}`, 'error');
+        
+        if (tbody) {
+            await loadQuestionsData(1);
+        }
     }
 }
 
@@ -3631,8 +3761,8 @@ function updateScoreTrendChart(trendData) {
             datasets: [{
                 label: 'Điểm trung bình',
                 data: trendData.map(d => d.avg_score),
-                borderColor: '#0d6efd',
-                backgroundColor: chartType === 'line' ? 'rgba(13, 110, 253, 0.1)' : '#0d6efd',
+                borderColor: ADMIN_PRIMARY_COLOR,
+                backgroundColor: chartType === 'line' ? ADMIN_PRIMARY_BG : ADMIN_PRIMARY_COLOR,
                 tension: 0.4,
                 fill: true
             }]
@@ -3690,7 +3820,7 @@ function updateGradeDistributionChart(gradeData) {
             labels: ['Xuất sắc', 'Khá', 'Trung bình', 'Yếu'],
             datasets: [{
                 data: [excellent, good, average, weak],
-                backgroundColor: ['#198754', '#0d6efd', '#ffc107', '#dc3545']
+                backgroundColor: ['#198754', ADMIN_PRIMARY_COLOR, '#ffc107', '#dc3545']
             }]
         },
         options: {
@@ -3719,7 +3849,7 @@ function updateSubjectComparisonChart(subjectData) {
             datasets: [{
                 label: 'Điểm trung bình',
                 data: subjectData.map(s => s.avg_score),
-                backgroundColor: '#0d6efd'
+                backgroundColor: ADMIN_PRIMARY_COLOR
             }]
         },
         options: {
