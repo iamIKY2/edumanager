@@ -320,8 +320,9 @@
         </div>
     </div>
 
+    <script src="/client/public/js/config.js"></script>
+    <script src="/client/public/js/api.js"></script>
     <script>
-    const API_URL = 'http://127.0.0.1:3000/api';
     const token = localStorage.getItem('token');
 
     document.addEventListener('DOMContentLoaded', async function() {
@@ -348,18 +349,8 @@
         try {
             console.log('🔍 Fetching result:', { examId, attemptId });
 
-            const response = await fetch(`${API_URL}/student/exams/${examId}/result/${attemptId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                console.error('❌ Response not OK:', response.status, response.statusText);
-                throw new Error('Không thể tải kết quả');
-            }
-
-            const data = await response.json();
+            // Sử dụng apiGet từ api.js - tự động xử lý URL và errors
+            const data = await apiGet(`/api/student/exams/${examId}/result/${attemptId}`);
             console.log('✅ Result data:', data);
 
             if (!data.attempt || !data.results) {

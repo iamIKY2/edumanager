@@ -164,7 +164,8 @@
       formData.append('attachment', document.getElementById('attachment').files[0]);
 
       try {
-        const response = await fetch('http://localhost:3000/api/complaints', {
+        // Sử dụng relative URL
+        const response = await fetch('/api/complaints', {
           method: 'POST',
           body: formData
         });
@@ -183,7 +184,8 @@
     // Load danh sách bài thi và khiếu nại (giả lập)
     async function loadData() {
       // Lấy danh sách bài thi
-      const examResponse = await fetch('http://localhost:3000/api/exams');
+      // Sử dụng relative URL
+      const examResponse = await fetch('/api/exams');
       const exams = await examResponse.json();
       const examSelect = document.getElementById('examId');
       exams.forEach(exam => {
@@ -194,7 +196,8 @@
       });
 
       // Lấy danh sách khiếu nại
-      const complaintResponse = await fetch('http://localhost:3000/api/complaints');
+      // Sử dụng relative URL
+      const complaintResponse = await fetch('/api/complaints');
       const complaints = await complaintResponse.json();
       const complaintList = document.getElementById('complaintList');
       complaints.forEach(c => {

@@ -35,8 +35,48 @@ let allUsers = [];
 let allStudents = [];
 
 // Toggle Sidebar
-document.getElementById('toggleSidebar')?.addEventListener('click', function() {
-    document.getElementById('sidebar').classList.toggle('show');
+const toggleSidebarBtn = document.getElementById('toggleSidebar');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.createElement('div');
+sidebarOverlay.className = 'sidebar-overlay';
+document.body.appendChild(sidebarOverlay);
+
+// Toggle sidebar function
+function toggleSidebar() {
+    sidebar.classList.toggle('show');
+    sidebarOverlay.classList.toggle('show');
+}
+
+// Toggle button click
+toggleSidebarBtn?.addEventListener('click', function(e) {
+    e.stopPropagation();
+    toggleSidebar();
+});
+
+// Close sidebar when clicking overlay
+sidebarOverlay.addEventListener('click', function() {
+    sidebar.classList.remove('show');
+    sidebarOverlay.classList.remove('show');
+});
+
+// Close sidebar when clicking outside on mobile
+document.addEventListener('click', function(e) {
+    if (window.innerWidth <= 767.98) {
+        if (sidebar.classList.contains('show') && 
+            !sidebar.contains(e.target) && 
+            !toggleSidebarBtn.contains(e.target)) {
+            sidebar.classList.remove('show');
+            sidebarOverlay.classList.remove('show');
+        }
+    }
+});
+
+// Close sidebar on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && sidebar.classList.contains('show')) {
+        sidebar.classList.remove('show');
+        sidebarOverlay.classList.remove('show');
+    }
 });
 
 // Navigation and Section Switching
@@ -160,11 +200,8 @@ document.querySelectorAll('.nav-link').forEach(link => {
 async function createBackup() {
     try {
         showNotification('Đang tạo bản sao lưu...', 'info');
-        const response = await fetch('http://localhost:3000/api/admin/backup/create', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) throw new Error(await response.text());
+        // Sử dụng apiPost từ api.js
+        await apiPost('/api/admin/backup/create', {});
         showNotification('Tạo bản sao lưu thành công!', 'success');
     } catch (err) {
         showNotification('Lỗi tạo bản sao lưu: ' + err.message, 'error');
@@ -173,11 +210,8 @@ async function createBackup() {
 
 async function viewBackupHistory() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/backup/history', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) throw new Error(await response.text());
-        const backups = await response.json();
+        // Sử dụng apiGet từ api.js
+        const backups = await apiGet('/api/admin/backup/history');
         
         if (backups.length === 0) {
             showNotification('Chưa có bản backup nào', 'info');
@@ -210,7 +244,9 @@ async function restoreBackup() {
         formData.append('overwrite', overwrite ? 'true' : 'false');
         
         showNotification('Đang khôi phục...', 'info');
-        const response = await fetch('http://localhost:3000/api/admin/backup/restore', {
+        // Sử dụng apiPost từ api.js - nhưng với FormData cần dùng fetch trực tiếp
+        const baseUrl = window.CONFIG?.API_BASE_URL || '';
+        const response = await fetch(baseUrl + '/api/admin/backup/restore', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData
@@ -232,12 +268,15 @@ async function restoreBackup() {
 // Logs Functions
 function viewSystemLogs() {
     showNotification('Đang tải log...', 'info');
-    window.open('http://localhost:3000/api/admin/logs/view', '_blank');
+    // Sử dụng CONFIG để build URL
+    window.open((window.CONFIG?.API_BASE_URL || '') + '/api/admin/logs/view', '_blank');
 }
 
 async function exportLogs() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/logs/export', {
+        // Sử dụng fetch trực tiếp vì cần blob
+        const baseUrl = window.CONFIG?.API_BASE_URL || '';
+        const response = await fetch(baseUrl + '/api/admin/logs/export', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error(await response.text());
@@ -256,11 +295,10 @@ async function exportLogs() {
 async function clearOldLogs() {
     if (!confirm('Bạn có chắc chắn muốn xóa log cũ?')) return;
     try {
-        const response = await fetch('http://localhost:3000/api/admin/logs/clear', {
-            method: 'POST',
+        // Sử dụng apiPost từ api.js
+        await apiPost('/api/admin/logs/clear', {}, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
         showNotification('Xóa log cũ thành công!', 'success');
     } catch (err) {
         showNotification('Lỗi xóa log: ' + err.message, 'error');
@@ -290,11 +328,10 @@ function viewPerformanceStats() {
 async function clearCache() {
     if (!confirm('Bạn có chắc chắn muốn xóa cache?')) return;
     try {
-        const response = await fetch('http://localhost:3000/api/admin/cache/clear', {
-            method: 'POST',
+        // Sử dụng apiPost từ api.js
+        await apiPost('/api/admin/cache/clear', {}, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
         showNotification('Xóa cache thành công!', 'success');
     } catch (err) {
         showNotification('Lỗi xóa cache: ' + err.message, 'error');
@@ -305,11 +342,11 @@ async function optimizeDatabase() {
     if (!confirm('Bạn có chắc chắn muốn tối ưu database? Quá trình này có thể mất vài phút.')) return;
     try {
         showNotification('Đang tối ưu database...', 'info');
-        const response = await fetch('http://localhost:3000/api/admin/database/optimize', {
-            method: 'POST',
+        // Sử dụng apiGet/apiPost từ api.js
+        // Sử dụng apiPost từ api.js
+        await apiPost('/api/admin/database/optimize', {}, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
         showNotification('Tối ưu database thành công!', 'success');
     } catch (err) {
         showNotification('Lỗi tối ưu database: ' + err.message, 'error');
@@ -321,18 +358,10 @@ async function optimizeDatabase() {
 // ==========================================
 async function loadSettingsData() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/settings', {
+        // Sử dụng apiGet/apiPost từ api.js
+        const settings = await apiGet('/api/admin/settings', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Lỗi API settings:', response.status, errorText);
-            showNotification('Lỗi tải cài đặt: ' + errorText, 'error');
-            // Vẫn hiển thị form với giá trị mặc định
-            return;
-        }
-        const settings = await response.json();
         
         
         if (!settings || Object.keys(settings).length === 0) {
@@ -681,17 +710,10 @@ if (saveSettingsBtn) {
             settings.email.smtpPassword = smtpPassword;
         }
 
-            const response = await fetch('http://localhost:3000/api/admin/settings', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(settings)
+            // Sử dụng apiPost từ api.js
+            await apiPost('/api/admin/settings', settings, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Lỗi lưu cài đặt');
 
             showNotification('Lưu cài đặt thành công!', 'success');
             // Clear password field sau khi lưu
@@ -1138,18 +1160,11 @@ function recreateChart(ctx, type, data, options) {
 async function loadDashboardData() {
     try {
         // Lấy dữ liệu thống kê tổng quan
-        const statsResponse = await fetch('http://localhost:3000/api/admin/stats', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!statsResponse.ok) throw new Error(await statsResponse.text());
-        const statsData = await statsResponse.json();
+        // Sử dụng apiGet từ api.js
+        const statsData = await apiGet('/api/admin/stats');
         
         // Lấy dữ liệu biểu đồ
-        const chartsResponse = await fetch('http://localhost:3000/api/admin/dashboard/charts', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!chartsResponse.ok) throw new Error(await chartsResponse.text());
-        const chartsData = await chartsResponse.json();
+        const chartsData = await apiGet('/api/admin/dashboard/charts');
         
         
         // Cập nhật thống kê
@@ -1340,13 +1355,10 @@ async function loadRecentActivities() {
     if (!activitiesList) return;
     
     try {
-        const response = await fetch('http://localhost:3000/api/admin/recent-activities', {
+        // Sử dụng apiGet/apiPost từ api.js
+        const activities = await apiGet('/api/admin/recent-activities', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) throw new Error('Lỗi tải hoạt động gần đây');
-        
-        const activities = await response.json();
         
         if (activities.length === 0) {
             activitiesList.innerHTML = `
@@ -1398,13 +1410,10 @@ async function loadRecentActivities() {
 // Hàm kiểm tra cảnh báo gian lận
 async function checkCheatingAlerts() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/monitor/cheating/stats', {
+        // Sử dụng apiGet/apiPost từ api.js
+        const data = await apiGet('/api/admin/monitor/cheating/stats', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) return;
-        
-        const data = await response.json();
         const totalViolations = data.totalStats?.total_violations || 0;
         const recentViolations = data.dailyStats?.reduce((sum, day) => sum + (day.count || 0), 0) || 0;
         
@@ -1469,10 +1478,10 @@ function setupChartTypeListeners() {
             const completionCtx = document.getElementById('completionChart');
             if (completionCtx) {
                 try {
-                    const response = await fetch('http://localhost:3000/api/admin/dashboard/charts', {
+                    // Sử dụng apiGet/apiPost từ api.js
+                    const data = await apiGet('/api/admin/dashboard/charts', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    const data = await response.json();
                     const completionData = data.completionChart || {};
                     
                     const chartData = {
@@ -1512,10 +1521,10 @@ function setupChartTypeListeners() {
             const scoreCtx = document.getElementById('scoreChart');
             if (scoreCtx) {
                 try {
-                    const response = await fetch('http://localhost:3000/api/admin/dashboard/charts', {
+                    // Sử dụng apiGet/apiPost từ api.js
+                    const data = await apiGet('/api/admin/dashboard/charts', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    const data = await response.json();
                     const scoreData = data.scoreChart || {};
                     
                     const chartData = {
@@ -1554,10 +1563,10 @@ function setupChartTypeListeners() {
             const examCtx = document.getElementById('examChart');
             if (examCtx) {
                 try {
-                    const response = await fetch('http://localhost:3000/api/admin/dashboard/charts', {
+                    // Sử dụng apiGet/apiPost từ api.js
+                    const data = await apiGet('/api/admin/dashboard/charts', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    const data = await response.json();
                     const examData = data.examChart || {};
                     
                     const chartData = {
@@ -1657,18 +1666,26 @@ function filterUsersData() {
     }
 
     const tbody = document.querySelector('#users-section tbody');
-    if (!tbody) {
-        console.error('Không tìm thấy tbody trong users-section');
+    const cardView = document.getElementById('usersCardView');
+    
+    if (!tbody && !cardView) {
+        console.error('Không tìm thấy tbody hoặc cardView trong users-section');
         showNotification('Lỗi giao diện: Không tìm thấy bảng người dùng', 'error');
         return;
     }
 
-    tbody.innerHTML = '';
-
     if (filteredUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Không tìm thấy dữ liệu phù hợp</td></tr>';
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Không tìm thấy dữ liệu phù hợp</td></tr>';
+        }
+        if (cardView) {
+            cardView.innerHTML = '<div class="col-12 text-center text-muted py-4">Không tìm thấy dữ liệu phù hợp</div>';
+        }
         return;
     }
+    
+    let tableHTML = '';
+    let cardHTML = '';
 
     filteredUsers.forEach(user => {
         const roleClass = {
@@ -1677,16 +1694,24 @@ function filterUsersData() {
             'Admin': 'bg-danger'
         }[user.role] || 'bg-secondary';
 
+        const roleText = {
+            'Student': 'Sinh viên',
+            'Teacher': 'Giáo viên',
+            'Admin': 'Quản trị viên'
+        }[user.role] || user.role;
+
         const statusClass = user.status === 'active' ? 'bg-success' : 'bg-danger';
         const statusText = user.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động';
+        const createdDate = new Date(user.created_at).toLocaleDateString('vi-VN');
 
-        tbody.innerHTML += `
+        // Table row for desktop
+        tableHTML += `
             <tr>
                 <td>#${user.user_id}</td>
                 <td><strong>${user.full_name}</strong></td>
                 <td>${user.email}</td>
                 <td><span class="badge ${roleClass}">${user.role}</span></td>
-                <td>${new Date(user.created_at).toLocaleDateString('vi-VN')}</td>
+                <td>${createdDate}</td>
                 <td><span class="badge ${statusClass}">${statusText}</span></td>
                 <td>
                     <div class="action-buttons">
@@ -1696,17 +1721,56 @@ function filterUsersData() {
                 </td>
             </tr>
         `;
+
+        // Card for mobile
+        cardHTML += `
+            <div class="col-12">
+                <div class="user-card">
+                    <div class="user-card-header">
+                        <span class="user-id">#${user.user_id}</span>
+                    </div>
+                    <div class="user-card-body">
+                        <div class="user-name">${user.full_name}</div>
+                        <div class="user-email">${user.email}</div>
+                        <div class="user-badges">
+                            <span class="badge ${roleClass}">${roleText}</span>
+                            <span class="badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="user-date">
+                            <i class="bi bi-calendar3"></i> ${createdDate}
+                        </div>
+                    </div>
+                    <div class="user-card-footer">
+                        <button class="btn btn-sm btn-info" onclick="viewUser(${user.user_id})" title="Xem chi tiết">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        ${user.role !== 'Admin' ? `
+                            <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.user_id})" title="Xóa">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
     });
+
+    if (tbody) {
+        tbody.innerHTML = tableHTML;
+    }
+    
+    if (cardView) {
+        cardView.innerHTML = cardHTML;
+    }
 }
 
 // Hàm lấy danh sách người dùng
 async function loadUsersData() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/users', {
+        // Sử dụng apiGet/apiPost từ api.js
+        const users = await apiGet('/api/admin/users', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
-        const users = await response.json();
         
         allUsers = users.map(user => ({
             ...user,
@@ -1797,11 +1861,8 @@ async function viewSubject(subjectId) {
     // Lưu subjectId để dùng trong viewStudentScores
     window.currentSubjectId = subjectId;
     
-    const response = await fetch(`http://localhost:3000/api/admin/subjects/${subjectId}/details`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!response.ok) throw new Error(await response.text());
-    const data = await response.json();
+    // Sử dụng apiGet từ api.js
+    const data = await apiGet(`/api/admin/subjects/${subjectId}/details`);
 
     // Ẩn danh sách môn học, hiện chi tiết
     const subjectsList = document.getElementById('subjectsList');
@@ -1888,11 +1949,10 @@ async function viewSubject(subjectId) {
 // Hàm lấy danh sách môn học
 async function loadSubjectsData() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/subjects', {
+        // Sử dụng apiGet/apiPost từ api.js
+        const subjects = await apiGet('/api/admin/subjects', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
-        const subjects = await response.json();
         
         const tbody = document.querySelector('#subjectsTableBody');
         tbody.innerHTML = '';
@@ -1934,11 +1994,10 @@ async function loadSubjectsData() {
 // Hàm lấy danh sách kỳ thi
 async function loadExamsData() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/exams', {
+        // Sử dụng apiGet/apiPost từ api.js
+        const exams = await apiGet('/api/admin/exams', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
-        const exams = await response.json();
         
         const tbody = document.querySelector('#exams-section tbody');
         tbody.innerHTML = '';
@@ -1981,11 +2040,10 @@ async function loadExamsData() {
 // Hàm lấy danh sách câu hỏi
 async function loadQuestionsData() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/questions', {
+        // Sử dụng apiGet/apiPost từ api.js
+        const questions = await apiGet('/api/admin/questions', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
-        const questions = await response.json();
         
         const tbody = document.querySelector('#questions-section tbody');
         tbody.innerHTML = '';
@@ -2054,17 +2112,10 @@ document.getElementById('saveUserBtn')?.addEventListener('click', async () => {
     }
 
     try {
-        const response = await fetch('http://localhost:3000/api/admin/users', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ username, full_name, email, password, role })
+        // Sử dụng apiPost từ api.js
+        await apiPost('/api/admin/users', { username, full_name, email, password, role }, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
 
         showNotification('Thêm người dùng thành công!', 'success');
         bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
@@ -2090,17 +2141,10 @@ document.getElementById('saveSubjectBtn')?.addEventListener('click', async () =>
     }
 
     try {
-        const response = await fetch('http://localhost:3000/api/admin/subjects', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ subject_name })
+        // Sử dụng apiPost từ api.js
+        await apiPost('/api/admin/subjects', { subject_name }, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
 
         showNotification('Thêm môn học thành công!', 'success');
         bootstrap.Modal.getInstance(document.getElementById('addSubjectModal')).hide();
@@ -2116,10 +2160,8 @@ document.getElementById('addExamBtn')?.addEventListener('click', async () => {
     // Load danh sách môn học và giáo viên
     try {
         // Load subjects
-        const subjectsResponse = await fetch('http://localhost:3000/api/admin/subjects', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const subjects = await subjectsResponse.json();
+        // Sử dụng apiGet từ api.js
+        const subjects = await apiGet('/api/admin/subjects');
         
         const subjectSelect = document.getElementById('examSubjectId');
         subjectSelect.innerHTML = '<option value="">Chọn môn học</option>';
@@ -2128,10 +2170,7 @@ document.getElementById('addExamBtn')?.addEventListener('click', async () => {
         });
         
         // Load teachers
-        const usersResponse = await fetch('http://localhost:3000/api/admin/users', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const users = await usersResponse.json();
+        const users = await apiGet('/api/admin/users');
         const teachers = users.filter(u => u.role === 'Teacher');
         
         const teacherSelect = document.getElementById('examTeacherId');
@@ -2158,22 +2197,15 @@ document.getElementById('saveExamBtn')?.addEventListener('click', async () => {
     }
     
     try {
-        const response = await fetch('http://localhost:3000/api/admin/exams', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                exam_name, 
-                subject_id: parseInt(subject_id), 
-                duration: parseInt(duration),
-                teacher_id: document.getElementById('examTeacherId').value ? parseInt(document.getElementById('examTeacherId').value) : null
-            })
+        // Sử dụng apiPost từ api.js
+        await apiPost('/api/admin/exams', { 
+            exam_name, 
+            subject_id: parseInt(subject_id), 
+            duration: parseInt(duration),
+            teacher_id: document.getElementById('examTeacherId').value ? parseInt(document.getElementById('examTeacherId').value) : null
+        }, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         
         showNotification('Tạo kỳ thi thành công!', 'success');
         bootstrap.Modal.getInstance(document.getElementById('addExamModal')).hide();
@@ -2189,13 +2221,10 @@ async function deleteUser(userId) {
     if (!confirm('Bạn có chắc muốn xóa người dùng này?')) return;
 
     try {
-        const response = await fetch(`http://localhost:3000/api/admin/users/${userId}`, {
-            method: 'DELETE',
+        // Sử dụng apiDelete từ api.js
+        await apiDelete(`/api/admin/users/${userId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
 
         showNotification('Xóa người dùng thành công!', 'success');
         loadUsersData();
@@ -2208,13 +2237,10 @@ async function deleteExam(examId) {
     if (!confirm('Bạn có chắc muốn xóa kỳ thi này?')) return;
 
     try {
-        const response = await fetch(`http://localhost:3000/api/admin/exams/${examId}`, {
-            method: 'DELETE',
+        // Sử dụng apiDelete từ api.js
+        await apiDelete(`/api/admin/exams/${examId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
 
         showNotification('Xóa kỳ thi thành công!', 'success');
         loadExamsData();
@@ -2237,20 +2263,10 @@ async function removeDuplicateQuestions() {
     }
 
     try {
-        const response = await fetch('http://localhost:3000/api/admin/questions/duplicates', {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+        // Sử dụng apiDelete từ api.js
+        const result = await apiDelete('/api/admin/questions/duplicates', {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Lỗi khi xóa câu hỏi trùng nhau');
-        }
-
-        const result = await response.json();
         
         if (result.deleted_count > 0) {
             showNotification(
@@ -2281,13 +2297,11 @@ async function deleteQuestion(questionId) {
     if (!confirm('Bạn có chắc muốn xóa câu hỏi này?')) return;
 
     try {
-        const response = await fetch(`http://localhost:3000/api/admin/questions/${questionId}`, {
-            method: 'DELETE',
+        // Sử dụng apiGet/apiPost từ api.js
+        // Sử dụng apiDelete từ api.js
+        await apiDelete(`/api/admin/questions/${questionId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
 
         showNotification('Xóa câu hỏi thành công!', 'success');
         loadQuestionsData();
@@ -2300,13 +2314,10 @@ async function deleteSubject(subjectId) {
     if (!confirm('Bạn có chắc muốn xóa môn học này?')) return;
 
     try {
-        const response = await fetch(`http://localhost:3000/api/admin/subjects/${subjectId}`, {
-            method: 'DELETE',
+        // Sử dụng apiDelete từ api.js
+        await apiDelete(`/api/admin/subjects/${subjectId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
 
         showNotification('Xóa môn học thành công!', 'success');
         loadSubjectsData();
@@ -2402,7 +2413,7 @@ async function loadCheatingData() {
         const startDate = document.getElementById('startDateFilter')?.value || '';
         const endDate = document.getElementById('endDateFilter')?.value || '';
         
-        let url = 'http://localhost:3000/api/admin/monitor/cheating?';
+        let url = '/api/admin/monitor/cheating?';
         const params = [];
         if (examId) params.push(`exam_id=${examId}`);
         if (studentId) params.push(`student_id=${studentId}`);
@@ -2411,42 +2422,31 @@ async function loadCheatingData() {
         if (endDate) params.push(`end_date=${endDate}`);
         url += params.join('&');
         
-        const response = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) throw new Error(await response.text());
-        const data = await response.json();
+        // Sử dụng apiGet từ api.js
+        const data = await apiGet(url);
         
         allCheatingLogs = data.logs;
         filterCheatingLogs();
 
         // Lấy danh sách bài thi để filter
-        const examResponse = await fetch('http://localhost:3000/api/admin/exams', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const exams = await examResponse.json();
+        // Sử dụng apiGet từ api.js
+        const exams = await apiGet('/api/admin/exams');
         const examFilter = document.getElementById('examFilter');
         examFilter.innerHTML = '<option value="">Tất cả kỳ thi</option>';
         exams.forEach(exam => {
             examFilter.innerHTML += `<option value="${exam.exam_id}">${exam.exam_name}</option>`;
         });
 
-        // Lấy danh sách học sinh để filter
-        const studentResponse = await fetch('http://localhost:3000/api/admin/users', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const students = await studentResponse.json();
+        // Lấy danh sách học sinh để filter - sử dụng apiGet
+        const students = await apiGet('/api/admin/users');
         const studentFilter = document.getElementById('studentFilter');
         studentFilter.innerHTML = '<option value="">Tất cả học sinh</option>';
         students.filter(s => s.role === 'Student').forEach(student => {
             studentFilter.innerHTML += `<option value="${student.user_id}">${student.full_name}</option>`;
         });
 
-        // Cập nhật thống kê
-        const statsResponse = await fetch('http://localhost:3000/api/admin/monitor/cheating/stats', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const statsData = await statsResponse.json();
+        // Cập nhật thống kê - sử dụng apiGet
+        const statsData = await apiGet('/api/admin/monitor/cheating/stats');
         
         // Cập nhật thống kê tổng quan
         const totalStats = statsData.totalStats || {};
@@ -2546,7 +2546,8 @@ async function loadCheatingData() {
 
         // Gắn sự kiện xuất CSV
         document.getElementById('exportCheatingCsv')?.addEventListener('click', () => {
-            window.location.href = 'http://localhost:3000/api/admin/monitor/cheating/export';
+            // Sử dụng CONFIG để build URL
+            window.location.href = (window.CONFIG?.API_BASE_URL || '') + '/api/admin/monitor/cheating/export';
         });
     } catch (err) {
         console.error('Lỗi tải dữ liệu gian lận:', err);
@@ -2574,16 +2575,10 @@ async function penalize(attemptId, action, examName = '', studentId = null) {
             body.reason = prompt('Nhập lý do cấm thi:') || 'Vi phạm quy định thi nghiêm trọng';
         }
 
-        const response = await fetch('http://localhost:3000/api/admin/penalize', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
+        // Sử dụng apiPost từ api.js
+        const data = await apiPost('/api/admin/penalize', body, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || data.message);
 
         showNotification(data.message || 'Thao tác thành công!', 'success');
         setTimeout(() => loadCheatingData(), 500);
@@ -2628,7 +2623,8 @@ async function viewCheatingDetail(attemptId) {
 function viewWebcam(studentId) {
     let socket;
     if (typeof io !== 'undefined') {
-        socket = io('http://localhost:3000', {
+        // Sử dụng CONFIG cho Socket.IO
+        socket = io(window.CONFIG?.SOCKET_URL || window.location.origin, {
             auth: {
                 token: localStorage.getItem('token')
             }
@@ -2642,9 +2638,8 @@ function viewWebcam(studentId) {
 // Hàm import câu hỏi
 document.getElementById('importQuestionBtn')?.addEventListener('click', () => {
     const modal = new bootstrap.Modal(document.getElementById('importQuestionModal'));
-    fetch('http://localhost:3000/api/admin/exams', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    }).then(res => res.json()).then(data => {
+    // Sử dụng apiGet từ api.js
+    apiGet('/api/admin/exams').then(data => {
         const examSelect = document.getElementById('importExamId');
         examSelect.innerHTML = '<option value="">Không chọn kỳ thi</option>';
         data.forEach(exam => {
@@ -2667,13 +2662,18 @@ document.getElementById('saveImportBtn')?.addEventListener('click', async () => 
     formData.append('file', file);
 
     try {
-        const response = await fetch('http://localhost:3000/api/admin/questions/import', {
+        // Sử dụng fetch trực tiếp vì cần FormData
+        const baseUrl = window.CONFIG?.API_BASE_URL || '';
+        const response = await fetch(baseUrl + '/api/admin/questions/import', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData
         });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Lỗi import câu hỏi');
+        }
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
 
         showNotification(data.message, 'success');
         if (data.errors) {
@@ -2732,7 +2732,8 @@ document.getElementById('previewImportBtn')?.addEventListener('click', async () 
 // Socket.IO cho thông báo gian lận
 let socket;
 if (typeof io !== 'undefined') {
-    socket = io('http://localhost:3000', {
+    // Sử dụng CONFIG cho Socket.IO
+    socket = io(window.CONFIG?.SOCKET_URL || window.location.origin, {
         auth: {
             token: localStorage.getItem('token')
         }
@@ -2789,13 +2790,10 @@ async function loadQuestionsData(page = 1) {
             params.append('question_type', questionsFilters.question_type);
         }
         
-        const response = await fetch(`http://localhost:3000/api/admin/questions?${params}`, {
+        // Sử dụng apiGet/apiPost từ api.js
+        const data = await apiGet(`/api/admin/questions?${params}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) throw new Error(await response.text());
-        
-        const data = await response.json();
         
         // Xử lý cả format cũ (array) và format mới (object với pagination)
         const questions = Array.isArray(data) ? data : (data.questions || []);
@@ -2910,11 +2908,10 @@ function renderQuestionsPagination(pagination) {
 // Load danh sách môn học cho filter
 async function loadSubjectsForQuestionFilter() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/subjects', {
+        // Sử dụng apiGet/apiPost từ api.js
+        const subjects = await apiGet('/api/admin/subjects', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
-        const subjects = await response.json();
         
         const select = document.getElementById('questionSubjectFilter');
         if (select) {
@@ -2968,16 +2965,10 @@ async function viewUser(userId) {
         modal.show();
         
         // Lấy dữ liệu chi tiết
-        const response = await fetch(`http://localhost:3000/api/admin/users/${userId}`, {
+        // Sử dụng apiGet từ api.js
+        const data = await apiGet(`/api/admin/users/${userId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || 'Lỗi tải thông tin người dùng');
-        }
-        
-        const data = await response.json();
         const { user, stats, recentActivity } = data;
         
         // Định dạng giới tính
@@ -3341,12 +3332,10 @@ async function viewExam(examId) {
         modal.show();
         
         // Lấy dữ liệu chi tiết
-        const response = await fetch(`http://localhost:3000/api/admin/exams/${examId}`, {
+        // Sử dụng apiGet từ api.js
+        const data = await apiGet(`/api/admin/exams/${examId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) throw new Error(await response.text());
-        const data = await response.json();
         
         const { exam, attempts, stats } = data;
         
@@ -3496,8 +3485,133 @@ async function viewExam(examId) {
     }
 }
 
-function viewQuestion(questionId) {
-    showNotification('Tính năng xem chi tiết sẽ được phát triển sau', 'info');
+async function viewQuestion(questionId) {
+    try {
+        const modal = new bootstrap.Modal(document.getElementById('viewQuestionModal'));
+        const contentDiv = document.getElementById('questionDetailContent');
+        
+        // Hiển thị loading
+        contentDiv.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Đang tải...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Lấy dữ liệu câu hỏi từ API
+        const question = await apiGet(`/api/admin/questions/${questionId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        displayQuestionDetail(question, contentDiv);
+        
+    } catch (err) {
+        console.error('Lỗi xem chi tiết câu hỏi:', err);
+        const contentDiv = document.getElementById('questionDetailContent');
+        if (contentDiv) {
+            contentDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> Lỗi: ${err.message}
+                </div>
+            `;
+        }
+        showNotification('Lỗi tải chi tiết câu hỏi: ' + err.message, 'error');
+    }
+}
+
+function displayQuestionDetail(question, contentDiv) {
+    const difficultyClass = {
+        'Easy': 'bg-success',
+        'Medium': 'bg-warning',
+        'Hard': 'bg-danger'
+    }[question.difficulty] || 'bg-secondary';
+    
+    const difficultyText = {
+        'Easy': 'Dễ',
+        'Medium': 'Trung bình',
+        'Hard': 'Khó'
+    }[question.difficulty] || question.difficulty;
+    
+    const typeText = {
+        'SingleChoice': 'Trắc nghiệm 1 đáp án',
+        'MultipleChoice': 'Trắc nghiệm nhiều đáp án',
+        'True/False': 'Đúng/Sai',
+        'FillInBlank': 'Điền khuyết',
+        'Short Answer': 'Tự luận ngắn',
+        'Essay': 'Tự luận'
+    }[question.type || question.question_type] || question.type || question.question_type;
+    
+    contentDiv.innerHTML = `
+        <div class="mb-4">
+            <h6 class="mb-3">Thông tin câu hỏi</h6>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>ID:</strong> #${question.question_id}
+                </div>
+                <div class="col-md-6">
+                    <strong>Môn học:</strong> ${question.subject_name || 'Chưa có môn'}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Loại:</strong> ${typeText}
+                </div>
+                <div class="col-md-6">
+                    <strong>Mức độ:</strong> 
+                    <span class="badge ${difficultyClass}">${difficultyText}</span>
+                </div>
+            </div>
+            ${question.correct_rate !== undefined ? `
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Tỷ lệ đúng:</strong> 
+                        <span class="${question.correct_rate >= 80 ? 'text-success' : question.correct_rate >= 50 ? 'text-warning' : 'text-danger'}">
+                            ${question.correct_rate}%
+                        </span>
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+        
+        <div class="mb-4">
+            <h6 class="mb-3">Nội dung câu hỏi</h6>
+            <div class="p-3 bg-light rounded">
+                ${question.question_content || 'Không có nội dung'}
+            </div>
+        </div>
+        
+        ${question.options && question.options.length > 0 ? `
+            <div class="mb-4">
+                <h6 class="mb-3">Các đáp án</h6>
+                ${question.options.map((opt, index) => `
+                    <div class="p-3 mb-2 rounded ${opt.is_correct ? 'bg-success bg-opacity-10 border border-success' : 'bg-light'}">
+                        <strong>${String.fromCharCode(65 + index)}.</strong> ${opt.option_content}
+                        ${opt.is_correct ? ' <span class="badge bg-success">Đúng</span>' : ''}
+                    </div>
+                `).join('')}
+            </div>
+        ` : `
+            <div class="mb-4">
+                <h6 class="mb-3">Đáp án đúng</h6>
+                <div class="p-3 bg-light rounded">
+                    ${question.correct_answer_text || 'Tự luận - Giáo viên chấm thủ công'}
+                </div>
+            </div>
+        `}
+        
+        ${question.teacher_name ? `
+            <div class="mb-3">
+                <strong>Giáo viên tạo:</strong> ${question.teacher_name}
+            </div>
+        ` : ''}
+        
+        <div class="text-muted small">
+            <i class="bi bi-calendar"></i> Tạo lúc: ${question.created_at ? new Date(question.created_at).toLocaleString('vi-VN') : 'N/A'}
+        </div>
+    `;
 }
 
 // Hàm xem chi tiết điểm số của học sinh
@@ -3518,12 +3632,10 @@ async function viewStudentScores(subjectId, studentId) {
         modal.show();
         
         // Lấy dữ liệu chi tiết điểm số
-        const response = await fetch(`http://localhost:3000/api/admin/subjects/${subjectId}/students/${studentId}/scores`, {
+        // Sử dụng apiGet từ api.js
+        const data = await apiGet(`/api/admin/subjects/${subjectId}/students/${studentId}/scores`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) throw new Error(await response.text());
-        const data = await response.json();
         
         const { student, subject, scores, stats } = data;
         
@@ -3678,12 +3790,10 @@ async function loadReportsData() {
         showLoading('reportTotalExams');
         
         const params = new URLSearchParams(currentReportFilters);
-        const response = await fetch(`http://localhost:3000/api/admin/reports?${params}`, {
+        // Sử dụng apiGet/apiPost từ api.js
+        const data = await apiGet(`/api/admin/reports?${params}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) throw new Error(await response.text());
-        const data = await response.json();
         
         // Cập nhật thống kê tổng quan
         updateReportStats(data.stats || {});
@@ -4026,8 +4136,10 @@ document.getElementById('exportExcel')?.addEventListener('click', async () => {
         const params = new URLSearchParams(currentReportFilters);
         const token = localStorage.getItem('token');
         
-        // Excel export cần authorization header
-        const response = await fetch(`http://localhost:3000/api/admin/reports/export/excel?${params}`, {
+        // Excel export cần authorization header và blob
+        // Sử dụng fetch trực tiếp vì cần blob
+        const baseUrl = window.CONFIG?.API_BASE_URL || '';
+        const response = await fetch(baseUrl + `/api/admin/reports/export/excel?${params}`, {
             headers: { 
                 'Authorization': `Bearer ${token}` 
             }
@@ -4197,8 +4309,10 @@ document.getElementById('exportPDF')?.addEventListener('click', async () => {
         const params = new URLSearchParams(currentReportFilters);
         const token = localStorage.getItem('token');
         
-        // PDF export cần authorization header, nên dùng fetch thay vì window.location
-        const response = await fetch(`http://localhost:3000/api/admin/reports/export/pdf?${params}`, {
+        // PDF export cần authorization header và blob
+        // Sử dụng fetch trực tiếp vì cần blob
+        const baseUrl = window.CONFIG?.API_BASE_URL || '';
+        const response = await fetch(baseUrl + `/api/admin/reports/export/pdf?${params}`, {
             headers: { 
                 'Authorization': `Bearer ${token}` 
             }
@@ -4271,7 +4385,9 @@ async function exportExcelFromHeader() {
         const params = new URLSearchParams(filters);
         const token = localStorage.getItem('token');
         
-        const response = await fetch(`http://localhost:3000/api/admin/reports/export/excel?${params}`, {
+        // Sử dụng fetch trực tiếp vì cần blob
+        const baseUrl = window.CONFIG?.API_BASE_URL || '';
+        const response = await fetch(baseUrl + `/api/admin/reports/export/excel?${params}`, {
             headers: { 
                 'Authorization': `Bearer ${token}` 
             }
@@ -4321,7 +4437,9 @@ async function exportPDFFromHeader() {
         const params = new URLSearchParams(filters);
         const token = localStorage.getItem('token');
         
-        const response = await fetch(`http://localhost:3000/api/admin/reports/export/pdf?${params}`, {
+        // Sử dụng fetch trực tiếp vì cần blob
+        const baseUrl = window.CONFIG?.API_BASE_URL || '';
+        const response = await fetch(baseUrl + `/api/admin/reports/export/pdf?${params}`, {
             headers: { 
                 'Authorization': `Bearer ${token}` 
             }
@@ -4452,11 +4570,10 @@ document.getElementById('printReport')?.addEventListener('click', () => {
 // Tải danh sách môn học cho bộ lọc
 async function loadSubjectsForReportFilter() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/subjects', {
+        // Sử dụng apiGet/apiPost từ api.js
+        const subjects = await apiGet('/api/admin/subjects', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(await response.text());
-        const subjects = await response.json();
         
         const select = document.getElementById('reportSubjectFilter');
         if (select) {
@@ -4517,13 +4634,10 @@ async function loadScoreHistory(page = 1) {
         if (startDate) params.append('startDate', startDate);
         if (endDate) params.append('endDate', endDate);
         
-        const response = await fetch(`http://localhost:3000/api/admin/reports/score-history?${params}`, {
+        // Sử dụng apiGet/apiPost từ api.js
+        const data = await apiGet(`/api/admin/reports/score-history?${params}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) throw new Error('Lỗi tải lịch sử sửa điểm');
-        
-        const data = await response.json();
         currentScoreHistoryPage = page;
         
         if (!data.logs || data.logs.length === 0) {
@@ -4540,31 +4654,31 @@ async function loadScoreHistory(page = 1) {
             
             return `
                 <tr>
-                    <td>${editedAt}</td>
-                    <td>
+                    <td data-label="Thời gian">${editedAt}</td>
+                    <td data-label="Giáo viên">
                         <div>${log.teacher_name || 'N/A'}</div>
                         <small class="text-muted">${log.teacher_email || ''}</small>
                     </td>
-                    <td>
+                    <td data-label="Học sinh">
                         <div>${log.student_name || 'N/A'}</div>
                         <small class="text-muted">MSSV: ${log.student_id || 'N/A'}</small>
                     </td>
-                    <td>${log.exam_name || 'N/A'}</td>
-                    <td>${log.subject_name || 'N/A'}</td>
-                    <td style="max-width: 200px;" title="${log.question_content || ''}">${questionInfo}</td>
-                    <td>
+                    <td data-label="Bài thi">${log.exam_name || 'N/A'}</td>
+                    <td data-label="Môn học">${log.subject_name || 'N/A'}</td>
+                    <td data-label="Câu hỏi" style="max-width: 200px;" title="${log.question_content || ''}">${questionInfo}</td>
+                    <td data-label="Điểm cũ">
                         ${log.old_score !== null ? `<span class="badge bg-secondary">${log.old_score}</span>` : '-'}
                     </td>
-                    <td>
+                    <td data-label="Điểm mới">
                         ${log.new_score !== null ? `<span class="badge bg-primary">${log.new_score}</span>` : '-'}
                     </td>
-                    <td>
+                    <td data-label="Tổng điểm cũ">
                         ${log.old_total_score !== null ? `<span class="badge bg-secondary">${log.old_total_score}</span>` : '-'}
                     </td>
-                    <td>
+                    <td data-label="Tổng điểm mới">
                         ${log.new_total_score !== null ? `<span class="badge bg-success">${log.new_total_score}</span>` : '-'}
                     </td>
-                    <td style="max-width: 250px;" title="${log.reason || ''}">
+                    <td data-label="Lý do" style="max-width: 250px;" title="${log.reason || ''}">
                         ${log.reason ? log.reason.substring(0, 50) + (log.reason.length > 50 ? '...' : '') : '-'}
                     </td>
                 </tr>
@@ -4652,13 +4766,10 @@ async function loadComplaintsHistory(page = 1) {
         if (endDate) params.append('endDate', endDate);
         if (status) params.append('status', status);
         
-        const response = await fetch(`http://localhost:3000/api/admin/reports/complaints-history?${params}`, {
+        // Sử dụng apiGet/apiPost từ api.js
+        const data = await apiGet(`/api/admin/reports/complaints-history?${params}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) throw new Error('Lỗi tải lịch sử khiếu nại');
-        
-        const data = await response.json();
         currentComplaintsHistoryPage = page;
         
         if (!data.complaints || data.complaints.length === 0) {
@@ -4681,27 +4792,27 @@ async function loadComplaintsHistory(page = 1) {
             
             return `
                 <tr>
-                    <td>
+                    <td data-label="Thời gian">
                         <div>${createdAt}</div>
                         ${updatedAt ? `<small class="text-muted">Cập nhật: ${updatedAt}</small>` : ''}
                     </td>
-                    <td>
+                    <td data-label="Học sinh">
                         <div>${complaint.student_name || 'N/A'}</div>
                         <small class="text-muted">MSSV: ${complaint.student_code || 'N/A'}</small>
                     </td>
-                    <td>${complaint.exam_name || 'N/A'}</td>
-                    <td>${complaint.subject_name || 'N/A'}</td>
-                    <td><strong>${scoreText}</strong></td>
-                    <td style="max-width: 300px;" title="${complaint.content || ''}">
+                    <td data-label="Bài thi">${complaint.exam_name || 'N/A'}</td>
+                    <td data-label="Môn học">${complaint.subject_name || 'N/A'}</td>
+                    <td data-label="Điểm"><strong>${scoreText}</strong></td>
+                    <td data-label="Nội dung khiếu nại" style="max-width: 300px;" title="${complaint.content || ''}">
                         ${complaint.content ? complaint.content.substring(0, 80) + (complaint.content.length > 80 ? '...' : '') : '-'}
                     </td>
-                    <td>
+                    <td data-label="Trạng thái">
                         <span class="badge bg-${statusInfo.bg}">${statusInfo.icon} ${statusInfo.text}</span>
                     </td>
-                    <td style="max-width: 250px;" title="${complaint.teacher_response || ''}">
+                    <td data-label="Phản hồi giáo viên" style="max-width: 250px;" title="${complaint.teacher_response || ''}">
                         ${complaint.teacher_response ? complaint.teacher_response.substring(0, 60) + (complaint.teacher_response.length > 60 ? '...' : '') : '<em class="text-muted">Chưa phản hồi</em>'}
                     </td>
-                    <td>
+                    <td data-label="Giáo viên">
                         ${complaint.teacher_name ? `
                             <div>${complaint.teacher_name}</div>
                             <small class="text-muted">${complaint.teacher_email || ''}</small>

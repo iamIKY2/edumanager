@@ -110,7 +110,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#contact">Liên Hệ</a>
                     </li>
-                    <li class="nav-item">
+                    <li class="nav-item" id="authLink">
                         <a class="nav-link" href="/client/src/pages/login.html">Đăng Nhập</a>
                     </li>
                 </ul>
@@ -563,6 +563,53 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' }); // Cuộn lên đầu trang
             }, 1000);
         }
+
+        // Hamburger menu toggle cho mobile
+        function toggleMobileMenu() {
+            const navMenu = document.getElementById('navMenu');
+            const navbarToggle = document.getElementById('navbarToggle');
+            
+            if (navMenu) {
+                navMenu.classList.toggle('active');
+                if (navbarToggle) {
+                    navbarToggle.classList.toggle('active');
+                }
+            }
+        }
+
+        // Event listener cho hamburger menu
+        document.addEventListener('DOMContentLoaded', function() {
+            const navbarToggle = document.getElementById('navbarToggle');
+            if (navbarToggle) {
+                navbarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleMobileMenu();
+                });
+                
+                // Hỗ trợ touch event cho mobile
+                navbarToggle.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleMobileMenu();
+                });
+            }
+            
+            // Đóng menu khi click vào nav link
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    const navMenu = document.getElementById('navMenu');
+                    if (navMenu && window.innerWidth <= 768) {
+                        navMenu.classList.remove('active');
+                        const navbarToggle = document.getElementById('navbarToggle');
+                        if (navbarToggle) {
+                            navbarToggle.classList.remove('active');
+                        }
+                    }
+                });
+            });
+        });
 
         // Gọi hàm kiểm tra đăng nhập khi tải trang
         window.addEventListener('load', function() {

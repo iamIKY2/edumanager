@@ -228,6 +228,14 @@ body {
     margin-top: 5px;
 }
 
+/* EXAM CREATION GRID */
+.exam-creation-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
 /* CARDS */
 .card {
     background: rgba(255, 255, 255, 0.9);
@@ -1068,6 +1076,10 @@ body {
     /* Sidebar */
     .sidebar {
         width: 280px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
         transform: translateX(-100%);
         transition: transform 0.3s ease;
         z-index: 1000;
@@ -1098,10 +1110,20 @@ body {
     }
 
     .menu-toggle {
-        display: block;
+        display: block !important;
         font-size: 1.4rem;
-        padding: 8px;
+        padding: 8px 12px;
         margin-right: 10px;
+        cursor: pointer;
+        z-index: 1001;
+        position: relative;
+        -webkit-tap-highlight-color: transparent;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+    }
+    
+    .menu-toggle:active {
+        background: rgba(255, 255, 255, 0.2);
     }
 
     .header-title {
@@ -1138,6 +1160,12 @@ body {
 
     .stat-label {
         font-size: 0.85rem;
+    }
+
+    /* Exam Creation Grid */
+    .exam-creation-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
     }
 
     /* Cards */
@@ -1397,7 +1425,7 @@ body {
 
     /* Stats Grid */
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
         gap: 10px;
     }
 
@@ -1421,6 +1449,12 @@ body {
 
     .card-title {
         font-size: 1.2rem;
+    }
+
+    /* Exam Creation Grid */
+    .exam-creation-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
     }
 
     /* Class Info */
@@ -1488,7 +1522,7 @@ body {
 
     /* Cheating Stats */
     .cheating-stats-grid {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: repeat(2, 1fr) !important;
     }
 
     .cheating-stats-card {

@@ -263,6 +263,9 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+  <!-- Load config và API helpers trước -->
+  <script src="/client/public/js/config.js"></script>
+  <script src="/client/public/js/api.js"></script>
   <script>
     AOS.init({ duration: 800, once: true });
 
@@ -278,14 +281,8 @@
         console.log('🔐 Google Sign-In token nhận được');
         showToast('Đang xử lý đăng nhập Google...', 'info');
 
-        // Gửi token lên server
-        const res = await fetch('http://localhost:3000/api/auth/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: googleToken })
-        });
-
-        const data = await res.json();
+        // Gửi token lên server - sử dụng apiPost từ api.js
+        const data = await apiPost('/api/auth/google', { token: googleToken });
         console.log('📥 Phản hồi từ server:', data);
 
         if (data.needsRoleSelection) {
@@ -378,18 +375,13 @@
       confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý...';
 
       try {
-        const res = await fetch('http://localhost:3000/api/auth/google/complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token: googleToken,
-            role: selectedRole,
-            fullName: pendingUserInfo?.name,
-            username: pendingUserInfo?.email?.split('@')[0]
-          })
+        // Sử dụng apiPost từ api.js
+        const data = await apiPost('/api/auth/google/complete', {
+          token: googleToken,
+          role: selectedRole,
+          fullName: pendingUserInfo?.name,
+          username: pendingUserInfo?.email?.split('@')[0]
         });
-
-        const data = await res.json();
 
         if (data.success) {
           // Đóng modal
@@ -464,6 +456,15 @@
       togglePassword.classList.toggle('fa-eye-slash');
     });
 
+    // Ẩn thông báo lỗi khi người dùng bắt đầu nhập
+    const emailInput = document.getElementById('email');
+    emailInput.addEventListener('input', () => {
+      errorMessage.style.display = 'none';
+    });
+    passwordInput.addEventListener('input', () => {
+      errorMessage.style.display = 'none';
+    });
+
     // Xử lý submit form
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -507,33 +508,36 @@
       // Gửi request
       const formData = { email, password };
       try {
-        const response = await fetch('http://localhost:3000/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
-        });
-
-        console.log('Phản hồi thô từ server:', await response.clone().text()); 
-        const data = await response.json();
+        // Sử dụng apiPost từ api.js - tự động xử lý JSON và errors
+        const data = await apiPost('/api/auth/login', formData);
         console.log('Dữ liệu JSON:', data); 
 
-        if (!response.ok) {
-          // Backend trả về data.error với thông báo cụ thể: "Email không tồn tại!" hoặc "Mật khẩu không đúng!"
-          showToast(data.error || data.message || 'Đăng nhập thất bại!', 'danger');
-        } else {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('role', data.role); 
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('role', data.role); 
 
-          showToast('Đăng nhập thành công!', 'success');
+        showToast('Đăng nhập thành công!', 'success');
 
-          // Chuyển trang theo role
-          setTimeout(() => {
-            redirectByRole(data.role);
-          }, 1000);
-        }
+        // Chuyển trang theo role
+        setTimeout(() => {
+          redirectByRole(data.role);
+        }, 1000);
       } catch (err) {
         console.error('Lỗi chi tiết:', err); 
-        showToast('Lỗi kết nối server! Vui lòng thử lại.', 'danger');
+        
+        // Lấy thông báo lỗi từ server
+        let errorText = 'Lỗi kết nối server! Vui lòng thử lại.';
+        if (err.data) {
+          errorText = err.data.message || err.data.error || errorText;
+        } else if (err.message && !err.message.includes('Failed to fetch')) {
+          errorText = err.message;
+        }
+        
+        // Hiển thị lỗi trong errorMessage element
+        errorMessage.style.display = 'block';
+        errorMessage.textContent = errorText;
+        
+        // Cũng hiển thị toast để người dùng dễ nhận thấy
+        showToast(errorText, 'danger');
       } finally {
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Đăng nhập';

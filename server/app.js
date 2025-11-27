@@ -123,10 +123,8 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ============================================
+
 // 🌐 SERVE STATIC FILES (Frontend)
-// ============================================
-// Serve client files - cho phép truy cập từ cùng origin khi deploy
 app.use('/client', express.static(path.join(__dirname, '../client')));
 
 // Serve trang chủ (index.html)

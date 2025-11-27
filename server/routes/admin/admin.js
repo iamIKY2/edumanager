@@ -1796,7 +1796,72 @@ router.delete('/questions/duplicates', authenticateToken, async (req, res) => {
   }
 });
 
-// API xóa câu hỏi (PHẢI ĐẶT SAU route /questions/duplicates)
+// API lấy chi tiết câu hỏi (PHẢI ĐẶT TRƯỚC route DELETE /questions/:id)
+router.get('/questions/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = req.db;
+    const questionId = req.params.id;
+    
+    // Lấy thông tin câu hỏi
+    const [questions] = await db.query(`
+      SELECT 
+        q.question_id, 
+        q.question_content, 
+        q.subject_id,
+        s.subject_name, 
+        q.difficulty, 
+        q.question_type,
+        q.correct_answer_text,
+        q.created_at,
+        q.teacher_id,
+        u.full_name as teacher_name
+      FROM question_bank q
+      LEFT JOIN subjects s ON q.subject_id = s.subject_id
+      LEFT JOIN users u ON q.teacher_id = u.user_id
+      WHERE q.question_id = ?
+    `, [questionId]);
+    
+    if (questions.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy câu hỏi' });
+    }
+    
+    const question = questions[0];
+    
+    // Lấy options nếu là câu hỏi trắc nghiệm
+    if (question.question_type === 'SingleChoice' || question.question_type === 'MultipleChoice') {
+      const [options] = await db.query(`
+        SELECT option_id, option_content, is_correct
+        FROM question_options
+        WHERE question_id = ?
+        ORDER BY option_id ASC
+      `, [questionId]);
+      
+      question.options = options;
+    }
+    
+    // Lấy thống kê nếu có
+    const [stats] = await db.query(`
+      SELECT 
+        total_attempts,
+        correct_attempts,
+        COALESCE(ROUND((correct_attempts / NULLIF(total_attempts, 0) * 100), 0), 0) as correct_rate
+      FROM question_statistics
+      WHERE question_id = ?
+    `, [questionId]);
+    
+    if (stats.length > 0) {
+      question.stats = stats[0];
+      question.correct_rate = stats[0].correct_rate;
+    }
+    
+    res.json(question);
+  } catch (err) {
+    console.error('Lỗi lấy chi tiết câu hỏi:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// API xóa câu hỏi (PHẢI ĐẶT SAU route /questions/duplicates và GET /questions/:id)
 router.delete('/questions/:id', authenticateToken, async (req, res) => {
   try {
     const db = req.db;

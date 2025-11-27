@@ -530,11 +530,32 @@
            RESPONSIVE STYLES
            ============================================ */
         
+        /* Sidebar overlay for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .sidebar-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+        
         /* Mobile & Tablet (0px - 767px) */
         @media (max-width: 767.98px) {
             .sidebar {
-                width: 100%;
+                width: 280px;
+                max-width: 85%;
                 transform: translateX(-100%);
+                z-index: 1000;
             }
             
             .sidebar.show {
@@ -553,15 +574,74 @@
             }
             
             .stat-card {
-                padding: var(--spacing-md);
+                padding: 15px;
+                min-height: auto;
+            }
+            
+            .stat-icon {
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+            
+            .stat-label {
+                font-size: 12px;
+                margin-bottom: 5px;
+                line-height: 1.3;
             }
             
             .stat-value {
-                font-size: var(--font-size-2xl);
+                font-size: 24px;
+                font-weight: 700;
+                margin: 5px 0;
+            }
+            
+            .stat-change {
+                font-size: 11px;
+                margin-top: 5px;
+            }
+            
+            .row.g-3 {
+                --bs-gutter-y: 0.75rem;
+                --bs-gutter-x: 0.75rem;
+            }
+            
+            /* Filter section improvements */
+            #users-section .row.mb-3 {
+                margin-bottom: 16px !important;
+            }
+            
+            #users-section .form-control,
+            #users-section .form-select {
+                font-size: 15px;
+                padding: 10px 14px;
+                border-radius: 10px;
+                border: 1px solid var(--border-color);
+            }
+            
+            #users-section .form-control:focus,
+            #users-section .form-select:focus {
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(127, 138, 197, 0.1);
+            }
+            
+            /* Users card view spacing */
+            #usersCardView {
+                margin-bottom: 20px;
+            }
+            
+            #usersCardView .col-12 {
+                margin-bottom: 16px;
+            }
+            
+            #usersCardView .col-12:last-child {
+                margin-bottom: 0;
             }
             
             .table-responsive {
                 overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
             }
             
             table {
@@ -572,11 +652,208 @@
             table td {
                 padding: var(--spacing-sm);
                 white-space: nowrap;
+                font-size: 12px;
+            }
+            
+            /* Card layout for tables on mobile */
+            .table-card .table-responsive table {
+                display: block;
+            }
+            
+            .table-card .table-responsive thead {
+                display: none;
+            }
+            
+            .table-card .table-responsive tbody {
+                display: block;
+            }
+            
+            .table-card .table-responsive tr {
+                display: block;
+                margin-bottom: 15px;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 12px;
+                background: var(--bg-secondary);
+            }
+            
+            .table-card .table-responsive td {
+                display: block;
+                text-align: right;
+                padding: 8px 0;
+                border: none;
+                white-space: normal;
+                word-wrap: break-word;
+            }
+            
+            .table-card .table-responsive td:before {
+                content: attr(data-label);
+                float: left;
+                font-weight: 600;
+                color: var(--text-secondary);
+            }
+            
+            /* Keep normal table layout on larger screens */
+            @media (min-width: 768px) {
+                .table-card .table-responsive table {
+                    display: table;
+                }
+                
+                .table-card .table-responsive thead {
+                    display: table-header-group;
+                }
+                
+                .table-card .table-responsive tbody {
+                    display: table-row-group;
+                }
+                
+                .table-card .table-responsive tr {
+                    display: table-row;
+                    margin-bottom: 0;
+                    border: none;
+                    border-radius: 0;
+                    padding: 0;
+                    background: transparent;
+                }
+                
+                .table-card .table-responsive td {
+                    display: table-cell;
+                    text-align: left;
+                    padding: var(--spacing-sm);
+                    border-bottom: 1px solid var(--border-color);
+                    white-space: nowrap;
+                }
+                
+                .table-card .table-responsive td:before {
+                    display: none;
+                }
             }
             
             .btn {
                 padding: var(--spacing-sm) var(--spacing-md);
                 font-size: var(--font-size-sm);
+            }
+            
+            /* User cards for mobile */
+            .user-card {
+                background: var(--bg-secondary);
+                border-radius: 16px;
+                padding: 20px;
+                box-shadow: 0 2px 12px var(--shadow);
+                transition: transform 0.2s, box-shadow 0.2s;
+                border: 1px solid var(--border-color);
+                margin-bottom: 0;
+            }
+            
+            .user-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 16px var(--shadow-hover);
+            }
+            
+            .user-card-header {
+                display: flex;
+                justify-content: flex-end;
+                margin-bottom: 16px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid var(--border-color);
+            }
+            
+            .user-id {
+                font-size: 13px;
+                color: var(--text-secondary);
+                font-weight: 600;
+                letter-spacing: 0.5px;
+            }
+            
+            .user-card-body {
+                text-align: right;
+                margin-bottom: 16px;
+            }
+            
+            .user-name {
+                font-size: 20px;
+                font-weight: 700;
+                color: var(--text-primary);
+                margin-bottom: 8px;
+                line-height: 1.3;
+            }
+            
+            .user-email {
+                font-size: 15px;
+                color: var(--text-secondary);
+                margin-bottom: 16px;
+                word-break: break-word;
+            }
+            
+            .user-badges {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                margin-bottom: 16px;
+                flex-wrap: wrap;
+            }
+            
+            .user-badges .badge {
+                font-size: 13px;
+                padding: 8px 14px;
+                border-radius: 20px;
+                font-weight: 600;
+            }
+            
+            .user-date {
+                font-size: 13px;
+                color: var(--text-secondary);
+                margin-bottom: 0;
+            }
+            
+            .user-card-footer {
+                display: flex;
+                justify-content: flex-start;
+                gap: 10px;
+                padding-top: 16px;
+                border-top: 1px solid var(--border-color);
+                margin-top: 16px;
+            }
+            
+            .user-card-footer .btn {
+                width: 44px;
+                height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                border-radius: 10px;
+                font-size: 18px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            
+            .user-card-footer .btn:active {
+                transform: scale(0.95);
+            }
+            
+            .user-card-footer .btn-info {
+                background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%);
+                border: none;
+            }
+            
+            .user-card-footer .btn-danger {
+                background: linear-gradient(135deg, #dc3545 0%, #bb2d3b 100%);
+                border: none;
+            }
+            
+            /* Dark mode for user cards */
+            [data-theme="dark"] .user-card,
+            body.dark-mode .user-card {
+                background: #111827;
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+            
+            [data-theme="dark"] .user-card-header,
+            [data-theme="dark"] .user-card-footer,
+            body.dark-mode .user-card-header,
+            body.dark-mode .user-card-footer {
+                border-color: rgba(255, 255, 255, 0.1);
             }
         }
         

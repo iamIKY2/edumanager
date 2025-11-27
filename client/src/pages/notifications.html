@@ -103,7 +103,8 @@
   <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
   <script>
     AOS.init({ duration: 1000, once: true });
-    const socket = io('http://localhost:3000');
+    // Sử dụng window.location.origin cho Socket.IO
+    const socket = io(window.location.origin);
 
     socket.on('notification', (data) => {
       addNotification(data);
@@ -111,7 +112,8 @@
 
     async function loadNotifications() {
       try {
-        const response = await fetch('http://localhost:3000/api/notifications');
+        // Sử dụng relative URL
+        const response = await fetch('/api/notifications');
         const notifications = await response.json();
         const notificationList = document.getElementById('notificationList');
         notificationList.innerHTML = '';

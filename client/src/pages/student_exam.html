@@ -7,6 +7,8 @@
     <link rel="icon" type="image/png" href="/client/public/images/edu.png">
     <link rel="stylesheet" href="/client/public/css/variables.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
+    <script src="/client/public/js/config.js"></script>
+    <script src="/client/public/js/api.js"></script>
     <style>
         * {
             margin: 0;
@@ -520,7 +522,6 @@
     </div>
 
 <script>
-    const API_URL = 'http://127.0.0.1:3000/api';
     const token = localStorage.getItem('token');
     const userId = localStorage.getItem('user_id');
     
@@ -556,7 +557,8 @@
     });
 
     function initSocket() {
-        socket = io('http://127.0.0.1:3000', {
+        // Sử dụng CONFIG.SOCKET_URL từ config.js
+        socket = io(window.CONFIG?.SOCKET_URL || window.location.origin, {
             auth: { token }
         });
 
@@ -675,17 +677,11 @@
 
     async function logCheating(eventType, description) {
         try {
-            await fetch(`${API_URL}/student/exams/${examData.exam_id}/cheating-log`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    attempt_id: examData.attempt_id,
-                    event_type: eventType,
-                    event_description: description
-                })
+            // Sử dụng apiPost từ api.js
+            await apiPost(`/api/student/exams/${examData.exam_id}/cheating-log`, {
+                attempt_id: examData.attempt_id,
+                event_type: eventType,
+                event_description: description
             });
         } catch (error) {
             console.error('Error logging cheating:', error);
@@ -781,28 +777,15 @@
         }
 
         try {
-            const response = await fetch(`${API_URL}/student/exams/${examData.exam_id}/save-answer`, {
-                method: 'POST',
-                headers: {  
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    attempt_id: examData.attempt_id,
-                    question_id: questionId,
-                    answer_text: answerText,
-                    option_id: optionId
-                })
+            // Sử dụng apiPost từ api.js - tự động xử lý errors
+            await apiPost(`/api/student/exams/${examData.exam_id}/save-answer`, {
+                attempt_id: examData.attempt_id,
+                question_id: questionId,
+                answer_text: answerText,
+                option_id: optionId
             });
             
-            const result = await response.json();
-            
-            if (response.ok) {
-                updateAnsweredStatus();
-            } else {
-                console.error('❌ Lỗi từ server:', result);
-                throw new Error(result.error || 'Lỗi khi lưu đáp án');
-            }
+            updateAnsweredStatus();
         } catch (error) {
             console.error('❌ Error saving answer:', error);
             showToast(`❌ Lỗi: ${error.message}`, 'error');
@@ -914,26 +897,13 @@
         }
 
         try {
-            const response = await fetch(`${API_URL}/student/exams/${examData.exam_id}/save-answer`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    attempt_id: examData.attempt_id,
-                    question_id: questionId,
-                    answer_text: answerText,
-                    option_id: optionId
-                })
+            // Sử dụng apiPost từ api.js - tự động xử lý errors
+            const result = await apiPost(`/api/student/exams/${examData.exam_id}/save-answer`, {
+                attempt_id: examData.attempt_id,
+                question_id: questionId,
+                answer_text: answerText,
+                option_id: optionId
             });
-            
-            const result = await response.json();
-            
-            if (!response.ok) {
-                console.error('❌ Lỗi từ server:', result);
-                throw new Error(result.error || 'Lỗi khi lưu đáp án');
-            }
             
             return result;
         } catch (error) {
@@ -989,29 +959,16 @@
             return;
         }
 
-        const response = await fetch(`${API_URL}/student/exams/${examData.exam_id}/submit`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                attempt_id: examData.attempt_id
-            })
+        // Sử dụng apiPost từ api.js - tự động xử lý errors
+        const result = await apiPost(`/api/student/exams/${examData.exam_id}/submit`, {
+            attempt_id: examData.attempt_id
         });
 
-        const result = await response.json();
-
-        if (response.ok) {
-            localStorage.removeItem('current_exam');
-            // Kiểm tra nếu có câu tự luận chưa chấm
-            const hasPendingGrading = (result.has_essay_questions && !result.is_fully_graded) || !result.is_fully_graded;
-            // Sử dụng total_points từ server response thay vì examData
-            showSubmitModal(result.score, result.total_points || examData.total_points || 100, result.message, hasPendingGrading);
-        } else {
-            console.error('❌ Lỗi từ server:', result);
-            throw new Error(result.error || 'Lỗi khi nộp bài');
-        }
+        localStorage.removeItem('current_exam');
+        // Kiểm tra nếu có câu tự luận chưa chấm
+        const hasPendingGrading = (result.has_essay_questions && !result.is_fully_graded) || !result.is_fully_graded;
+        // Sử dụng total_points từ server response thay vì examData
+        showSubmitModal(result.score, result.total_points || examData.total_points || 100, result.message, hasPendingGrading);
     } catch (error) {
         console.error('❌ Error:', error);
         showToast(`❌ Lỗi: ${error.message}\nVui lòng thử lại!`, 'error');

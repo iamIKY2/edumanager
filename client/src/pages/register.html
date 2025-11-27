@@ -290,7 +290,8 @@
       const formData = { username, email, password, role };
 
       try {
-        const response = await fetch('http://localhost:3000/api/auth/register', {
+        // Sử dụng relative URL
+        const response = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json'
@@ -321,7 +322,8 @@
     // Kiểm tra kết nối backend khi load trang
     window.addEventListener('load', async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/health', { method: 'GET' });
+        // Sử dụng relative URL
+        const response = await fetch('/api/health', { method: 'GET' });
         if (!response.ok) {
           
         }

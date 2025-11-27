@@ -55,8 +55,8 @@ if (window.history && window.history.pushState) {
                 return;
             }
 
-            // Kết nối Socket.IO với token
-            socket = io('http://localhost:3000', {
+            // Kết nối Socket.IO với token - sử dụng CONFIG
+            socket = io(window.CONFIG?.SOCKET_URL || window.location.origin, {
                 auth: { token }
             });
 
@@ -113,7 +113,7 @@ if (window.history && window.history.pushState) {
         // Đảm bảo user_id được lưu khi fetchUserData
         let userIdFromServer = null;
 
-        function fetchUserData() {
+        async function fetchUserData() {
             const token = localStorage.getItem('token');
             if (!token) {
                 console.error('No token found in localStorage');
@@ -122,22 +122,9 @@ if (window.history && window.history.pushState) {
                 return;
             }
 
-            fetch('http://127.0.0.1:3000/api/user/profile', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errorData => {
-                        throw new Error(`Lỗi: ${response.status} - ${errorData.error || response.statusText}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
+            try {
+                // Sử dụng apiGet từ api.js - tự động xử lý URL và errors
+                const data = await apiGet('/api/user/profile');
                 if (data.error) throw new Error(data.error);
 
                 document.getElementById('userName').textContent = data.user.fullName || data.user.username || 'Đang tải...';
@@ -206,12 +193,9 @@ if (window.history && window.history.pushState) {
 
                 // Lấy danh sách lớp của học sinh từ backend
                 const myClassesList = document.getElementById('myClassesList');
-
-                fetch('http://127.0.0.1:3000/api/student/classes/my', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
-                .then(res => res.json())
-                .then(classData => {
+                try {
+                    // Sử dụng apiGet từ api.js
+                    const classData = await apiGet('/api/student/classes/my');
                     if (classData.myClasses?.length > 0) {
                         myClassesList.innerHTML = classData.myClasses.map(cls => `
                             <div class="class-card" onclick="viewClassDetail(${cls.class_id}, '${cls.class_name}', '${cls.subject_name || 'Chưa có môn'}', '${cls.academic_year}')">
@@ -231,10 +215,10 @@ if (window.history && window.history.pushState) {
                     } else {
                         myClassesList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">Chưa tham gia lớp nào. Hãy tham gia lớp học để bắt đầu!</p>';
                     }
-                })
-                .catch(err => {
+                } catch (err) {
+                    console.error('Lỗi tải danh sách lớp:', err);
                     myClassesList.innerHTML = '<p style="text-align: center; color: #ff4757;">Lỗi tải dữ liệu lớp học.</p>';
-                });
+                }
 
                 const availableTestsList = document.getElementById('availableTestsList');
                 availableTestsList.innerHTML = data.availableTests?.map(test => `
@@ -463,14 +447,19 @@ if (window.history && window.history.pushState) {
                         <div style="color: #999; font-size: 12px;">${notif.time}</div>
                     </div>
                 `).join('') || '<p>Không có thông báo mới.</p>';
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Lỗi tải dữ liệu:', error);
-                alert('Không thể tải dữ liệu. Vui lòng thử lại sau!\nChi tiết: ' + error.message);
-            });
+                // Hiển thị thông báo lỗi thân thiện hơn
+                const errorMessage = error.message || 'Không thể tải dữ liệu';
+                if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+                    showToast('❌ Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng!', 'error');
+                } else {
+                    showToast(`❌ ${errorMessage}`, 'error');
+                }
+            }
         }
 
-        function saveProfileChanges() {
+        async function saveProfileChanges() {
             const token = localStorage.getItem('token');
             const fullName = document.getElementById('editFullName').value.trim();
             const gender = document.getElementById('editGender').value;
@@ -503,28 +492,17 @@ if (window.history && window.history.pushState) {
             if (phone) updateData.phone = phone;
             if (dob) updateData.dob = dob;
 
-            fetch('http://localhost:3000/api/user/profile/update', { 
-                method: 'POST', 
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updateData)
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Lỗi cập nhật thông tin');
-                return response.json();
-            })
-            .then(data => {
+            try {
+                // Sử dụng apiPost từ api.js
+                const data = await apiPost('/api/user/profile/update', updateData);
                 if (data.error) throw new Error(data.message || 'Cập nhật thất bại');
                 showToast('✅ Thông tin đã được cập nhật thành công!', 'success');
                 closeModal('editProfileModal');
-                fetchUserData(); 
-            })
-            .catch(error => {
+                fetchUserData();
+            } catch (error) {
                 console.error('Lỗi cập nhật:', error);
                 showToast('❌ Lỗi khi cập nhật thông tin. Vui lòng thử lại!', 'error');
-            });
+            }
         }
 
         // Menu & Navigation
@@ -624,28 +602,31 @@ if (window.history && window.history.pushState) {
                 }
             }
 
+            // ⭐ TỰ ĐỘNG ĐÓNG SIDEBAR TRÊN MOBILE KHI CHUYỂN SECTION (KHÔNG TOGGLE)
             if (window.innerWidth <= 768) {
-                toggleSidebar();
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                if (sidebar && sidebar.classList.contains('open')) {
+                    sidebar.classList.remove('open');
+                }
+                if (overlay && overlay.classList.contains('active')) {
+                    overlay.classList.remove('active');
+                }
             }
         }
         
         // ⭐ HÀM LOAD DANH SÁCH LỚP HỌC
-        function loadMyClasses() {
-            const token = localStorage.getItem('token');
+        async function loadMyClasses() {
             const myClassesList = document.getElementById('myClassesList');
             
             if (!myClassesList) return;
             
             myClassesList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">⏳ Đang tải danh sách lớp học...</p>';
             
-            fetch('http://127.0.0.1:3000/api/student/classes/my', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-            .then(res => {
-                if (!res.ok) throw new Error('Không thể tải danh sách lớp học');
-                return res.json();
-            })
-            .then(classData => {
+            try {
+                // Sử dụng apiGet từ api.js
+                const classData = await apiGet('/api/student/classes/my');
+                
                 if (classData.myClasses?.length > 0) {
                     myClassesList.innerHTML = classData.myClasses.map(cls => `
                         <div class="class-card" onclick="viewClassDetail(${cls.class_id}, '${cls.class_name}', '${cls.subject_name || 'Chưa có môn'}', '${cls.academic_year}')">
@@ -665,42 +646,33 @@ if (window.history && window.history.pushState) {
                 } else {
                     myClassesList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">Chưa tham gia lớp nào. Hãy tham gia lớp học để bắt đầu!</p>';
                 }
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error('Error loading classes:', err);
                 myClassesList.innerHTML = '<p style="text-align: center; color: #ff4757;">❌ Lỗi tải dữ liệu lớp học. Vui lòng thử lại.</p>';
-            });
+            }
         }
         
         // ⭐ HÀM LOAD KẾT QUẢ CỦA TÔI
-        function loadMyResults() {
-            const token = localStorage.getItem('token');
+        async function loadMyResults() {
             const myResultsList = document.getElementById('myResultsList');
             
             if (!myResultsList) return;
             
             myResultsList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">⏳ Đang tải kết quả...</p>';
             
-            // Load từ API
-            fetch('http://127.0.0.1:3000/api/student/exams', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-            .then(res => {
-                if (!res.ok) throw new Error('Không thể tải danh sách bài thi');
-                return res.json();
-            })
-            .then(exams => {
+            try {
+                // Sử dụng apiGet từ api.js
+                const exams = await apiGet('/api/student/exams');
+                
                 // Lọc chỉ bài thi đã làm
                 const completedExams = exams.filter(exam => exam.my_attempts > 0);
                 
                 if (completedExams.length > 0) {
                     // Load chi tiết từng bài thi để lấy điểm
-                    Promise.all(completedExams.map(async exam => {
+                    const results = await Promise.all(completedExams.map(async exam => {
                         try {
-                            const detailRes = await fetch(`http://127.0.0.1:3000/api/student/exams/${exam.exam_id}`, {
-                                headers: { 'Authorization': `Bearer ${token}` }
-                            });
-                            const detail = await detailRes.json();
+                            // Sử dụng apiGet từ api.js
+                            const detail = await apiGet(`/api/student/exams/${exam.exam_id}`);
                             const submittedAttempt = detail.attempts?.find(a => a.status === 'Submitted' || a.status === 'AutoSubmitted');
                             return {
                                 exam_id: exam.exam_id,
@@ -713,41 +685,39 @@ if (window.history && window.history.pushState) {
                         } catch {
                             return null;
                         }
-                    }))
-                    .then(results => {
-                        const validResults = results.filter(r => r !== null && r.attempt_id);
-                        if (validResults.length > 0) {
-                            myResultsList.innerHTML = validResults.map(result => {
-                                const score = parseFloat(result.score || 0);
-                                const total = parseFloat(result.total_points || 0);
-                                const scoreStr = score % 1 === 0 ? score.toString() : score.toFixed(1);
-                                const totalStr = total % 1 === 0 ? total.toString() : total.toFixed(1);
-                                
-                                return `
-                                    <div class="test-item">
-                                        <div class="test-info">
-                                            <div class="test-title">${result.exam_name || 'Bài thi'}</div>
-                                            <div class="test-meta">Ngày: ${result.start_time ? new Date(result.start_time).toLocaleDateString('vi-VN') : 'N/A'}</div>
-                                        </div>
-                                        <div style="font-size: 18px; font-weight: bold; color: #667eea;">
-                                            ${scoreStr}/${totalStr}
-                                        </div>
-                                        <button class="btn btn-primary" onclick="viewResult(${result.exam_id}, ${result.attempt_id})">Xem chi tiết</button>
+                    }));
+                    
+                    const validResults = results.filter(r => r !== null && r.attempt_id);
+                    if (validResults.length > 0) {
+                        myResultsList.innerHTML = validResults.map(result => {
+                            const score = parseFloat(result.score || 0);
+                            const total = parseFloat(result.total_points || 0);
+                            const scoreStr = score % 1 === 0 ? score.toString() : score.toFixed(1);
+                            const totalStr = total % 1 === 0 ? total.toString() : total.toFixed(1);
+                            
+                            return `
+                                <div class="test-item">
+                                    <div class="test-info">
+                                        <div class="test-title">${result.exam_name || 'Bài thi'}</div>
+                                        <div class="test-meta">Ngày: ${result.start_time ? new Date(result.start_time).toLocaleDateString('vi-VN') : 'N/A'}</div>
                                     </div>
-                                `;
-                            }).join('');
-                        } else {
-                            myResultsList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">Chưa có kết quả nào.</p>';
-                        }
-                    });
+                                    <div style="font-size: 18px; font-weight: bold; color: #667eea;">
+                                        ${scoreStr}/${totalStr}
+                                    </div>
+                                    <button class="btn btn-primary" onclick="viewResult(${result.exam_id}, ${result.attempt_id})">Xem chi tiết</button>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        myResultsList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">Chưa có kết quả nào.</p>';
+                    }
                 } else {
                     myResultsList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">Chưa có kết quả nào.</p>';
                 }
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error('Error loading results:', err);
                 myResultsList.innerHTML = '<p style="text-align: center; color: #ff4757;">❌ Lỗi tải kết quả. Vui lòng thử lại.</p>';
-            });
+            }
         }
         
         // ⭐ HÀM LOAD BẢNG XẾP HẠNG
@@ -807,26 +777,13 @@ if (window.history && window.history.pushState) {
         // Join class
         async function joinClass() {
             const code = document.getElementById('classCode').value.trim();
-            const token = localStorage.getItem('token');
 
             if (!code) return showToast('❌ Vui lòng nhập mã lớp!', 'error');
             if (code.length < 6) return showToast('❌ Mã lớp không hợp lệ!', 'error');
 
             try {
-                const res = await fetch('http://127.0.0.1:3000/api/student/classes/join', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ classCode: code })
-                });
-
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.error || 'Không thể tham gia lớp.');
-                }
+                // Sử dụng apiPost từ api.js - tự động xử lý errors
+                await apiPost('/api/student/classes/join', { classCode: code });
 
                 showToast('🎉 Tham gia lớp thành công!', 'success');
                 document.getElementById('classCode').value = '';
@@ -849,8 +806,6 @@ if (window.history && window.history.pushState) {
 // 📊 XEM CHI TIẾT LỚP HỌC - ĐÃ CẬP NHẬT
 // ============================================
 async function viewClassDetail(classId, className, subject, year) {
-    const token = localStorage.getItem('token');
-    
     showSection('class-detail');
     document.getElementById('pageTitle').textContent = `Chi tiết lớp: ${className}`;
     
@@ -865,13 +820,8 @@ async function viewClassDetail(classId, className, subject, year) {
     document.getElementById('announcementsList').innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">⏳ Đang tải dữ liệu...</p>';
 
     try {
-        const response = await fetch(`http://127.0.0.1:3000/api/classes/${classId}/detail`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) throw new Error('Không thể tải thông tin lớp');
-
-        const data = await response.json();
+        // Sử dụng apiGet từ api.js
+        const data = await apiGet(`/api/classes/${classId}/detail`);
 
         document.getElementById('detailTeacher').textContent = data.teacher || 'Chưa có thông tin';
 
@@ -904,10 +854,8 @@ async function viewClassDetail(classId, className, subject, year) {
             // ⭐ LẤY THÔNG TIN CÁC BÀI ĐÃ LÀM
             const testsWithAttempts = await Promise.all(data.tests.map(async test => {
                 try {
-                    const detailRes = await fetch(`http://127.0.0.1:3000/api/student/exams/${test.exam_id || test.test_id}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    const detail = await detailRes.json();
+                    // Sử dụng apiGet từ api.js
+                    const detail = await apiGet(`/api/student/exams/${test.exam_id || test.test_id}`);
                     return { ...test, attempts: detail.attempts || [] };
                 } catch {
                     return { ...test, attempts: [] };
@@ -1024,7 +972,6 @@ async function viewClassDetail(classId, className, subject, year) {
 // 🚀 BẮT ĐẦU LÀM BÀI THI
 // ============================================
 async function loadAvailableTests() {
-    const token = localStorage.getItem('token');
     const availableTestsList = document.getElementById('availableTestsList');
     
     if (!availableTestsList) return;
@@ -1032,15 +979,8 @@ async function loadAvailableTests() {
     availableTestsList.innerHTML = '<p style="text-align: center; color: #666;">⏳ Đang tải bài kiểm tra...</p>';
 
     try {
-        const response = await fetch('http://127.0.0.1:3000/api/student/exams', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-            throw new Error('Không thể tải danh sách bài thi');
-        }
-
-        const exams = await response.json();
+        // Sử dụng apiGet từ api.js
+        const exams = await apiGet('/api/student/exams');
 
         // Lọc chỉ bài thi đang diễn ra hoặc sắp diễn ra
         const availableExams = exams.filter(exam => {
@@ -1112,7 +1052,6 @@ async function loadAvailableTests() {
 }
 
 async function loadTestHistory() {
-    const token = localStorage.getItem('token');
     const testHistoryList = document.getElementById('testHistoryList');
     
     // ⭐ KIỂM TRA ELEMENT TỒN TẠI
@@ -1123,40 +1062,45 @@ async function loadTestHistory() {
     testHistoryList.innerHTML = '<p style="text-align: center; color: #666;">⏳ Đang tải lịch sử làm bài...</p>';
 
     try {
-        const response = await fetch('http://127.0.0.1:3000/api/student/exams', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        // Sử dụng apiGet từ api.js
+        const exams = await apiGet('/api/student/exams');
 
-        if (!response.ok) {
-            throw new Error('Không thể tải danh sách bài thi');
-        }
-
-        const exams = await response.json();
-
-        const attemptsPromises = exams
-            .filter(exam => exam.my_attempts > 0)
-            .map(async exam => {
+        // ⭐ LẤY TẤT CẢ CÁC BÀI THI CÓ ATTEMPTS (KHÔNG CHỈ my_attempts > 0)
+        const attemptsPromises = exams.map(async exam => {
                 try {
-                    const detailResponse = await fetch(`http://127.0.0.1:3000/api/student/exams/${exam.exam_id}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                    // Sử dụng apiGet từ api.js
+                    const detail = await apiGet(`/api/student/exams/${exam.exam_id}`);
+                    
+                    // ⭐ LẤY TẤT CẢ ATTEMPTS CỦA HỌC SINH (KHÔNG LỌC THEO STATUS)
+                    // Hiển thị tất cả attempts: Submitted, AutoSubmitted, InProgress, và cả những attempts cũ
+                    const studentAttempts = detail.attempts || [];
+                    
+                    // Sắp xếp attempts theo thời gian bắt đầu (mới nhất trước)
+                    studentAttempts.sort((a, b) => {
+                        const timeA = new Date(a.start_time || 0).getTime();
+                        const timeB = new Date(b.start_time || 0).getTime();
+                        return timeB - timeA; // Mới nhất trước
                     });
                     
-                    if (!detailResponse.ok) return null;
+                    // Chỉ trả về nếu có attempts
+                    if (studentAttempts.length === 0) {
+                        return null;
+                    }
                     
-                    const detail = await detailResponse.json();
                     return {
                         exam_name: exam.exam_name,
                         exam_id: exam.exam_id,
-                        total_points: detail.exam.total_points || 100,
-                        attempts: detail.attempts || []
+                        total_points: detail.exam?.total_points || exam.total_points || 100,
+                        attempts: studentAttempts
                     };
                 } catch (err) {
+                    console.error('Error loading exam detail:', err);
                     return null;
                 }
             });
 
         const results = await Promise.all(attemptsPromises);
-        const validResults = results.filter(r => r !== null && r.attempts.length > 0);
+        const validResults = results.filter(r => r !== null && r.attempts && r.attempts.length > 0);
 
         if (validResults.length === 0) {
             testHistoryList.innerHTML = '<p style="text-align: center; color: #666;">Chưa có lịch sử làm bài.</p>';
@@ -1239,14 +1183,9 @@ async function loadTestHistory() {
 let pendingExamId = null;
 
 async function startTest(examId) {
-    const token = localStorage.getItem('token');
-    
     try {
-        // Kiểm tra trước khi gọi API
-        const examResponse = await fetch(`http://127.0.0.1:3000/api/student/exams`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const exams = await examResponse.json();
+        // Sử dụng apiGet từ api.js
+        const exams = await apiGet('/api/student/exams');
         const exam = exams.find(e => e.exam_id === examId);
         
         if (!exam) {
@@ -1257,10 +1196,8 @@ async function startTest(examId) {
         // ⭐ KIỂM TRA ĐÃ LÀM BÀI CHƯA
         if (exam.my_attempts > 0) {
             // Kiểm tra xem có attempt nào đã nộp chưa
-            const detailResponse = await fetch(`http://127.0.0.1:3000/api/student/exams/${examId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const detail = await detailResponse.json();
+            // Sử dụng apiGet từ api.js
+            const detail = await apiGet(`/api/student/exams/${examId}`);
             
             const hasSubmitted = detail.attempts.some(a => 
                 a.status === 'Submitted' || a.status === 'AutoSubmitted'
@@ -1312,41 +1249,29 @@ async function submitExamCode() {
         return;
     }
     
-    const token = localStorage.getItem('token');
     errorDiv.style.display = 'none';
     
     try {
         showToast('🚀 Đang kiểm tra mã code...', 'info');
         
-        const response = await fetch(`http://127.0.0.1:3000/api/student/exams/${pendingExamId}/start`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ exam_code: examCode })
-        });
+        // Sử dụng apiPost từ api.js - tự động xử lý errors
+        const data = await apiPost(`/api/student/exams/${pendingExamId}/start`, { exam_code: examCode });
         
-        const data = await response.json();
+        // Kiểm tra nếu cần mã code (từ response data)
+        if (data.requires_code) {
+            errorDiv.textContent = '❌ ' + (data.error || 'Mã code không đúng');
+            errorDiv.style.display = 'block';
+            return;
+        }
         
-        if (!response.ok) {
-            // Kiểm tra nếu cần mã code
-            if (data.requires_code) {
-                errorDiv.textContent = '❌ ' + data.error;
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            // ⭐ XỬ LÝ LỖI ĐÃ LÀM BÀI
-            if (data.redirect === 'test-history') {
-                closeModal('examCodeModal');
-                showToast('❌ ' + data.error, 'error');
-                setTimeout(() => {
-                    showSection('test-history');
-                }, 2000);
-                return;
-            }
-            throw new Error(data.error || 'Không thể bắt đầu làm bài');
+        // ⭐ XỬ LÝ LỖI ĐÃ LÀM BÀI
+        if (data.redirect === 'test-history') {
+            closeModal('examCodeModal');
+            showToast('❌ ' + (data.error || 'Bạn đã hoàn thành bài thi này'), 'error');
+            setTimeout(() => {
+                showSection('test-history');
+            }, 2000);
+            return;
         }
         
         // Đóng modal và chuyển đến trang làm bài
@@ -1410,29 +1335,29 @@ async function viewResult(examId, attemptId) {
             // Chỉ có attemptId, cần tìm exam_id từ API
             showToast('📊 Đang tìm thông tin bài thi...', 'info');
             try {
-                const examsResponse = await fetch('http://127.0.0.1:3000/api/student/exams', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (examsResponse.ok) {
-                    const examsData = await examsResponse.json();
-                    // Tìm exam có attempt với attempt_id này
-                    for (const exam of examsData.exams || []) {
-                        const detailResponse = await fetch(`http://127.0.0.1:3000/api/student/exams/${exam.exam_id}`, {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        if (detailResponse.ok) {
-                            const detail = await detailResponse.json();
-                            const attempt = (detail.attempts || []).find(a => a.attempt_id == examId);
-                            if (attempt) {
-                                examId = exam.exam_id;
-                                attemptId = attempt.attempt_id;
-                                break;
-                            }
+                // Sử dụng apiGet từ api.js
+                const examsData = await apiGet('/api/student/exams');
+                const exams = Array.isArray(examsData) ? examsData : (examsData.exams || []);
+                
+                // Tìm exam có attempt với attempt_id này
+                for (const exam of exams) {
+                    try {
+                        // Sử dụng apiGet từ api.js
+                        const detail = await apiGet(`/api/student/exams/${exam.exam_id}`);
+                        const attempt = (detail.attempts || []).find(a => a.attempt_id == examId);
+                        if (attempt) {
+                            examId = exam.exam_id;
+                            attemptId = attempt.attempt_id;
+                            break;
                         }
+                    } catch (e) {
+                        // Skip exam này, tiếp tục tìm
+                        continue;
                     }
                 }
             } catch (e) {
                 // Error finding exam_id
+                console.error('Error finding exam_id:', e);
             }
         }
     }
@@ -1445,22 +1370,8 @@ async function viewResult(examId, attemptId) {
     showToast('📊 Đang tải kết quả...', 'info');
     
     try {
-        const response = await fetch(`http://127.0.0.1:3000/api/student/exams/${examId}/result/${attemptId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            let errorData;
-            try {
-                errorData = JSON.parse(errorText);
-            } catch {
-                errorData = { error: errorText || 'Không thể tải kết quả' };
-            }
-            throw new Error(errorData.error || 'Không thể tải kết quả');
-        }
-        
-        const data = await response.json();
+        // Sử dụng apiGet từ api.js - tự động xử lý errors
+        await apiGet(`/api/student/exams/${examId}/result/${attemptId}`);
         
         // ⭐ CHUYỂN HƯỚNG ĐẾN TRANG KẾT QUẢ
         window.location.href = `./student_result.html?exam_id=${examId}&attempt_id=${attemptId}`;
@@ -1476,19 +1387,13 @@ async function viewResult(examId, attemptId) {
         
         // Load danh sách bài thi đã chấm điểm vào dropdown
         async function loadComplaintExams() {
-            const token = localStorage.getItem('token');
             const complaintSubject = document.getElementById('complaintSubject');
             
             if (!complaintSubject) return;
             
             try {
-                const response = await fetch('http://127.0.0.1:3000/api/student/exams', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (!response.ok) throw new Error('Lỗi tải danh sách bài thi');
-                
-                const exams = await response.json();
+                // Sử dụng apiGet từ api.js
+                const exams = await apiGet('/api/student/exams');
                 
                 // Lấy chi tiết từng bài thi để kiểm tra đã chấm điểm chưa
                 const examsWithScores = await Promise.all(
@@ -1496,12 +1401,8 @@ async function viewResult(examId, attemptId) {
                         .filter(exam => exam.my_attempts > 0)
                         .map(async exam => {
                             try {
-                                const detailRes = await fetch(`http://127.0.0.1:3000/api/student/exams/${exam.exam_id}`, {
-                                    headers: { 'Authorization': `Bearer ${token}` }
-                                });
-                                if (!detailRes.ok) return null;
-                                
-                                const detail = await detailRes.json();
+                                // Sử dụng apiGet từ api.js
+                                const detail = await apiGet(`/api/student/exams/${exam.exam_id}`);
                                 // Chỉ lấy bài thi đã được chấm điểm (có score)
                                 const gradedAttempts = (detail.attempts || []).filter(a => 
                                     a.status === 'Submitted' && 
@@ -1562,13 +1463,8 @@ async function viewResult(examId, attemptId) {
             recentComplaints.innerHTML = '<div style="text-align: center; padding: 40px; color: #718096;"><p>⏳ Đang tải lịch sử khiếu nại...</p></div>';
             
             try {
-                const response = await fetch('http://localhost:3000/api/complaints', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (!response.ok) throw new Error('Lỗi tải danh sách khiếu nại');
-                
-                const complaints = await response.json();
+                // Sử dụng apiGet từ api.js
+                const complaints = await apiGet('/api/complaints');
                 
                 // Cập nhật số lượng
                 if (complaintCount) {
@@ -1686,23 +1582,11 @@ async function viewResult(examId, attemptId) {
             }
             
             try {
-                const response = await fetch('http://localhost:3000/api/complaints', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        examId: parseInt(examId),
-                        content: reason
-                    })
+                // Sử dụng apiPost từ api.js
+                await apiPost('/api/complaints', {
+                    examId: parseInt(examId),
+                    content: reason
                 });
-                
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.error || 'Lỗi gửi khiếu nại');
-                }
                 
                 showToast('✅ Gửi khiếu nại thành công! Giáo viên sẽ xem xét trong thời gian sớm nhất.', 'success');
                 resetComplaintForm();
@@ -1729,16 +1613,8 @@ async function viewResult(examId, attemptId) {
         async function loadNotifications() {
             const token = localStorage.getItem('token');
             try {
-                const response = await fetch('http://localhost:3000/api/notifications', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error('Lỗi tải thông báo');
-                }
-
-                const notifications = await response.json();
+                // Sử dụng apiGet từ api.js
+                const notifications = await apiGet('/api/notifications');
                 
                 if (Array.isArray(notifications)) {
                     unreadNotificationCount = notifications.filter(n => n.is_read === 0 || n.is_read === false || !n.is_read).length;
@@ -1825,22 +1701,16 @@ async function viewResult(examId, attemptId) {
         async function markAllAsRead() {
             const token = localStorage.getItem('token');
             try {
-                const response = await fetch('http://localhost:3000/api/notifications/mark-all-read', {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (response.ok) {
-                    unreadNotificationCount = 0;
-                    updateNotificationBadge();
-                    showToast('✅ Đã đánh dấu tất cả thông báo là đã đọc', 'success');
-                    loadNotifications(); // Reload để cập nhật UI
-                }
+                // Sử dụng apiPost từ api.js
+                await apiPost('/api/notifications/mark-all-read', {});
+                
+                unreadNotificationCount = 0;
+                updateNotificationBadge();
+                showToast('✅ Đã đánh dấu tất cả thông báo là đã đọc', 'success');
+                loadNotifications(); // Reload để cập nhật UI
             } catch (error) {
-                // Error marking notifications as read
+                console.error('Error marking notifications as read:', error);
+                showToast('❌ Lỗi khi đánh dấu thông báo', 'error');
             }
         }
 
@@ -1850,20 +1720,14 @@ async function viewResult(examId, attemptId) {
 let scoreChart, distributionChart;
 
 async function loadStatistics() {
-    const token = localStorage.getItem('token');
-    
     try {
-        const [examsRes, classesRes] = await Promise.all([
-            fetch('http://127.0.0.1:3000/api/student/exams', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            }),
-            fetch('http://127.0.0.1:3000/api/student/classes/my', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
+        // Sử dụng apiGet từ api.js
+        const [exams, classesData] = await Promise.all([
+            apiGet('/api/student/exams'),
+            apiGet('/api/student/classes/my')
         ]);
 
-        const exams = await examsRes.json();
-        const classes = await classesRes.json();
+        const classes = classesData.myClasses || [];
 
         const completedExams = exams.filter(e => e.my_attempts > 0);
         
@@ -1872,10 +1736,8 @@ async function loadStatistics() {
         const examScores = [];
 
         for (const exam of completedExams) {
-            const detailRes = await fetch(`http://127.0.0.1:3000/api/student/exams/${exam.exam_id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const detail = await detailRes.json();
+            // Sử dụng apiGet từ api.js
+            const detail = await apiGet(`/api/student/exams/${exam.exam_id}`);
             
             detail.attempts.forEach(a => {
                 if (a.status === 'Submitted' && a.score !== null) {
@@ -1893,7 +1755,7 @@ async function loadStatistics() {
         document.getElementById('statTotalTests').textContent = totalTests;
         document.getElementById('statAvgScore').textContent = avgScore;
         document.getElementById('statHighestScore').textContent = highestScore;
-        document.getElementById('statTotalClasses').textContent = classes.myClasses?.length || 0;
+        document.getElementById('statTotalClasses').textContent = classes.length || 0;
 
         // Thay thế div statisticsCharts bằng 2 biểu đồ
         document.getElementById('statisticsCharts').innerHTML = `
