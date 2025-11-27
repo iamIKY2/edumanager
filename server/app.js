@@ -123,6 +123,24 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ============================================
+// 🌐 SERVE STATIC FILES (Frontend)
+// ============================================
+// Serve client files - cho phép truy cập từ cùng origin khi deploy
+app.use('/client', express.static(path.join(__dirname, '../client')));
+
+// Serve trang chủ (index.html)
+app.get('/', (req, res) => {
+    const indexPath = path.join(__dirname, '../client/index.html');
+    console.log('📄 Serving index.html from:', indexPath);
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            console.error('❌ Error serving index.html:', err);
+            res.status(500).json({ error: 'Cannot serve index.html', path: indexPath });
+        }
+    });
+});
+
 // Tạo MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',

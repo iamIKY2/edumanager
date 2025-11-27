@@ -1,4 +1,48 @@
 // /client/public/js/teacher.js
+
+// ==========================================
+// CHỐNG BACK/FORWARD SAU LOGOUT
+// ==========================================
+// Khi user bấm nút back/forward, trình duyệt có thể load trang từ cache (bfcache)
+// Đoạn code này sẽ detect và force kiểm tra authentication lại
+
+window.addEventListener('pageshow', function(event) {
+    // event.persisted = true khi trang được load từ bfcache (back-forward cache)
+    // performance.navigation.type === 2 nghĩa là trang được load từ history (back/forward)
+    const isBackForward = event.persisted || 
+        (window.performance && 
+         window.performance.getEntriesByType && 
+         window.performance.getEntriesByType('navigation').length > 0 &&
+         window.performance.getEntriesByType('navigation')[0].type === 'back_forward');
+    
+    if (isBackForward) {
+        // Kiểm tra authentication lại
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role')?.toLowerCase();
+        
+        if (!token || role !== 'teacher') {
+            // Không có token hoặc role không đúng -> redirect về login
+            // Dùng replace() để không lưu vào history
+            window.location.replace('./login.html');
+        }
+    }
+});
+
+// Ngăn trình duyệt cache trang khi back
+if (window.history && window.history.pushState) {
+    window.history.pushState(null, null, window.location.href);
+    window.addEventListener('popstate', function() {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role')?.toLowerCase();
+        
+        if (!token || role !== 'teacher') {
+            window.location.replace('./login.html');
+        } else {
+            window.history.pushState(null, null, window.location.href);
+        }
+    });
+}
+
 // Console log - HIỂN THỊ TẤT CẢ ĐỂ DEBUG
 const originalLog = console.log;
 const originalWarn = console.warn;
@@ -321,18 +365,42 @@ async function renderExams() {
 }
 
 function showNotifications() {
+    // Kiểm tra nếu popup đã tồn tại thì đóng nó
+    const existingPopup = document.querySelector('.notification-popup');
+    if (existingPopup) {
+        existingPopup.remove();
+        return;
+    }
+    
     fetchNotifications();
     const notificationList = document.querySelector('#notifications .notification-list');
     const popup = document.createElement('div');
     popup.className = 'notification-popup';
     popup.innerHTML = `
         <div class="popup-content">
-            <h3>Thông báo nhận được</h3>
+            <h3>🔔 Thông báo nhận được</h3>
             <div class="notification-list">${notificationList.innerHTML}</div>
             <button class="btn btn-secondary" onclick="this.parentElement.parentElement.remove()">Đóng</button>
         </div>
     `;
     document.body.appendChild(popup);
+    
+    // Click outside to close - khi click ra ngoài popup-content thì đóng
+    popup.addEventListener('click', function(e) {
+        // Nếu click vào chính popup (vùng overlay) chứ không phải popup-content
+        if (e.target === popup) {
+            popup.remove();
+        }
+    });
+    
+    // Nhấn ESC để đóng
+    const escHandler = function(e) {
+        if (e.key === 'Escape') {
+            popup.remove();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
 }
 
 async function fetchClasses() {
@@ -7395,11 +7463,19 @@ function resetAIModal() {
 function logout() {
     if (confirm('🔒 Bạn có chắc muốn đăng xuất?')) {
         showNotification('👋 Đang đăng xuất...', 'info');
+        
+        // Xóa tất cả thông tin đăng nhập
         localStorage.removeItem('token');
         localStorage.removeItem('role');
         localStorage.removeItem('user_id');
+        
+        // Xóa session storage nếu có
+        sessionStorage.clear();
+        
         setTimeout(() => {
-            window.location.href = './login.html';
+            // Dùng replace() thay vì href để không lưu vào history
+            // Điều này ngăn người dùng bấm nút forward để quay lại dashboard
+            window.location.replace('./login.html');
         }, 1000);
     }
 }

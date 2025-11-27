@@ -221,6 +221,11 @@
     
     <p class="text-center text-light mt-3">Chưa có tài khoản? <a href="register.html" class="text-warning">Đăng ký</a></p>
     <p class="text-center text-light"><a href="forgot_password.html" class="text-warning">Quên mật khẩu?</a></p>
+    <p class="text-center mt-3">
+      <a href="/client/index.html" class="text-light" style="opacity: 0.8; text-decoration: none; transition: opacity 0.3s;">
+        <i class="fas fa-home me-1"></i>Quay lại trang chủ
+      </a>
+    </p>
   </div>
 
   <!-- Modal chọn role -->
@@ -513,7 +518,8 @@
         console.log('Dữ liệu JSON:', data); 
 
         if (!response.ok) {
-          showToast(data.message || 'Đăng nhập thất bại!', 'danger');
+          // Backend trả về data.error với thông báo cụ thể: "Email không tồn tại!" hoặc "Mật khẩu không đúng!"
+          showToast(data.error || data.message || 'Đăng nhập thất bại!', 'danger');
         } else {
           localStorage.setItem('token', data.token);
           localStorage.setItem('role', data.role); 

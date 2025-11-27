@@ -15,10 +15,13 @@
       --glass-bg: rgba(255, 255, 255, 0.1);
       --glass-border: rgba(255, 255, 255, 0.2);
       --text-light: rgba(255, 255, 255, 0.9);
+      /* Override gradient cho trang đăng ký - nền tối */
+      --auth-bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     }
     body {
       font-family: var(--font-family);
-      background: var(--bg-gradient);
+      background: var(--auth-bg-gradient);
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -203,6 +206,11 @@
     
     <p class="text-center text-light mt-3 mb-0">
       Đã có tài khoản? <a href="login.html" class="text-warning fw-bold">Đăng nhập</a>
+    </p>
+    <p class="text-center mt-3 mb-0">
+      <a href="/client/index.html" class="text-light" style="opacity: 0.8; text-decoration: none;">
+        <i class="fas fa-home me-1"></i>Quay lại trang chủ
+      </a>
     </p>
   </div>
 

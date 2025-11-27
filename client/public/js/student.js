@@ -1,4 +1,46 @@
 // student.js
+
+// ==========================================
+// CHỐNG BACK/FORWARD SAU LOGOUT
+// ==========================================
+// Khi user bấm nút back/forward, trình duyệt có thể load trang từ cache (bfcache)
+// Đoạn code này sẽ detect và force kiểm tra authentication lại
+
+window.addEventListener('pageshow', function(event) {
+    // event.persisted = true khi trang được load từ bfcache (back-forward cache)
+    const isBackForward = event.persisted || 
+        (window.performance && 
+         window.performance.getEntriesByType && 
+         window.performance.getEntriesByType('navigation').length > 0 &&
+         window.performance.getEntriesByType('navigation')[0].type === 'back_forward');
+    
+    if (isBackForward) {
+        // Kiểm tra authentication lại
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role')?.toLowerCase();
+        
+        if (!token || role !== 'student') {
+            // Không có token hoặc role không đúng -> redirect về login
+            window.location.replace('./login.html');
+        }
+    }
+});
+
+// Ngăn trình duyệt cache trang khi back
+if (window.history && window.history.pushState) {
+    window.history.pushState(null, null, window.location.href);
+    window.addEventListener('popstate', function() {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role')?.toLowerCase();
+        
+        if (!token || role !== 'student') {
+            window.location.replace('./login.html');
+        } else {
+            window.history.pushState(null, null, window.location.href);
+        }
+    });
+}
+
         // Socket.IO connection
         let socket;
         let unreadNotificationCount = 0;
@@ -1932,10 +1974,20 @@ async function loadStatistics() {
         function logout() {
             if (confirm('🔒 Bạn có chắc muốn đăng xuất?')) {
                 showToast('👋 Đăng xuất thành công!', 'success');
+                
+                // Xóa tất cả thông tin đăng nhập
                 localStorage.removeItem('token');
                 localStorage.removeItem('role');
+                localStorage.removeItem('user_id');
+                localStorage.removeItem('currentSection');
+                
+                // Xóa session storage nếu có
+                sessionStorage.clear();
+                
                 setTimeout(() => {
-                    window.location.href = './login.html';
+                    // Dùng replace() thay vì href để không lưu vào history
+                    // Điều này ngăn người dùng bấm nút forward để quay lại dashboard
+                    window.location.replace('./login.html');
                 }, 1500);
             }
         }
