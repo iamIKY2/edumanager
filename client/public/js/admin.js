@@ -150,7 +150,10 @@ function switchSection(sectionName) {
     } else if (sectionName === 'subjects') {
         setTimeout(loadSubjectsData, 100);
     } else if (sectionName === 'reports') {
-        setTimeout(loadReportsData, 100);
+        setTimeout(() => {
+            loadReportsData();
+            loadAIUsageReport();
+        }, 100);
     } else if (sectionName === 'monitor-cheating') {
         setTimeout(loadCheatingData, 100);
     } else if (sectionName === 'settings') {
@@ -4606,6 +4609,7 @@ if (reportsNavLink) {
             loadReportsData();
             loadScoreHistory();
             loadComplaintsHistory();
+            // loadAIUsageReport() chỉ được gọi trong switchSection khi sectionName === 'reports'
         }, 100);
     };
 }
@@ -4876,6 +4880,340 @@ function resetComplaintHistoryFilter() {
     document.getElementById('complaintHistoryStartDate').value = '';
     document.getElementById('complaintHistoryEndDate').value = '';
     loadComplaintsHistory(1);
+}
+
+// ============================================
+// 🤖 BÁO CÁO SỬ DỤNG AI
+// ============================================
+let aiProviderChart = null;
+let aiActionChart = null;
+let aiDailyUsageChart = null;
+
+async function loadAIUsageReport() {
+    try {
+        // Chỉ load khi đang ở reports section
+        const reportsSection = document.getElementById('reports-section');
+        if (!reportsSection || !reportsSection.classList.contains('active')) {
+            return; // Không load nếu không ở reports section
+        }
+        
+        // Sử dụng bộ lọc từ reports section
+        const params = new URLSearchParams(currentReportFilters);
+        const data = await apiGet(`/api/admin/reports/ai-usage?${params}`);
+
+        // Cập nhật thống kê tổng quan
+        document.getElementById('aiTotalRequests').textContent = data.overview.total_requests.toLocaleString('vi-VN');
+        document.getElementById('aiTotalUsers').textContent = data.overview.total_users.toLocaleString('vi-VN');
+        document.getElementById('aiTotalTokens').textContent = data.overview.total_tokens.toLocaleString('vi-VN');
+        
+        // Xu hướng
+        const requestTrendEl = document.getElementById('aiRequestTrend');
+        const requestTrend = data.overview.request_trend || 0;
+        requestTrendEl.innerHTML = requestTrend >= 0 
+            ? `<i class="bi bi-arrow-up text-success"></i> +${Math.abs(requestTrend).toFixed(1)}%`
+            : `<i class="bi bi-arrow-down text-danger"></i> -${Math.abs(requestTrend).toFixed(1)}%`;
+        
+        const tokenTrendEl = document.getElementById('aiTokenTrend');
+        const tokenTrend = data.overview.token_trend || 0;
+        tokenTrendEl.innerHTML = tokenTrend >= 0
+            ? `<i class="bi bi-arrow-up text-success"></i> +${Math.abs(tokenTrend).toFixed(1)}%`
+            : `<i class="bi bi-arrow-down text-danger"></i> -${Math.abs(tokenTrend).toFixed(1)}%`;
+
+        // Provider chính
+        const groqReq = data.overview.groq_requests || 0;
+        const geminiReq = data.overview.gemini_requests || 0;
+        const openaiReq = data.overview.openai_requests || 0;
+        let mainProvider = '-';
+        if (groqReq >= geminiReq && groqReq >= openaiReq) mainProvider = 'Groq';
+        else if (geminiReq >= openaiReq) mainProvider = 'Gemini';
+        else mainProvider = 'OpenAI';
+        
+        document.getElementById('aiMainProvider').textContent = mainProvider;
+        document.getElementById('aiProviderDetail').textContent = `Groq: ${groqReq} | Gemini: ${geminiReq} | OpenAI: ${openaiReq}`;
+
+        // Vẽ biểu đồ Provider
+        renderAIProviderChart(data.providerStats);
+        
+        // Vẽ biểu đồ Action
+        renderAIActionChart(data.actionStats);
+        
+        // Vẽ biểu đồ daily usage
+        renderAIDailyUsageChart(data.dailyUsage);
+        
+        // Cập nhật bảng top users
+        renderAITopUsers(data.topUsers);
+        
+        // Cập nhật bảng role stats
+        renderAIRoleStats(data.roleStats);
+        
+        // Cập nhật bảng provider stats
+        renderAIProviderStats(data.providerStats);
+
+    } catch (err) {
+        console.error('Lỗi tải báo cáo AI usage:', err);
+        showNotification('Lỗi tải báo cáo AI usage: ' + err.message, 'error');
+    }
+}
+
+function renderAIProviderChart(providerStats) {
+    const ctx = document.getElementById('aiProviderChart');
+    if (!ctx) return;
+    
+    if (aiProviderChart) {
+        aiProviderChart.destroy();
+    }
+    
+    const labels = providerStats.map(s => s.provider.toUpperCase());
+    const data = providerStats.map(s => parseInt(s.total_requests));
+    const colors = ['#7f8ac5', '#4299e1', '#48bb78', '#ed8936'];
+    
+    aiProviderChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors.slice(0, labels.length),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function renderAIActionChart(actionStats) {
+    const ctx = document.getElementById('aiActionChart');
+    if (!ctx) return;
+    
+    if (aiActionChart) {
+        aiActionChart.destroy();
+    }
+    
+    const labels = actionStats.map(s => {
+        const actionNames = {
+            'create_practice_exam': 'Tạo đề luyện tập',
+            'create_exam': 'Tạo đề thi',
+            'grade_essay': 'Chấm tự luận',
+            'extract_content': 'Trích xuất nội dung'
+        };
+        return actionNames[s.action_type] || s.action_type;
+    });
+    const data = actionStats.map(s => parseInt(s.total_requests));
+    
+    aiActionChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Số yêu cầu',
+                data: data,
+                backgroundColor: '#7f8ac5',
+                borderColor: '#667eea',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderAIDailyUsageChart(dailyUsage) {
+    const ctx = document.getElementById('aiDailyUsageChart');
+    if (!ctx) return;
+    
+    // Kiểm tra xem canvas có trong DOM và visible không
+    if (!ctx.offsetParent && ctx.offsetWidth === 0 && ctx.offsetHeight === 0) {
+        return;
+    }
+    
+    if (aiDailyUsageChart) {
+        aiDailyUsageChart.destroy();
+        aiDailyUsageChart = null;
+    }
+    
+    // Kiểm tra dữ liệu hợp lệ
+    if (!dailyUsage || !Array.isArray(dailyUsage) || dailyUsage.length === 0) {
+        return;
+    }
+    
+    const labels = dailyUsage.map(d => d.label || '');
+    const requestsData = dailyUsage.map(d => parseInt(d.requests) || 0);
+    const tokensData = dailyUsage.map(d => parseInt(d.tokens) || 0);
+    
+    try {
+        aiDailyUsageChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Yêu cầu',
+                        data: requestsData,
+                        borderColor: '#7f8ac5',
+                        backgroundColor: 'rgba(127, 138, 197, 0.1)',
+                        tension: 0.4,
+                        yAxisID: 'y',
+                        fill: false
+                    },
+                    {
+                        label: 'Tokens',
+                        data: tokensData,
+                        borderColor: '#48bb78',
+                        backgroundColor: 'rgba(72, 187, 120, 0.1)',
+                        tension: 0.4,
+                        yAxisID: 'y1',
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2.5,
+                animation: {
+                    duration: 0
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        enabled: true
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                },
+                resizeDelay: 0,
+                onResize: null
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi render biểu đồ AI daily usage:', error);
+        aiDailyUsageChart = null;
+    }
+}
+
+function renderAITopUsers(topUsers) {
+    const tbody = document.getElementById('aiTopUsersTable');
+    if (!tbody) return;
+    
+    if (!topUsers || topUsers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Không có dữ liệu</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = topUsers.map((user, index) => {
+        const roleNames = {
+            'Student': 'Học sinh',
+            'Teacher': 'Giáo viên',
+            'Admin': 'Admin'
+        };
+        return `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${user.full_name || 'N/A'}</td>
+                <td>${user.email || 'N/A'}</td>
+                <td><span class="badge bg-secondary">${roleNames[user.role] || user.role}</span></td>
+                <td>${parseInt(user.total_requests).toLocaleString('vi-VN')}</td>
+                <td>${parseInt(user.total_tokens).toLocaleString('vi-VN')}</td>
+                <td>${parseInt(user.active_days)} ngày</td>
+                <td>${parseInt(user.providers_used)} provider(s)</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderAIRoleStats(roleStats) {
+    const tbody = document.getElementById('aiRoleStatsTable');
+    if (!tbody) return;
+    
+    if (!roleStats || roleStats.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Không có dữ liệu</td></tr>';
+        return;
+    }
+    
+    const roleNames = {
+        'Student': 'Học sinh',
+        'Teacher': 'Giáo viên',
+        'Admin': 'Admin'
+    };
+    
+    tbody.innerHTML = roleStats.map(stat => `
+        <tr>
+            <td><strong>${roleNames[stat.role] || stat.role}</strong></td>
+            <td>${parseInt(stat.total_requests).toLocaleString('vi-VN')}</td>
+            <td>${parseInt(stat.total_tokens).toLocaleString('vi-VN')}</td>
+            <td>${parseInt(stat.unique_users)} người</td>
+        </tr>
+    `).join('');
+}
+
+function renderAIProviderStats(providerStats) {
+    const tbody = document.getElementById('aiProviderStatsTable');
+    if (!tbody) return;
+    
+    if (!providerStats || providerStats.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Không có dữ liệu</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = providerStats.map(stat => `
+        <tr>
+            <td><strong>${stat.provider.toUpperCase()}</strong></td>
+            <td>${parseInt(stat.total_requests).toLocaleString('vi-VN')}</td>
+            <td>${parseInt(stat.total_tokens).toLocaleString('vi-VN')}</td>
+            <td>${parseInt(stat.unique_users)} người</td>
+        </tr>
+    `).join('');
 }
 
 // Khởi tạo dữ liệu ban đầu

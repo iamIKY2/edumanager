@@ -3581,4 +3581,232 @@ router.get('/reports/complaints-history', authMiddleware, async (req, res) => {
   }
 });
 
+// ============================================
+// 🤖 API BÁO CÁO SỬ DỤNG AI
+// ============================================
+router.get('/reports/ai-usage', authenticateToken, async (req, res) => {
+  try {
+    const db = req.db;
+    const filters = parseReportFilters(req.query);
+    const { startDateStr, endDateStr } = filters;
+
+    // Kiểm tra bảng ai_usage_logs có tồn tại không
+    try {
+      await db.query('SELECT 1 FROM ai_usage_logs LIMIT 1');
+    } catch (tableErr) {
+      console.warn('⚠️ Bảng ai_usage_logs chưa tồn tại hoặc chưa có dữ liệu');
+      // Trả về dữ liệu rỗng nếu bảng chưa tồn tại
+      return res.json({
+        overview: {
+          total_requests: 0,
+          total_users: 0,
+          total_tokens: 0,
+          groq_requests: 0,
+          gemini_requests: 0,
+          openai_requests: 0,
+          groq_tokens: 0,
+          gemini_tokens: 0,
+          openai_tokens: 0,
+          practice_exam_requests: 0,
+          exam_requests: 0,
+          grading_requests: 0,
+          extract_requests: 0,
+          request_trend: 0,
+          token_trend: 0
+        },
+        dailyUsage: [],
+        providerStats: [],
+        actionStats: [],
+        topUsers: [],
+        roleStats: [],
+        period: {
+          start: startDateStr,
+          end: endDateStr,
+          days: filters.days
+        }
+      });
+    }
+
+    // Thống kê tổng quan
+    const [overview] = await db.query(
+      `SELECT 
+        COUNT(*) as total_requests,
+        COUNT(DISTINCT user_id) as total_users,
+        COALESCE(SUM(tokens_used), 0) as total_tokens,
+        COUNT(CASE WHEN provider = 'groq' THEN 1 END) as groq_requests,
+        COUNT(CASE WHEN provider = 'gemini' THEN 1 END) as gemini_requests,
+        COUNT(CASE WHEN provider = 'openai' THEN 1 END) as openai_requests,
+        COALESCE(SUM(CASE WHEN provider = 'groq' THEN tokens_used ELSE 0 END), 0) as groq_tokens,
+        COALESCE(SUM(CASE WHEN provider = 'gemini' THEN tokens_used ELSE 0 END), 0) as gemini_tokens,
+        COALESCE(SUM(CASE WHEN provider = 'openai' THEN tokens_used ELSE 0 END), 0) as openai_tokens,
+        COUNT(CASE WHEN action_type = 'create_practice_exam' THEN 1 END) as practice_exam_requests,
+        COUNT(CASE WHEN action_type = 'create_exam' THEN 1 END) as exam_requests,
+        COUNT(CASE WHEN action_type = 'grade_essay' THEN 1 END) as grading_requests,
+        COUNT(CASE WHEN action_type = 'extract_content' THEN 1 END) as extract_requests
+       FROM ai_usage_logs
+       WHERE created_at BETWEEN ? AND ?`,
+      [startDateStr, endDateStr]
+    );
+
+    // Thống kê theo ngày
+    const [dailyUsage] = await db.query(
+      `SELECT 
+        DATE(created_at) as date,
+        DATE_FORMAT(DATE(created_at), '%d/%m/%Y') as label,
+        COUNT(*) as requests,
+        COALESCE(SUM(tokens_used), 0) as tokens,
+        COUNT(DISTINCT user_id) as users,
+        COUNT(CASE WHEN provider = 'groq' THEN 1 END) as groq_count,
+        COUNT(CASE WHEN provider = 'gemini' THEN 1 END) as gemini_count,
+        COUNT(CASE WHEN provider = 'openai' THEN 1 END) as openai_count
+       FROM ai_usage_logs
+       WHERE created_at BETWEEN ? AND ?
+       GROUP BY DATE(created_at), DATE_FORMAT(DATE(created_at), '%d/%m/%Y')
+       ORDER BY date ASC`,
+      [startDateStr, endDateStr]
+    );
+
+    // Thống kê theo provider
+    const [providerStats] = await db.query(
+      `SELECT 
+        provider,
+        COUNT(*) as total_requests,
+        COALESCE(SUM(tokens_used), 0) as total_tokens,
+        COALESCE(AVG(tokens_used), 0) as avg_tokens,
+        COUNT(DISTINCT user_id) as unique_users,
+        COUNT(DISTINCT DATE(created_at)) as active_days
+       FROM ai_usage_logs
+       WHERE created_at BETWEEN ? AND ?
+       GROUP BY provider
+       ORDER BY total_requests DESC`,
+      [startDateStr, endDateStr]
+    );
+
+    // Thống kê theo action type
+    const [actionStats] = await db.query(
+      `SELECT 
+        action_type,
+        COUNT(*) as total_requests,
+        COALESCE(SUM(tokens_used), 0) as total_tokens,
+        COALESCE(AVG(tokens_used), 0) as avg_tokens,
+        COUNT(DISTINCT user_id) as unique_users
+       FROM ai_usage_logs
+       WHERE created_at BETWEEN ? AND ?
+       GROUP BY action_type
+       ORDER BY total_requests DESC`,
+      [startDateStr, endDateStr]
+    );
+
+    // Top users sử dụng AI nhiều nhất
+    const [topUsers] = await db.query(
+      `SELECT 
+        u.user_id,
+        u.full_name,
+        u.email,
+        u.role,
+        COUNT(aul.log_id) as total_requests,
+        COALESCE(SUM(aul.tokens_used), 0) as total_tokens,
+        COUNT(DISTINCT DATE(aul.created_at)) as active_days,
+        COUNT(DISTINCT aul.provider) as providers_used
+       FROM ai_usage_logs aul
+       JOIN users u ON aul.user_id = u.user_id
+       WHERE aul.created_at BETWEEN ? AND ?
+       GROUP BY u.user_id, u.full_name, u.email, u.role
+       ORDER BY total_requests DESC
+       LIMIT 20`,
+      [startDateStr, endDateStr]
+    );
+
+    // Thống kê theo role
+    const [roleStats] = await db.query(
+      `SELECT 
+        u.role,
+        COUNT(aul.log_id) as total_requests,
+        COALESCE(SUM(aul.tokens_used), 0) as total_tokens,
+        COUNT(DISTINCT aul.user_id) as unique_users,
+        COALESCE(AVG(aul.tokens_used), 0) as avg_tokens
+       FROM ai_usage_logs aul
+       JOIN users u ON aul.user_id = u.user_id
+       WHERE aul.created_at BETWEEN ? AND ?
+       GROUP BY u.role
+       ORDER BY total_requests DESC`,
+      [startDateStr, endDateStr]
+    );
+
+    // So sánh với kỳ trước (để tính xu hướng)
+    let prevOverview = [{ total_requests: 0, total_tokens: 0, total_users: 0 }];
+    
+    if (filters.days && filters.days > 0) {
+      try {
+        const prevStartDate = new Date(filters.startDate);
+        prevStartDate.setDate(prevStartDate.getDate() - filters.days);
+        const prevEndDate = new Date(filters.startDate);
+        prevEndDate.setDate(prevEndDate.getDate() - 1);
+        
+        const [prevData] = await db.query(
+          `SELECT 
+            COUNT(*) as total_requests,
+            COALESCE(SUM(tokens_used), 0) as total_tokens,
+            COUNT(DISTINCT user_id) as total_users
+           FROM ai_usage_logs
+           WHERE created_at BETWEEN ? AND ?`,
+          [
+            prevStartDate.toISOString().slice(0, 19).replace('T', ' '),
+            prevEndDate.toISOString().slice(0, 19).replace('T', ' ') + ' 23:59:59'
+          ]
+        );
+        
+        prevOverview = prevData;
+      } catch (prevErr) {
+        console.warn('⚠️ Không thể lấy dữ liệu kỳ trước:', prevErr.message);
+        // Giữ giá trị mặc định
+      }
+    }
+
+    const currentData = overview && overview.length > 0 ? overview[0] : {};
+    const prevData = prevOverview && prevOverview.length > 0 ? prevOverview[0] : { total_requests: 0, total_tokens: 0, total_users: 0 };
+    
+    const requestTrend = prevData.total_requests > 0 
+      ? ((currentData.total_requests - prevData.total_requests) / prevData.total_requests * 100).toFixed(2)
+      : 0;
+    
+    const tokenTrend = prevData.total_tokens > 0
+      ? ((currentData.total_tokens - prevData.total_tokens) / prevData.total_tokens * 100).toFixed(2)
+      : 0;
+
+    res.json({
+      overview: {
+        total_requests: parseInt(currentData.total_requests) || 0,
+        total_users: parseInt(currentData.total_users) || 0,
+        total_tokens: parseInt(currentData.total_tokens) || 0,
+        groq_requests: parseInt(currentData.groq_requests) || 0,
+        gemini_requests: parseInt(currentData.gemini_requests) || 0,
+        openai_requests: parseInt(currentData.openai_requests) || 0,
+        groq_tokens: parseInt(currentData.groq_tokens) || 0,
+        gemini_tokens: parseInt(currentData.gemini_tokens) || 0,
+        openai_tokens: parseInt(currentData.openai_tokens) || 0,
+        practice_exam_requests: parseInt(currentData.practice_exam_requests) || 0,
+        exam_requests: parseInt(currentData.exam_requests) || 0,
+        grading_requests: parseInt(currentData.grading_requests) || 0,
+        extract_requests: parseInt(currentData.extract_requests) || 0,
+        request_trend: parseFloat(requestTrend),
+        token_trend: parseFloat(tokenTrend)
+      },
+      dailyUsage,
+      providerStats,
+      actionStats,
+      topUsers,
+      roleStats,
+      period: {
+        start: startDateStr,
+        end: endDateStr,
+        days: filters.days
+      }
+    });
+  } catch (err) {
+    console.error('❌ Lỗi lấy báo cáo AI usage:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
 module.exports = router;

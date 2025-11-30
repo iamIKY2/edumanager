@@ -45,9 +45,26 @@ if (window.history && window.history.pushState) {
         let socket;
         let unreadNotificationCount = 0;
 
-        document.addEventListener('DOMContentLoaded', function () {
-            const token = localStorage.getItem('token');
-            const role = localStorage.getItem('role')?.toLowerCase();
+    document.addEventListener('DOMContentLoaded', function () {
+        // Kiểm tra nếu quay về từ trang kết quả
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromResult = urlParams.get('from') === 'result';
+        const section = urlParams.get('section');
+        
+        if (fromResult && section) {
+            // Xóa params để không reload lại lần sau
+            window.history.replaceState({}, '', window.location.pathname);
+            
+            // Chờ một chút để đảm bảo DOM đã load
+            setTimeout(() => {
+                if (typeof showSection === 'function') {
+                    showSection(section);
+                }
+            }, 300);
+        }
+        
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role')?.toLowerCase();
 
             if (!token || role !== 'student') {
                 alert('Bạn không có quyền truy cập trang này! Vui lòng đăng nhập lại.');
@@ -817,6 +834,7 @@ async function viewClassDetail(classId, className, subject, year) {
 
     document.getElementById('studentsList').innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">⏳ Đang tải dữ liệu...</p>';
     document.getElementById('testsList').innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">⏳ Đang tải dữ liệu...</p>';
+    document.getElementById('materialsList').innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">⏳ Đang tải dữ liệu...</p>';
     document.getElementById('announcementsList').innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">⏳ Đang tải dữ liệu...</p>';
 
     try {
@@ -929,6 +947,82 @@ async function viewClassDetail(classId, className, subject, year) {
             testsList.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><p>Chưa có bài kiểm tra nào</p></div>';
         }
 
+        // ⭐ PHẦN HIỂN THỊ TÀI LIỆU
+        const materialsList = document.getElementById('materialsList');
+        try {
+            // Sử dụng apiGet từ api.js
+            const materials = await apiGet(`/api/student/classes/${classId}/materials`);
+            
+            // Cập nhật số lượng tài liệu
+            document.getElementById('materialsCount').textContent = `(${materials?.length || 0})`;
+            
+            if (materials && materials.length > 0) {
+                materialsList.innerHTML = materials.map(material => {
+                    // Format file size
+                    const fileSize = material.file_size || 0;
+                    let sizeText = '';
+                    if (fileSize < 1024) {
+                        sizeText = fileSize + ' B';
+                    } else if (fileSize < 1024 * 1024) {
+                        sizeText = (fileSize / 1024).toFixed(2) + ' KB';
+                    } else {
+                        sizeText = (fileSize / (1024 * 1024)).toFixed(2) + ' MB';
+                    }
+                    
+                    // Get file icon based on type
+                    const fileType = material.file_type || '';
+                    let fileIcon = '📄';
+                    if (fileType === '.pdf') fileIcon = '📕';
+                    else if (['.doc', '.docx'].includes(fileType)) fileIcon = '📘';
+                    else if (['.xls', '.xlsx'].includes(fileType)) fileIcon = '📗';
+                    else if (['.ppt', '.pptx'].includes(fileType)) fileIcon = '📙';
+                    else if (fileType === '.txt') fileIcon = '📄';
+                    
+                    return `
+                        <div class="material-item" style="padding: 20px; border: 2px solid #e2e8f0; border-radius: 12px; margin-bottom: 15px; background: white; transition: all 0.3s ease;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 200px;">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                                        <div style="font-size: 32px;">${fileIcon}</div>
+                                        <div>
+                                            <div style="font-size: 18px; font-weight: 600; color: #2d3748; margin-bottom: 5px;">
+                                                ${material.title || 'Tài liệu không có tiêu đề'}
+                                            </div>
+                                            <div style="font-size: 14px; color: #718096;">
+                                                ${material.file_name || 'Không có tên file'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    ${material.description ? `
+                                        <div style="color: #4a5568; font-size: 14px; line-height: 1.6; margin-top: 10px; padding: 10px; background: #f7fafc; border-radius: 8px;">
+                                            ${material.description}
+                                        </div>
+                                    ` : ''}
+                                    <div style="display: flex; gap: 15px; margin-top: 12px; font-size: 13px; color: #718096; flex-wrap: wrap;">
+                                        <span>📦 ${sizeText}</span>
+                                        <span>📅 ${material.upload_date ? new Date(material.upload_date).toLocaleDateString('vi-VN') : 'N/A'}</span>
+                                        ${material.linked_questions_count > 0 ? `<span>🔗 Liên kết với ${material.linked_questions_count} câu hỏi</span>` : ''}
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center;">
+                                    <button onclick="downloadMaterial(${material.material_id})" 
+                                       class="btn btn-primary" 
+                                       style="padding: 12px 24px; font-size: 14px; white-space: nowrap;">
+                                        ⬇️ Tải xuống
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                materialsList.innerHTML = '<div class="empty-state"><div class="empty-icon">📚</div><p>Chưa có tài liệu nào từ giáo viên</p></div>';
+            }
+        } catch (error) {
+            console.error('Lỗi tải tài liệu:', error);
+            materialsList.innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu tài liệu</p></div>';
+        }
+
         const announcementsList = document.getElementById('announcementsList');
         if (data.announcements && data.announcements.length > 0) {
             announcementsList.innerHTML = data.announcements.map(ann => `
@@ -949,6 +1043,7 @@ async function viewClassDetail(classId, className, subject, year) {
         showToast('❌ Không thể tải thông tin lớp học!', 'error');
         document.getElementById('studentsList').innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu</p></div>';
         document.getElementById('testsList').innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu</p></div>';
+        document.getElementById('materialsList').innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu</p></div>';
         document.getElementById('announcementsList').innerHTML = '<div class="empty-state error"><p>❌ Lỗi tải dữ liệu</p></div>';
     }
 }
@@ -1898,5 +1993,84 @@ async function loadStatistics() {
         window.onclick = function (event) {
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = 'none';
+            }
+        }
+
+        // ============================================
+        // 📥 DOWNLOAD TÀI LIỆU
+        // ============================================
+        async function downloadMaterial(materialId) {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    showToast('❌ Vui lòng đăng nhập lại!', 'error');
+                    return;
+                }
+
+                showToast('📥 Đang tải xuống...', 'info');
+
+                // Build URL với CONFIG.API_BASE_URL để đảm bảo gửi đến đúng server
+                const baseUrl = (window.CONFIG && window.CONFIG.API_BASE_URL) || '';
+                const downloadUrl = `${baseUrl}/api/teacher/materials/${materialId}/download`;
+                
+                // Sử dụng fetch với URL đầy đủ
+                const response = await fetch(downloadUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Lỗi tải xuống' }));
+                    throw new Error(errorData.error || 'Lỗi tải xuống tài liệu');
+                }
+
+                // Lấy blob từ response
+                const blob = await response.blob();
+                
+                // Tạo URL từ blob
+                const url = window.URL.createObjectURL(blob);
+                
+                // Tạo link tạm để download
+                const link = document.createElement('a');
+                link.href = url;
+                link.style.display = 'none';
+                
+                // Lấy tên file từ header Content-Disposition
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let downloadFileName = `material_${materialId}`;
+                
+                if (contentDisposition) {
+                    // Xử lý các format khác nhau của Content-Disposition
+                    // Format 1: filename="file.pdf"
+                    // Format 2: filename*=UTF-8''file.pdf
+                    // Format 3: filename=file.pdf
+                    const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                    if (fileNameMatch && fileNameMatch[1]) {
+                        downloadFileName = fileNameMatch[1].replace(/['"]/g, '');
+                        // Xử lý UTF-8 encoding nếu có
+                        if (downloadFileName.startsWith("UTF-8''")) {
+                            downloadFileName = decodeURIComponent(downloadFileName.substring(7));
+                        }
+                    }
+                }
+                
+                link.download = downloadFileName;
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                
+                // Cleanup sau 100ms
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                showToast('✅ Tải xuống thành công!', 'success');
+            } catch (error) {
+                console.error('Lỗi download tài liệu:', error);
+                showToast(`❌ ${error.message || 'Lỗi tải xuống tài liệu'}`, 'error');
             }
         }

@@ -83,6 +83,31 @@
             margin-bottom: 40px;
         }
 
+        /* Mobile grid layout: 3 columns for first row, 2 columns for second row */
+        @media (max-width: 768px) {
+            .summary-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+            
+            /* First 3 items: first row (3 columns) */
+            .summary-grid .summary-card:nth-child(1),
+            .summary-grid .summary-card:nth-child(2),
+            .summary-grid .summary-card:nth-child(3) {
+                grid-column: span 1;
+            }
+            
+            /* 4th item: second row, column 1 */
+            .summary-grid .summary-card:nth-child(4) {
+                grid-column: 1;
+            }
+            
+            /* 5th item: second row, column 2 (to center the two items) */
+            .summary-grid .summary-card:nth-child(5) {
+                grid-column: 2;
+            }
+        }
+
         .summary-card {
             background: #f8f9fa;
             padding: 20px;
@@ -99,6 +124,22 @@
         .summary-label {
             color: #666;
             margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .summary-card {
+                padding: 15px 10px;
+                border-radius: 8px;
+            }
+
+            .summary-number {
+                font-size: 28px;
+            }
+
+            .summary-label {
+                font-size: 12px;
+                margin-top: 8px;
+            }
         }
 
         .question-result {
@@ -135,6 +176,31 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .question-title {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .question-title > span:first-child {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                width: 100%;
+            }
+
+            .question-title > span:last-child {
+                margin-left: 0 !important;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                align-items: flex-start;
+            }
         }
 
         .status-icon {
@@ -210,6 +276,16 @@
             margin: 5px 0;
             border-radius: 5px;
             background: white;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        @media (max-width: 768px) {
+            .option-item {
+                padding: 10px;
+                font-size: 14px;
+                line-height: 1.5;
+            }
         }
 
         .option-item.correct-answer {
@@ -241,22 +317,174 @@
             color: #1976d2;
         }
 
+        .suggested-materials-container {
+            margin-top: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            color: white;
+        }
+
+        .suggested-materials-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .materials-icon {
+            font-size: 1.5rem;
+        }
+
+        .suggested-materials-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .material-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            text-decoration: none;
+            color: white;
+            transition: background 0.3s;
+        }
+
+        .material-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .material-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .material-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .material-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            word-wrap: break-word;
+        }
+
+        .material-description {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            word-wrap: break-word;
+        }
+
+        .download-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
         @media (max-width: 768px) {
+            .suggested-materials-container {
+                padding: 12px;
+                border-radius: 10px;
+            }
+
+            .suggested-materials-header {
+                font-size: 0.95rem;
+                margin-bottom: 10px;
+            }
+
+            .materials-icon {
+                font-size: 1.3rem;
+            }
+
+            .material-link {
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .material-icon {
+                font-size: 1.3rem;
+            }
+
+            .material-title {
+                font-size: 0.9rem;
+            }
+
+            .material-description {
+                font-size: 0.8rem;
+            }
+
+            .download-icon {
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .result-container {
+                border-radius: 10px;
+            }
+
             .result-header {
-                padding: 30px 20px;
+                padding: 25px 15px;
+            }
+
+            .result-header h1 {
+                font-size: 24px;
             }
 
             .result-body {
-                padding: 20px;
+                padding: 15px;
             }
 
             .score-display {
-                font-size: 48px;
+                font-size: 42px;
             }
 
             .result-meta {
                 flex-direction: column;
                 gap: 10px;
+            }
+
+            .meta-item {
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+
+            .question-result {
+                padding: 15px;
+                margin-bottom: 12px;
+            }
+
+            .question-title {
+                font-size: 15px;
+            }
+
+            .answer-section {
+                margin-top: 12px;
+                padding-top: 12px;
+            }
+
+            .essay-answer {
+                padding: 12px;
+                font-size: 14px;
+            }
+
+            .actions {
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 30px;
+            }
+
+            .actions .btn {
+                width: 100%;
+                padding: 12px;
             }
         }
     </style>
@@ -620,26 +848,119 @@
             return `
                 <div class="question-result ${statusClass}">
                     <div class="question-title">
-                        <span class="status-icon">${statusIcon}</span>
-                        <span>Câu ${index + 1}: ${r.question_content}</span>
-                        <span style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+                        <span>
+                            <span class="status-icon">${statusIcon}</span>
+                            <span>Câu ${index + 1}: ${r.question_content}</span>
+                        </span>
+                        <span style="margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                             ${r.teacher_score !== null && r.teacher_score !== undefined ? `
-                                <span style="color: #26de81; font-weight: 600;">
+                                <span style="color: #26de81; font-weight: 600; font-size: 14px;">
                                     ${parseFloat(r.teacher_score).toFixed(1)}/${parseFloat(r.points).toFixed(1)} điểm
                                 </span>
                             ` : `
-                                <span style="color: #667eea; font-weight: 600;">${parseFloat(r.points).toFixed(1)} điểm</span>
+                                <span style="color: #667eea; font-weight: 600; font-size: 14px;">${parseFloat(r.points).toFixed(1)} điểm</span>
                             `}
-                            <span style="color: ${statusClass === 'correct' ? '#26de81' : statusClass === 'incorrect' ? '#ff4757' : statusClass === 'pending' ? '#4299e1' : '#ffa502'}; font-size: 14px;">
+                            <span style="color: ${statusClass === 'correct' ? '#26de81' : statusClass === 'incorrect' ? '#ff4757' : statusClass === 'pending' ? '#4299e1' : '#ffa502'}; font-size: 13px; white-space: nowrap;">
                                 ${statusText}
                             </span>
                         </span>
                     </div>
                     
                     ${answerHTML}
+                    
+                    ${r.is_correct === 0 && r.suggested_materials && r.suggested_materials.length > 0 ? `
+                        <div class="suggested-materials-container">
+                            <div class="suggested-materials-header">
+                                <span class="materials-icon">📚</span>
+                                <strong>Tài liệu gợi ý để ôn lại:</strong>
+                            </div>
+                            <div class="suggested-materials-list">
+                                ${r.suggested_materials.map(material => {
+                                    const fileIcon = getFileIcon(material.file_type);
+                                    const token = localStorage.getItem('token');
+                                    const downloadUrl = `/api/teacher/materials/${material.material_id}/download${token ? '?token=' + encodeURIComponent(token) : ''}`;
+                                    return `
+                                        <a href="${downloadUrl}" 
+                                           class="material-link"
+                                           onclick="event.preventDefault(); downloadMaterial(${material.material_id}, '${material.title.replace(/'/g, "\\'")}'); return false;">
+                                            <span class="material-icon">${fileIcon}</span>
+                                            <div class="material-info">
+                                                <div class="material-title">${material.title}</div>
+                                                ${material.description ? `<div class="material-description">${material.description}</div>` : ''}
+                                            </div>
+                                            <span class="download-icon">📥</span>
+                                        </a>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
             `;
         }).join('');
+    }
+
+    // Helper: Lấy icon theo loại file
+    function getFileIcon(fileType) {
+        const icons = {
+            '.pdf': '📄',
+            '.doc': '📝',
+            '.docx': '📝',
+            '.xls': '📊',
+            '.xlsx': '📊',
+            '.ppt': '📽️',
+            '.pptx': '📽️',
+            '.txt': '📄'
+        };
+        return icons[fileType?.toLowerCase()] || '📄';
+    }
+
+    // Download tài liệu với token
+    async function downloadMaterial(materialId, materialTitle) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('❌ Vui lòng đăng nhập lại!');
+            window.location.href = './login.html';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/teacher/materials/${materialId}/download`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Lỗi khi tải tài liệu');
+            }
+
+            // Lấy tên file từ header hoặc URL
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = materialTitle || 'material';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+
+            // Tạo blob và download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('❌ Error downloading material:', error);
+            alert(`❌ ${error.message}`);
+        }
     }
     </script>
 </body>

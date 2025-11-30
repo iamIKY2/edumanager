@@ -1089,7 +1089,7 @@
     </div>
 
     <!-- Lịch sử khiếu nại của học sinh -->
-    <div class="table-card mt-4">
+    <div class="table-card mt-4" id="complaints-history-section">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
             <h6 class="chart-title mb-0">
                 <i class="bi bi-exclamation-circle"></i> Lịch sử khiếu nại của học sinh
@@ -1139,8 +1139,176 @@
             <ul class="pagination justify-content-center" id="complaintsHistoryPagination">
             </ul>
         </nav>
+        </div>
+
+    <!-- Báo cáo sử dụng AI -->
+    <div class="row g-4 mb-4 mt-4">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="chart-title mb-0">
+                        <i class="bi bi-robot"></i> Báo cáo sử dụng AI
+                    </h6>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadAIUsageReport()" title="Làm mới">
+                        <i class="bi bi-arrow-clockwise"></i> Làm mới
+                    </button>
+                </div>
+
+                <!-- Thống kê tổng quan AI -->
+                <div class="row g-3 mb-4" id="aiOverviewCards">
+                    <div class="col-xl-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="stat-icon info-icon">
+                                <i class="bi bi-cpu"></i>
+                            </div>
+                            <div class="stat-label">Tổng yêu cầu AI</div>
+                            <div class="stat-value" id="aiTotalRequests">0</div>
+                            <div class="stat-change" id="aiRequestTrend">
+                                <i class="bi bi-arrow-up"></i> +0%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="stat-icon primary-icon">
+                                <i class="bi bi-people"></i>
+                            </div>
+                            <div class="stat-label">Người dùng AI</div>
+                            <div class="stat-value" id="aiTotalUsers">0</div>
+                            <div class="stat-change text-muted">
+                                <small>Người dùng đã sử dụng</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="stat-icon success-icon">
+                                <i class="bi bi-token"></i>
+                            </div>
+                            <div class="stat-label">Tổng Tokens</div>
+                            <div class="stat-value" id="aiTotalTokens">0</div>
+                            <div class="stat-change" id="aiTokenTrend">
+                                <i class="bi bi-arrow-up"></i> +0%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="stat-icon warning-icon">
+                                <i class="bi bi-pie-chart"></i>
+                            </div>
+                            <div class="stat-label">Provider chính</div>
+                            <div class="stat-value" id="aiMainProvider">-</div>
+                            <div class="stat-change text-muted">
+                                <small id="aiProviderDetail">Groq/Gemini/OpenAI</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phân bố theo Provider -->
+                <div class="row g-4 mb-4">
+                    <div class="col-xl-6">
+                        <div class="chart-card">
+                            <h6 class="chart-title mb-3">Phân bố theo Provider</h6>
+                            <canvas id="aiProviderChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-xl-6">
+                        <div class="chart-card">
+                            <h6 class="chart-title mb-3">Phân bố theo Loại Action</h6>
+                            <canvas id="aiActionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Xu hướng sử dụng theo ngày -->
+                <div class="row g-4 mb-4">
+                    <div class="col-12">
+                        <div class="chart-card">
+                            <h6 class="chart-title mb-3">Xu hướng sử dụng AI theo ngày</h6>
+                            <div style="position: relative; height: 300px;">
+                                <canvas id="aiDailyUsageChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top users sử dụng AI -->
+                <div class="row g-4 mb-4">
+                    <div class="col-12">
+                        <div class="chart-card">
+                            <h6 class="chart-title mb-3">Top 20 người dùng sử dụng AI nhiều nhất</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Họ tên</th>
+                                            <th>Email</th>
+                                            <th>Vai trò</th>
+                                            <th>Số yêu cầu</th>
+                                            <th>Tổng Tokens</th>
+                                            <th>Ngày sử dụng</th>
+                                            <th>Providers</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="aiTopUsersTable">
+                                        <tr><td colspan="8" class="text-center">Đang tải dữ liệu...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thống kê theo vai trò -->
+                <div class="row g-4 mb-4">
+                    <div class="col-xl-6">
+                        <div class="chart-card">
+                            <h6 class="chart-title mb-3">Thống kê theo Vai trò</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Vai trò</th>
+                                            <th>Số yêu cầu</th>
+                                            <th>Tổng Tokens</th>
+                                            <th>Số người dùng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="aiRoleStatsTable">
+                                        <tr><td colspan="4" class="text-center">Đang tải...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-6">
+                        <div class="chart-card">
+                            <h6 class="chart-title mb-3">Chi tiết theo Provider</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Provider</th>
+                                            <th>Yêu cầu</th>
+                                            <th>Tokens</th>
+                                            <th>Người dùng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="aiProviderStatsTable">
+                                        <tr><td colspan="4" class="text-center">Đang tải...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
+    </div>
 
         <div id="settings-section" class="content-section">
             <div class="row g-4">

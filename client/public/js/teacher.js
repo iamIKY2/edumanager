@@ -143,10 +143,25 @@ document.addEventListener('DOMContentLoaded', async function() {
     updateStatsDropdown();
     
     // ⭐ TỰ ĐỘNG REFRESH DASHBOARD MỖI 30 GIÂY
+    // ⭐ RELOAD DỮ LIỆU ĐỊNH KỲ - KHÔNG TỰ ĐỘNG CHUYỂN TAB
     setInterval(() => {
         renderDashboard();
+        // Chỉ reload dữ liệu nếu đang ở tab tương ứng, không tự động chuyển tab
         if (appData.currentClassId) {
-            renderExams();
+            const currentTab = document.querySelector('.tab.active')?.dataset.tab;
+            // Chỉ render nếu đang ở tab exams hoặc không có tab nào active
+            if (currentTab === 'exams' || !currentTab) {
+                renderExams();
+            }
+            if (currentTab === 'students' || !currentTab) {
+                renderStudents();
+            }
+            if (currentTab === 'grades' || !currentTab) {
+                renderGrades();
+            }
+            if (currentTab === 'materials' || !currentTab) {
+                renderMaterials();
+            }
         }
     }, 30000); // 30 giây
 });
@@ -223,17 +238,9 @@ async function handleAddExam(event) {
             renderAllExams();
         }
         
-        // Chuyển sang tab Bài thi (chỉ khi đang ở trong lớp học)
-        const classDetail = document.getElementById('classDetail');
-        if (classDetail && classDetail.style.display !== 'none') {
-            // Đang ở trong chi tiết lớp học, chuyển sang tab Bài thi
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            const examsTab = document.querySelector('.tab[data-tab="exams"]');
-            const examsTabContent = document.getElementById('exams-tab');
-            if (examsTab) examsTab.classList.add('active');
-            if (examsTabContent) examsTabContent.classList.add('active');
-        }
+        // ⭐ KHÔNG TỰ ĐỘNG CHUYỂN TAB - Giữ nguyên tab hiện tại của người dùng
+        // Người dùng có thể đang xem tab khác, không nên tự động chuyển
+        // Dữ liệu đã được render, người dùng có thể tự chuyển sang tab "Bài thi" khi muốn
         
         event.target.reset();
     } catch (error) {
@@ -245,8 +252,30 @@ async function handleAddExam(event) {
 // Cập nhật renderExams để hiển thị GIỜ
 async function renderExams() {
     const list = document.getElementById('examList');
-    const classExams = appData.exams.filter(e => e.class_id === appData.currentClassId);
     
+    // Kiểm tra element có tồn tại không
+    if (!list) {
+        console.error('❌ [renderExams] examList element not found!');
+        return;
+    }
+    
+    // ⭐ KHÔNG TỰ ĐỘNG CHUYỂN TAB - Chỉ render dữ liệu, giữ nguyên tab hiện tại
+    // Người dùng có thể đang xem tab khác (học sinh, bảng điểm, tài liệu)
+    // Không nên tự động chuyển sang tab "Bài thi"
+    
+    // So sánh class_id với cả string và number để tránh lỗi type mismatch
+    const currentClassId = String(appData.currentClassId);
+    const classExams = appData.exams.filter(e => {
+        const examClassId = String(e.class_id);
+        return examClassId === currentClassId;
+    });
+    
+    console.log('🔍 [renderExams] Debug:', {
+        currentClassId: appData.currentClassId,
+        totalExams: appData.exams.length,
+        filteredExams: classExams.length,
+        exams: classExams.map(e => ({ id: e.exam_id, title: e.title, class_id: e.class_id }))
+    });
     
     if (classExams.length === 0) {
         list.innerHTML = `
@@ -744,7 +773,12 @@ function renderClassGrid() {
                     <div class="class-name">${cls.class_name}</div>
                     <div class="class-subject">${cls.subject_name} • Mã lớp: ${cls.class_code}</div>
                 </div>
-                <div style="font-size: 2rem;">${cls.icon}</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="font-size: 2rem;">${cls.icon}</div>
+                    <button class="btn-delete-class" onclick="event.stopPropagation(); deleteClass(${cls.class_id}, '${cls.class_name.replace(/'/g, "\\'")}')" title="Xóa lớp học">
+                        🗑️
+                    </button>
+                </div>
             </div>
             <div class="class-info">
                 <div class="class-info-item">
@@ -796,7 +830,12 @@ function filterClasses(searchTerm, status = 'all') {
                     <div class="class-name">${cls.class_name}</div>
                     <div class="class-subject">${cls.subject_name} • Mã lớp: ${cls.class_code}</div>
                 </div>
-                <div style="font-size: 2rem;">${cls.icon}</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="font-size: 2rem;">${cls.icon}</div>
+                    <button class="btn-delete-class" onclick="event.stopPropagation(); deleteClass(${cls.class_id}, '${cls.class_name.replace(/'/g, "\\'")}')" title="Xóa lớp học">
+                        🗑️
+                    </button>
+                </div>
             </div>
             <div class="class-info">
                 <div class="class-info-item">
@@ -853,6 +892,7 @@ document.getElementById('examCount').textContent = classExams.length;
 renderStudents();
 renderExams();
 renderGrades();
+renderMaterials();
         
     } catch (error) {
         console.error('❌ Error in viewClass:', error);
@@ -868,6 +908,40 @@ function backToClassList() {
     document.getElementById('addStudentForm').style.display = 'none';
     document.getElementById('addExamForm').style.display = 'none';
     appData.currentClassId = null;
+}
+
+async function deleteClass(classId, className) {
+    // Xác nhận trước khi xóa
+    const confirmed = confirm(`Bạn có chắc chắn muốn xóa lớp học "${className}"?\n\nHành động này không thể hoàn tác.`);
+    
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        // Gọi API xóa lớp học
+        await apiDelete(`/api/teacher/classes/${classId}`);
+        
+        // Xóa lớp khỏi danh sách trong appData
+        appData.classes = appData.classes.filter(c => c.class_id !== classId);
+        
+        // Xóa các bài thi của lớp này khỏi danh sách
+        appData.exams = appData.exams.filter(e => e.class_id !== classId);
+        
+        // Nếu đang xem lớp này, quay lại danh sách
+        if (appData.currentClassId === classId) {
+            backToClassList();
+        }
+        
+        // Render lại danh sách lớp học
+        renderClassGrid();
+        
+        // Hiển thị thông báo thành công
+        showNotification(`✅ Đã xóa lớp học "${className}" thành công`, 'success');
+    } catch (error) {
+        console.error('❌ Error deleting class:', error);
+        showNotification(`❌ ${error.message || 'Lỗi khi xóa lớp học'}`, 'error');
+    }
 }
 
 function showCreateClass() {
@@ -1595,7 +1669,7 @@ function hideEditExam() {
     } else {
         // Nếu không có cả 2, reload lại danh sách bài thi
         if (examDetailContext === 'class' && appData.currentClassId) {
-            viewClassDetail(appData.currentClassId);
+            viewClass(appData.currentClassId);
         } else {
             renderAllExams();
         }
@@ -1637,16 +1711,62 @@ async function handleEditExam(event) {
         
         showNotification('✅ Cập nhật bài thi thành công', 'success');
         
-        // Ẩn form edit
+        // Ẩn form edit và hiển thị lại exam list
         const editExamForm = document.getElementById('editExamForm');
+        const examListContainer = document.getElementById('examListContainer');
+        const examDetail = document.getElementById('examDetail');
+        
         if (editExamForm) {
             editExamForm.style.display = 'none';
         }
         
+        // Hiển thị lại exam list container
+        if (examListContainer) {
+            examListContainer.style.display = 'block';
+        }
+        
+        // Ẩn exam detail nếu đang hiển thị
+        if (examDetail) {
+            examDetail.style.display = 'none';
+        }
+        
         // Reload lại dữ liệu
         if (examDetailContext === 'class' && appData.currentClassId) {
-            // Nếu đang ở trong class detail, reload lại class detail
-            await viewClassDetail(appData.currentClassId);
+            // Nếu đang ở trong class detail, reload lại danh sách bài thi từ server
+            const classId = appData.currentClassId;
+            try {
+                console.log('🔄 [handleEditExam] Reloading exams for class:', classId);
+                
+                // Fetch lại danh sách bài thi từ server
+                const classExams = await apiGet(`/api/teacher/classes/${classId}/exams`);
+                console.log('📥 [handleEditExam] Received exams:', classExams.length, classExams);
+                
+                // Cập nhật appData.exams với dữ liệu mới
+                // So sánh với cả string và number để đảm bảo filter đúng
+                if (!appData.exams) appData.exams = [];
+                const classIdStr = String(classId);
+                appData.exams = appData.exams.filter(e => String(e.class_id) !== classIdStr);
+                appData.exams.push(...classExams);
+                
+                console.log('✅ [handleEditExam] Updated appData.exams:', appData.exams.length);
+                
+                // Cập nhật exam count
+                const examCountEl = document.getElementById('examCount');
+                if (examCountEl) {
+                    examCountEl.textContent = classExams.length;
+                }
+                
+                // ⭐ KHÔNG TỰ ĐỘNG CHUYỂN TAB - Giữ nguyên tab hiện tại của người dùng
+                // Chỉ render lại dữ liệu để cập nhật danh sách bài thi
+                // Nếu người dùng đang ở tab khác, họ có thể tự chuyển sang tab "Bài thi" khi muốn
+                await renderExams();
+                
+                console.log('✅ [handleEditExam] Exams rendered successfully');
+            } catch (error) {
+                console.error('❌ Error reloading exams:', error);
+                // Fallback: gọi viewClass để reload toàn bộ
+                await viewClass(appData.currentClassId);
+            }
         } else {
             // Nếu đang ở section exams, reload lại danh sách bài thi
             await renderAllExams();
@@ -1782,9 +1902,9 @@ async function deleteExam(examId, event) {
         }
 
         // Thực hiện xóa với confirmDelete = true nếu có dữ liệu gian lận - sử dụng apiDelete
-        const result = await apiDelete(`/api/teacher/exams/${examId}`, {
-            confirmDelete: hasCheatingData
-        });
+        // Gửi confirmDelete qua query params vì DELETE request không nên có body
+        const confirmParam = hasCheatingData ? '?confirmDelete=true' : '';
+        const result = await apiDelete(`/api/teacher/exams/${examId}${confirmParam}`);
         
         // ⭐ XÓA KHỎI appData
         appData.exams = appData.exams.filter(e => e.exam_id !== examId);
@@ -3934,7 +4054,6 @@ async function loadGradingSection() {
         }
         
         // Render danh sách lớp học
-        const classListContainer = document.getElementById('gradingClassList');
         if (!classListContainer) {
             console.error('❌ [Grading] #gradingClassList not found!');
             return;
@@ -4898,13 +5017,6 @@ async function saveManualExam() {
     const duration = parseInt(document.getElementById('manualExamDuration')?.value);
     const desc = document.getElementById('manualExamDesc')?.value.trim();
     
-    console.log({
-        name, 
-        date, 
-        time, 
-        duration, 
-    });
-    
     //  Validate
     if (!name) {
         showNotification('❌ Vui lòng nhập tên bài thi', 'error');
@@ -4979,47 +5091,28 @@ async function saveManualExam() {
             const q = manualExamQuestions[i];
             
             try {
-                console.log({
+                console.log('Processing question:', {
                     content: q.content.substring(0, 40),
                     type: q.type,
                     difficulty: q.difficulty,
                     optionsCount: q.options.length
                 });
-                const requestBody = {
-    question_content: q.content,
-    question_type: q.type,
-    difficulty: q.difficulty,
-    subject_id: null,
-    options: []
-};
-
-// Chỉ thêm correct_answer_text nếu KHÔNG phải Essay
-if (q.type === 'Essay' || q.type === 'FillInBlank') {
-    requestBody.correct_answer_text = q.correctAnswer || 'Tự luận';
-} else {
-    requestBody.correct_answer_text = q.correctAnswer;
-}
-
-if ((q.type === 'SingleChoice' || q.type === 'MultipleChoice') && q.options.length > 0) {
-    requestBody.options = q.options.map((opt, idx) => {
-        const letter = String.fromCharCode(65 + idx);
-        let isCorrect = false;
-        
-        if (q.type === 'SingleChoice') {
-            isCorrect = (q.correctAnswer.toUpperCase() === letter);
-        } else {
-            const correctAnswers = q.correctAnswer.toUpperCase().split(',').map(a => a.trim());
-            isCorrect = correctAnswers.includes(letter);
-        }
-        
-        return {
-            text: opt,
-            is_correct: isCorrect
-        };
-    });
-}
-
                 
+                const requestBody = {
+                    question_content: q.content,
+                    question_type: q.type,
+                    difficulty: q.difficulty,
+                    subject_id: null,
+                    options: []
+                };
+
+                // Chỉ thêm correct_answer_text nếu KHÔNG phải Essay
+                if (q.type === 'Essay' || q.type === 'FillInBlank') {
+                    requestBody.correct_answer_text = q.correctAnswer || 'Tự luận';
+                } else {
+                    requestBody.correct_answer_text = q.correctAnswer;
+                }
+
                 //  Xử lý options cho trắc nghiệm
                 if ((q.type === 'SingleChoice' || q.type === 'MultipleChoice') && q.options.length > 0) {
                     requestBody.options = q.options.map((opt, idx) => {
@@ -5039,7 +5132,6 @@ if ((q.type === 'SingleChoice' || q.type === 'MultipleChoice') && q.options.leng
                         };
                     });
                 }
-                
                 
                 //  GỌI API THÊM CÂU HỎI
                 // Sử dụng apiPost từ api.js - tự động xử lý lỗi và parse JSON
@@ -5078,7 +5170,7 @@ if ((q.type === 'SingleChoice' || q.type === 'MultipleChoice') && q.options.leng
             }
         }
         
-        console.log({
+        console.log('Question processing summary:', {
             total: manualExamQuestions.length,
             success: successCount, 
             errors: errorCount 
@@ -6291,6 +6383,28 @@ async function generateAIExam() {
     document.getElementById('aiLoading').classList.add('active');
     document.getElementById('aiResult').classList.remove('active');
 
+    // Hiển thị modal chọn AI model
+    await showAIModelModal('teacher', async (selectedModel) => {
+        await proceedGenerateAIExam(selectedModel, {
+            subject,
+            topic,
+            numQuestions,
+            difficulty,
+            questionTypes: types,
+            additionalRequirements: additional
+        });
+    });
+}
+
+// Tiến hành generate sau khi chọn model
+async function proceedGenerateAIExam(aiModel, examData) {
+    const { subject, topic, numQuestions, difficulty, questionTypes, additionalRequirements } = examData;
+    
+    // Hiện loading
+    document.getElementById('aiExamForm').style.display = 'none';
+    document.getElementById('aiLoading').classList.add('active');
+    document.getElementById('aiResult').classList.remove('active');
+    
     try {
         // Sử dụng URL tuyệt đối giống như các hàm khác
         // Sử dụng apiPost từ api.js
@@ -6299,8 +6413,9 @@ async function generateAIExam() {
             topic,
             numQuestions,
             difficulty,
-            questionTypes: types,
-            additionalRequirements: additional
+            questionTypes,
+            additionalRequirements,
+            ai_model: aiModel
         });
         
         aiGeneratedQuestions = result.questions || [];
@@ -6311,11 +6426,21 @@ async function generateAIExam() {
 
         displayAIResults(aiGeneratedQuestions);
         showAIAlert(` Đã tạo thành công ${aiGeneratedQuestions.length} câu hỏi!`, 'success');
+        
+        // Đảm bảo modal AI model đã đóng
+        if (typeof window.closeAIModelModal === 'function') {
+            window.closeAIModelModal();
+        }
 
     } catch (error) {
         console.error('Error:', error);
         showAIAlert(` ${error.message}`, 'error');
         document.getElementById('aiExamForm').style.display = 'block';
+        
+        // Đảm bảo modal AI model đã đóng khi có lỗi
+        if (typeof window.closeAIModelModal === 'function') {
+            window.closeAIModelModal();
+        }
     } finally {
         document.getElementById('aiLoading').classList.remove('active');
     }
@@ -6384,6 +6509,11 @@ function displayAIResults(questions) {
 
     document.getElementById('aiPreviewList').innerHTML = previewHTML;
     document.getElementById('aiResult').classList.add('active');
+    
+    // Đảm bảo modal AI model đã đóng
+    if (typeof window.closeAIModelModal === 'function') {
+        window.closeAIModelModal();
+    }
 }
 
 // Lưu đề thi
@@ -6657,7 +6787,7 @@ function switchExamDetailTab(tabName) {
     const questionsTabBtn = document.querySelector('[data-tab="exam-questions"]');
     const studentsStatusTabBtn = document.querySelector('[data-tab="exam-students-status"]');
 
-    console.log({
+    console.log('Tab elements:', {
         questionsTab: !!questionsTab,
         studentsStatusTab: !!studentsStatusTab,
         questionsTabBtn: !!questionsTabBtn,
@@ -6911,7 +7041,7 @@ async function loadStudentsStatus_OLD(examId) {
     const statsContainer = document.getElementById('examStatusStats');
     const listContainer = document.getElementById('examStudentsStatusList');
     
-    console.log({
+    console.log('Containers:', {
         listContainer: !!listContainer,
         statsContainer: !!statsContainer
     });
@@ -6933,7 +7063,7 @@ async function loadStudentsStatus_OLD(examId) {
         const data = await apiGet(`/api/teacher/monitoring/${examId}/students-status`);
         studentsStatusData = data;
         
-        console.log({
+        console.log('Loaded data:', {
             stats: data.stats,
             studentsCount: data.students?.length
         });

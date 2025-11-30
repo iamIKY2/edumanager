@@ -15,7 +15,9 @@
     <!-- Load config và API helpers trước teacher.js -->
     <script src="/client/public/js/config.js"></script>
     <script src="/client/public/js/api.js"></script>
+    <script src="/client/public/js/teacher_practice.js"></script>
     <script defer src="/client/public/js/teacher.js"></script>
+    <script defer src="/client/public/js/teacher_materials.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -382,12 +384,10 @@
                         <div class="tab-content" id="materials-tab">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                                 <h3 style="color: #2d3748;">Tài liệu học tập</h3>
-                                <button class="btn btn-primary" onclick="showNotification('Tính năng đang phát triển')">📤 Upload tài liệu</button>
+                                <button class="btn btn-primary" onclick="showUploadMaterialForm()">📤 Upload tài liệu</button>
                             </div>
-                            <div class="empty-state">
-                                <div class="empty-state-icon">📚</div>
-                                <div class="empty-state-text">Chưa có tài liệu nào</div>
-                                <div class="empty-state-subtext">Thêm tài liệu học tập cho lớp học của bạn</div>
+                            <div id="materialsList">
+                                <!-- Materials will be rendered here -->
                             </div>
                         </div>
                     </div>

@@ -90,16 +90,14 @@
             return !this.API_BASE_URL || this.API_BASE_URL === '';
         }
     };
-    
-    // Log config (chỉ trong development)
-    if (isLocalhost()) {
-        console.log('🔧 API Config:', {
-            API_BASE_URL: window.CONFIG.API_BASE_URL || '(relative)',
-            SOCKET_URL: window.CONFIG.SOCKET_URL,
-            isRelative: window.CONFIG.isRelative()
-        });
-    }
 })();
+
+
+
+
+
+
+
 
 
 

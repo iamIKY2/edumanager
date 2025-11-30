@@ -19,6 +19,7 @@ const userRoutes = require('./routes/shared/user');
 const sharedClassesRoutes = require('./routes/shared/classes');
 const complaintRoutes = require('./routes/shared/complaints');
 const notificationRoutes = require('./routes/shared/notifications');
+const aiRoutes = require('./routes/shared/ai');
 
 // Teacher routes
 const teacherClassesRoutes = require('./routes/teacher/classes');
@@ -28,6 +29,7 @@ const gradingRoutes = require('./routes/teacher/grading');
 const teacherStatisticsRoutes = require('./routes/teacher/statistics');
 const teacherMonitoringRoutes = require('./routes/teacher/monitoring');
 const teacherQuestionAnalysisRoutes = require('./routes/teacher/questionAnalysis');
+const teacherMaterialsRoutes = require('./routes/teacher/materials');
 
 // Student routes
 const studentClassesRoutes = require('./routes/student/classes');
@@ -37,8 +39,6 @@ const studentStatisticsRoutes = require('./routes/student/statistics');
 
 // Admin routes
 const adminRoutes = require('./routes/admin/admin');
-
-const aiRoutes = require('./routes/aiRoutes');
 
 
 // App configuration
@@ -123,20 +123,45 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Middleware để bỏ qua ngrok warning page
+app.use((req, res, next) => {
+  // Thêm header để bỏ qua ngrok warning
+  res.setHeader('ngrok-skip-browser-warning', 'true');
+  next();
+});
 
-// 🌐 SERVE STATIC FILES (Frontend)
+// Serve static files từ client/public
+app.use('/client/public', express.static(path.join(__dirname, '../client/public')));
+
+// Serve các trang HTML từ client/src/pages
+app.use('/client/src/pages', express.static(path.join(__dirname, '../client/src/pages')));
+
+// Serve file index.html và các file khác từ client
 app.use('/client', express.static(path.join(__dirname, '../client')));
 
-// Serve trang chủ (index.html)
+// Route để serve trang login
+app.get('/login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/src/pages/login.html'));
+});
+
+// Route để serve trang register
+app.get('/register.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/src/pages/register.html'));
+});
+
+// Route để serve trang forgot-password
+app.get('/forgot-password.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/src/pages/forgot_password.html'));
+});
+
+// Route để serve trang chủ (index.html)
+app.get('/index.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
+});
+
+// Route root - serve trang chủ
 app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, '../client/index.html');
-    console.log('📄 Serving index.html from:', indexPath);
-    res.sendFile(indexPath, (err) => {
-        if (err) {
-            console.error('❌ Error serving index.html:', err);
-            res.status(500).json({ error: 'Cannot serve index.html', path: indexPath });
-        }
-    });
+  res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
 // Tạo MySQL connection pool
@@ -176,6 +201,7 @@ emailService.testConnection().then(isReady => {
   }
 });
 
+
 // Route kiểm tra server và database
 app.get('/api/test', async (req, res) => {
   try {
@@ -187,10 +213,6 @@ app.get('/api/test', async (req, res) => {
   }
 });
 
-// Route để serve trang forgot-password
-app.get('/forgot-password', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
-});
 
 // Shared routes 
 app.use('/api/auth', authRoutes);
@@ -198,6 +220,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/classes', sharedClassesRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Teacher routes
 app.use('/api/teacher/classes', teacherClassesRoutes);
@@ -206,6 +229,21 @@ app.use('/api/teacher/cheating', teacherCheatingRoutes);
 app.use('/api/teacher/grading', gradingRoutes);
 app.use('/api/teacher/statistics', teacherStatisticsRoutes);
 app.use('/api/teacher/monitoring', teacherMonitoringRoutes);
+// QUAN TRỌNG: teacherMaterialsRoutes phải đứng TRƯỚC teacherQuestionAnalysisRoutes
+// để route /materials/:materialId/download được match trước
+
+// Middleware để log tất cả request đến /api/teacher/materials
+app.use('/api/teacher/materials', (req, res, next) => {
+  console.log('🌐 [APP LEVEL] Request to /api/teacher/materials:', {
+    method: req.method,
+    path: req.path,
+    url: req.url,
+    originalUrl: req.originalUrl
+  });
+  next();
+});
+
+app.use('/api/teacher', teacherMaterialsRoutes);
 app.use('/api/teacher', teacherQuestionAnalysisRoutes);
 
 // Student routes
@@ -213,12 +251,10 @@ app.use('/api/student/classes', studentClassesRoutes);
 app.use('/api/student/exams', studentExamRoutes); 
 app.use('/api/student/submissions', submissionRoutes);
 app.use('/api/student/statistics', studentStatisticsRoutes);
+app.use('/api/student/practice', require('./routes/student/practice'));
 
 // Admin routes
 app.use('/api/admin', adminRoutes);
-
-// AI routes
-app.use('/api/ai', aiRoutes);
 
 // 404 handler 
 app.use((req, res, next) => {

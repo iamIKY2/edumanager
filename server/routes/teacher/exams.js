@@ -416,7 +416,8 @@ router.delete('/:examId', authMiddleware, roleMiddleware(['teacher', 'admin']), 
   const { examId } = req.params;
   const teacherId = req.user.id || req.user.user_id;
   const role = req.user.role;
-  const { confirmDelete } = req.body; // Nhận xác nhận từ client
+  // Nhận xác nhận từ query params (DELETE request không nên có body)
+  const confirmDelete = req.query.confirmDelete === 'true' || req.query.confirmDelete === true;
 
   try {
     // Kiểm tra quyền sở hữu (nếu là Teacher)

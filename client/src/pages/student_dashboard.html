@@ -10,6 +10,15 @@
     <title>EduSystem - Học sinh</title>
     <link rel="stylesheet" href="/client/public/css/student.css">
     <link rel="icon" type="image/png" href="/client/public/images/edu.png">
+    <style>
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .practice-spinner {
+            animation: spin 1s linear infinite;
+        }
+    </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
 </head>
@@ -46,6 +55,16 @@
         <div class="submenu" id="tests-submenu">
             <div class="submenu-item" onclick="showSection('available-tests')">Bài thi khả dụng</div>
             <div class="submenu-item" onclick="showSection('test-history')">Lịch sử làm bài</div>
+        </div>
+
+        <div class="menu-item" onclick="toggleSubmenu('practice')">
+            <span class="menu-icon">✨</span>
+            <span>Luyện tập</span>
+            <span class="arrow" id="practice-arrow">▶</span>
+        </div>
+        <div class="submenu" id="practice-submenu">
+            <div class="submenu-item" onclick="showSection('create-practice')">Tạo đề luyện tập</div>
+            <div class="submenu-item" onclick="showSection('my-practice')">Đề luyện tập của tôi</div>
         </div>
 
         <div class="menu-item" onclick="toggleSubmenu('results')">
@@ -172,6 +191,11 @@
                     <span>Bài kiểm tra</span>
                     <span class="tab-count" id="testsCount">(0)</span>
                 </button>
+                <button class="class-tab" onclick="switchClassTab('materials')">
+                    <span class="tab-icon">📚</span>
+                    <span>Tài liệu</span>
+                    <span class="tab-count" id="materialsCount">(0)</span>
+                </button>
                 <button class="class-tab" onclick="switchClassTab('announcements')">
                     <span class="tab-icon">📢</span>
                     <span>Thông báo</span>
@@ -189,6 +213,11 @@
                 <div id="classTabTests" class="class-tab-content">
                     <h3 style="margin-bottom: 20px;">📝 Bài kiểm tra</h3>
                     <div id="testsList"></div>
+                </div>
+
+                <div id="classTabMaterials" class="class-tab-content">
+                    <h3 style="margin-bottom: 20px;">📚 Tài liệu học tập</h3>
+                    <div id="materialsList"></div>
                 </div>
 
                 <div id="classTabAnnouncements" class="class-tab-content">
@@ -279,6 +308,69 @@
                         <!-- Dữ liệu sẽ được điền động -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <div class="content-section" id="create-practice">
+            <div class="card">
+                <h2 class="card-title">✨ Tạo đề luyện tập bằng AI</h2>
+                <p style="color: #666; margin-bottom: 20px;">Chọn tài liệu từ giáo viên và nhập prompt để AI tạo đề thi luyện tập cho bạn</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">📚 Chọn tài liệu:</label>
+                    <select id="practiceMaterialSelect" class="input-field" style="width: 100%; padding: 12px;">
+                        <option value="">-- Chọn tài liệu --</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">📝 Mô tả đề thi bạn muốn:</label>
+                    <textarea id="practicePrompt" class="input-field" rows="4" placeholder="VD: Tạo 15 câu hỏi trắc nghiệm về biến và kiểu dữ liệu trong C#, độ khó trung bình"></textarea>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">⚙️ Tùy chọn:</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label>Số câu hỏi:</label>
+                            <input type="number" id="practiceNumQuestions" class="input-field" value="10" min="1" max="50">
+                        </div>
+                        <div>
+                            <label>Độ khó:</label>
+                            <select id="practiceDifficulty" class="input-field">
+                                <option value="Easy">Dễ</option>
+                                <option value="Medium" selected>Trung bình</option>
+                                <option value="Hard">Khó</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="createPracticeExamWithAI()" id="practiceCreateBtn" style="width: 100%; padding: 15px; font-size: 16px;">
+                    🤖 Tạo đề luyện tập bằng AI
+                </button>
+            </div>
+            
+            <!-- Loading Spinner -->
+            <div id="practiceLoading" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center; flex-direction: column;">
+                <div style="background: white; border-radius: 15px; padding: 40px; text-align: center; max-width: 400px;">
+                    <div class="practice-spinner" style="width: 50px; height: 50px; border: 5px solid #e1e8ed; border-top: 5px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+                    <p style="color: #2d3748; font-size: 18px; font-weight: 600; margin: 0;">
+                        🤖 AI đang tạo đề thi...
+                    </p>
+                    <p style="color: #718096; margin-top: 10px; font-size: 14px;">
+                        Vui lòng đợi trong giây lát
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section" id="my-practice">
+            <div class="card">
+                <h2 class="card-title">📚 Đề luyện tập của tôi</h2>
+                <div id="practiceExamsList">
+                    <p style="text-align: center; color: #666; padding: 40px;">⏳ Đang tải...</p>
+                </div>
             </div>
         </div>
 
@@ -424,5 +516,6 @@
     <script src="/client/public/js/config.js"></script>
     <script src="/client/public/js/api.js"></script>
     <script src="/client/public/js/student.js"></script>
+    <script src="/client/public/js/student_practice.js"></script>
 </body>
 </html>

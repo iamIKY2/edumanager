@@ -89,4 +89,46 @@ router.get('/my', authMiddleware, roleMiddleware(['student']), async (req, res) 
   }
 });
 
+// Lấy danh sách tài liệu của lớp học (cho học sinh)
+router.get('/:classId/materials', authMiddleware, roleMiddleware(['student']), async (req, res) => {
+  const { classId } = req.params;
+  const studentId = req.user.id;
+
+  try {
+    // Kiểm tra học sinh có trong lớp không
+    const [membership] = await req.db.query(
+      'SELECT class_id FROM class_students WHERE class_id = ? AND student_id = ?',
+      [classId, studentId]
+    );
+
+    if (membership.length === 0) {
+      return res.status(403).json({ error: 'Bạn không có quyền truy cập lớp này' });
+    }
+
+    // Lấy danh sách tài liệu
+    const [materials] = await req.db.query(
+      `SELECT 
+        m.material_id,
+        m.title,
+        m.description,
+        m.file_name,
+        m.file_type,
+        m.file_size,
+        m.upload_date,
+        COUNT(DISTINCT qm.question_id) as linked_questions_count
+      FROM materials m
+      LEFT JOIN question_materials qm ON m.material_id = qm.material_id
+      WHERE m.class_id = ?
+      GROUP BY m.material_id
+      ORDER BY m.upload_date DESC`,
+      [classId]
+    );
+
+    res.json(materials);
+  } catch (err) {
+    console.error('Lỗi lấy danh sách tài liệu:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
 module.exports = router;

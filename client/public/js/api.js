@@ -1,182 +1,179 @@
 // API Helper Functions
-// Tự động xử lý URLs, headers, và error handling
+// Tự động xử lý authentication, JSON parsing và error handling
 
 (function() {
     'use strict';
-    
-    // Đảm bảo CONFIG đã được load
-    if (typeof window.CONFIG === 'undefined') {
-        console.error('❌ CONFIG chưa được load! Đảm bảo config.js được load trước api.js');
-    }
-    
-    /**
-     * Main API call function
-     * @param {string} endpoint - API endpoint (ví dụ: '/api/user/profile')
-     * @param {object} options - Fetch options (method, headers, body, etc.)
-     * @returns {Promise} Response data (đã parse JSON)
-     */
-    async function apiCall(endpoint, options = {}) {
-        // Build URL
-        const baseUrl = window.CONFIG?.API_BASE_URL || '';
-        const url = baseUrl + endpoint;
+
+    // Helper để build full URL
+    function buildUrl(url) {
+        // Nếu URL đã là absolute (bắt đầu với http:// hoặc https://), dùng trực tiếp
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            return url;
+        }
         
-        // Tự động thêm Authorization header nếu có token
-        const token = localStorage.getItem('token');
+        // Nếu có API_BASE_URL từ CONFIG, dùng nó
+        const baseUrl = (window.CONFIG && window.CONFIG.API_BASE_URL) || '';
+        
+        // Nếu baseUrl rỗng, dùng relative URL (cùng domain)
+        if (!baseUrl) {
+            return url;
+        }
+        
+        // Kết hợp baseUrl và url
+        const base = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+        const path = url.startsWith('/') ? url : '/' + url;
+        return base + path;
+    }
+
+    // Helper để get headers với token
+    function getHeaders(customHeaders = {}) {
         const headers = {
-            ...options.headers
+            'Content-Type': 'application/json',
+            ...customHeaders
         };
         
-        if (token && !headers['Authorization'] && !headers['authorization']) {
+        // Thêm Authorization header nếu có token
+        const token = localStorage.getItem('token');
+        if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
         
-        // Merge options
-        const fetchOptions = {
-            ...options,
-            headers: headers
-        };
+        return headers;
+    }
+
+    // Helper để parse response và handle errors
+    async function handleResponse(response) {
+        // Lấy text trước để có thể log nếu cần
+        const text = await response.text();
         
+        // Nếu response rỗng, trả về null
+        if (!text || text.trim() === '') {
+            return null;
+        }
+        
+        // Parse JSON
+        let data;
         try {
-            const response = await fetch(url, fetchOptions);
-            
-            // Xử lý response
-            if (!response.ok) {
-                // Thử parse error message
-                let errorData;
-                try {
-                    errorData = await response.json();
-                } catch (e) {
-                    errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
-                }
-                
-                // Throw error với thông tin chi tiết
-                const error = new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
-                error.status = response.status;
-                error.data = errorData;
-                throw error;
-            }
-            
-            // Parse JSON response
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                return await response.json();
-            }
-            
-            // Nếu không phải JSON, trả về text
-            return await response.text();
-            
-        } catch (error) {
-            // Network error hoặc parse error
-            console.error('❌ API Call Error:', {
-                url: url,
-                endpoint: endpoint,
-                error: error.message
-            });
-            
-            // Cải thiện thông báo lỗi cho "Failed to fetch"
-            if (error.message === 'Failed to fetch' || error.message.includes('NetworkError')) {
-                const friendlyError = new Error('Không thể kết nối đến server. Vui lòng kiểm tra:\n- Kết nối mạng\n- Server đang chạy\n- URL API đúng');
-                friendlyError.originalError = error;
-                throw friendlyError;
-            }
-            
+            data = JSON.parse(text);
+        } catch (e) {
+            // Nếu không parse được JSON, throw error với text gốc
+            throw new Error(`Invalid JSON response: ${text.substring(0, 100)}`);
+        }
+        
+        // Nếu response không OK, throw error với message từ server
+        if (!response.ok) {
+            const error = new Error(data.message || data.error || `HTTP ${response.status}: ${response.statusText}`);
+            error.status = response.status;
+            error.data = data;
             throw error;
         }
-    }
-    
-    /**
-     * GET request
-     */
-    function apiGet(endpoint, options = {}) {
-        return apiCall(endpoint, {
-            ...options,
-            method: 'GET'
-        });
-    }
-    
-    /**
-     * POST request
-     */
-    function apiPost(endpoint, data = null, options = {}) {
-        const fetchOptions = {
-            ...options,
-            method: 'POST'
-        };
         
-        // Nếu có data, tự động stringify và set Content-Type
-        if (data !== null) {
-            fetchOptions.headers = {
-                'Content-Type': 'application/json',
-                ...fetchOptions.headers
-            };
-            fetchOptions.body = JSON.stringify(data);
+        return data;
+    }
+
+    // GET request
+    window.apiGet = async function(url, options = {}) {
+        try {
+            const fullUrl = buildUrl(url);
+            const headers = getHeaders(options.headers);
+            
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: headers,
+                ...options
+            });
+            
+            return await handleResponse(response);
+        } catch (error) {
+            // Nếu là network error, wrap lại với message rõ ràng hơn
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');
+            }
+            throw error;
         }
-        
-        return apiCall(endpoint, fetchOptions);
-    }
-    
-    /**
-     * PUT request
-     */
-    function apiPut(endpoint, data = null, options = {}) {
-        const fetchOptions = {
-            ...options,
-            method: 'PUT'
-        };
-        
-        if (data !== null) {
-            fetchOptions.headers = {
-                'Content-Type': 'application/json',
-                ...fetchOptions.headers
-            };
-            fetchOptions.body = JSON.stringify(data);
+    };
+
+    // POST request
+    window.apiPost = async function(url, data = null, options = {}) {
+        try {
+            const fullUrl = buildUrl(url);
+            const headers = getHeaders(options.headers);
+            
+            // Nếu data là FormData, không set Content-Type (browser sẽ tự set với boundary)
+            let body;
+            if (data instanceof FormData) {
+                // Xóa Content-Type để browser tự set
+                delete headers['Content-Type'];
+                body = data;
+            } else if (data !== null) {
+                body = JSON.stringify(data);
+            }
+            
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: headers,
+                body: body,
+                ...options
+            });
+            
+            return await handleResponse(response);
+        } catch (error) {
+            // Nếu là network error, wrap lại với message rõ ràng hơn
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');
+            }
+            throw error;
         }
-        
-        return apiCall(endpoint, fetchOptions);
-    }
-    
-    /**
-     * DELETE request
-     */
-    function apiDelete(endpoint, options = {}) {
-        return apiCall(endpoint, {
-            ...options,
-            method: 'DELETE'
-        });
-    }
-    
-    /**
-     * PATCH request
-     */
-    function apiPatch(endpoint, data = null, options = {}) {
-        const fetchOptions = {
-            ...options,
-            method: 'PATCH'
-        };
-        
-        if (data !== null) {
-            fetchOptions.headers = {
-                'Content-Type': 'application/json',
-                ...fetchOptions.headers
-            };
-            fetchOptions.body = JSON.stringify(data);
+    };
+
+    // PUT request
+    window.apiPut = async function(url, data = null, options = {}) {
+        try {
+            const fullUrl = buildUrl(url);
+            const headers = getHeaders(options.headers);
+            
+            let body;
+            if (data instanceof FormData) {
+                delete headers['Content-Type'];
+                body = data;
+            } else if (data !== null) {
+                body = JSON.stringify(data);
+            }
+            
+            const response = await fetch(fullUrl, {
+                method: 'PUT',
+                headers: headers,
+                body: body,
+                ...options
+            });
+            
+            return await handleResponse(response);
+        } catch (error) {
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');
+            }
+            throw error;
         }
-        
-        return apiCall(endpoint, fetchOptions);
-    }
-    
-    // Export functions to window
-    window.apiCall = apiCall;
-    window.apiGet = apiGet;
-    window.apiPost = apiPost;
-    window.apiPut = apiPut;
-    window.apiDelete = apiDelete;
-    window.apiPatch = apiPatch;
-    
-    // Log (chỉ trong development)
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        console.log('✅ API Helper Functions loaded');
-    }
+    };
+
+    // DELETE request
+    window.apiDelete = async function(url, options = {}) {
+        try {
+            const fullUrl = buildUrl(url);
+            const headers = getHeaders(options.headers);
+            
+            const response = await fetch(fullUrl, {
+                method: 'DELETE',
+                headers: headers,
+                ...options
+            });
+            
+            return await handleResponse(response);
+        } catch (error) {
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');
+            }
+            throw error;
+        }
+    };
 })();
-
-

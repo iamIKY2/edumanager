@@ -932,10 +932,31 @@ router.get('/:examId/result/:attemptId', authMiddleware, roleMiddleware(['studen
         [r.question_id]
       );
 
+      // ⭐ LẤY TÀI LIỆU GỢI Ý NẾU LÀM SAI
+      let suggestedMaterials = [];
+      if (!isCorrect) {
+        const [materials] = await req.db.query(
+          `SELECT 
+            m.material_id,
+            m.title,
+            m.description,
+            m.file_name,
+            m.file_type,
+            m.file_size
+          FROM materials m
+          JOIN question_materials qm ON m.material_id = qm.material_id
+          WHERE qm.question_id = ?
+          ORDER BY m.upload_date DESC`,
+          [r.question_id]
+        );
+        suggestedMaterials = materials;
+      }
+
       return { 
         ...r, 
         is_correct: isCorrect ? 1 : 0, // ⭐ GHI ĐÈ is_correct
-        options 
+        options,
+        suggested_materials: suggestedMaterials // ⭐ TÀI LIỆU GỢI Ý
       };
     }));
 
