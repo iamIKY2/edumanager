@@ -31,7 +31,7 @@ router.get('/materials', authMiddleware, roleMiddleware(['student']), async (req
     const classIds = classes.map(c => c.class_id);
     const placeholders = classIds.map(() => '?').join(',');
     
-    // Lấy tài liệu từ các lớp
+    // Lấy tất cả tài liệu từ các lớp (PDF, Word, Excel, PowerPoint, Text, v.v.)
     const [materials] = await req.db.query(
       `SELECT 
         m.material_id,
@@ -42,10 +42,24 @@ router.get('/materials', authMiddleware, roleMiddleware(['student']), async (req
         m.file_size,
         m.upload_date,
         u.full_name as teacher_name,
-        c.class_name
+        c.class_name,
+        COALESCE(mc.word_count, 0) as word_count,
+        CASE 
+          WHEN mc.word_count IS NULL OR mc.word_count = 0 THEN 0
+          -- Tính số câu hỏi ước tính dựa trên word_count (khoảng 50-100 từ/câu)
+          -- Cho phép tạo nhiều câu hỏi từ file dài
+          WHEN mc.word_count < 200 THEN 5
+          WHEN mc.word_count < 500 THEN 10
+          WHEN mc.word_count < 1000 THEN 20
+          WHEN mc.word_count < 2000 THEN 30
+          WHEN mc.word_count < 5000 THEN 50
+          WHEN mc.word_count < 10000 THEN 80
+          ELSE LEAST(200, FLOOR(mc.word_count / 50))
+        END as estimated_questions
        FROM materials m
        JOIN classes c ON m.class_id = c.class_id
        JOIN users u ON m.teacher_id = u.user_id
+       LEFT JOIN material_cache mc ON m.material_id = mc.material_id
        WHERE m.class_id IN (${placeholders})
        ORDER BY m.upload_date DESC`,
       classIds
@@ -55,6 +69,78 @@ router.get('/materials', authMiddleware, roleMiddleware(['student']), async (req
   } catch (error) {
     console.error('❌ Error getting materials:', error);
     res.status(500).json({ error: 'Lỗi khi lấy danh sách tài liệu', details: error.message });
+  }
+});
+
+// ============================================
+// POST /api/student/practice/materials/:materialId/re-extract - Extract lại file (xóa cache và extract lại)
+// ============================================
+router.post('/materials/:materialId/re-extract', authMiddleware, roleMiddleware(['student']), async (req, res) => {
+  try {
+    const { materialId } = req.params;
+    const studentId = req.user.id || req.user.user_id;
+    
+    // Kiểm tra quyền truy cập
+    const [material] = await req.db.query(
+      `SELECT m.*, c.class_id
+       FROM materials m
+       JOIN classes c ON m.class_id = c.class_id
+       JOIN class_students cs ON c.class_id = cs.class_id
+       WHERE m.material_id = ? AND cs.student_id = ?`,
+      [materialId, studentId]
+    );
+    
+    if (material.length === 0) {
+      return res.status(403).json({ error: 'Bạn không có quyền truy cập tài liệu này' });
+    }
+    
+    const materialData = material[0];
+    
+    // Xóa cache cũ
+    await req.db.query('DELETE FROM material_cache WHERE material_id = ?', [materialId]);
+    console.log(`🗑️ [Practice] Deleted cache for material ${materialId}`);
+    
+    // Extract lại
+    try {
+      console.log(`📄 [Practice] Re-extracting file: ${materialData.file_path} (${materialData.file_type})`);
+      const documentContent = await fileExtractor.extractText(materialData.file_path, materialData.file_type);
+      
+      console.log(`✅ [Practice] Re-extracted ${documentContent.length} characters`);
+      console.log(`📄 [Practice] Content preview (first 1000 chars): ${documentContent.substring(0, 1000)}...`);
+      
+      if (!documentContent || documentContent.trim().length < 50) {
+        return res.status(400).json({ 
+          error: 'File không chứa text hoặc quá ngắn',
+          content_length: documentContent?.length || 0,
+          preview: documentContent?.substring(0, 200) || ''
+        });
+      }
+      
+      // Cache lại
+      const wordCount = documentContent.split(/\s+/).length;
+      await req.db.query(
+        `INSERT INTO material_cache (material_id, extracted_content, word_count)
+         VALUES (?, ?, ?)`,
+        [materialId, documentContent, wordCount]
+      );
+      
+      res.json({
+        success: true,
+        content_length: documentContent.length,
+        word_count: wordCount,
+        preview: documentContent.substring(0, 500),
+        message: 'Extract lại thành công'
+      });
+    } catch (err) {
+      console.error(`❌ [Practice] Re-extract error:`, err);
+      return res.status(400).json({ 
+        error: `Không thể extract file: ${err.message}`,
+        details: err.message
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error re-extracting material:', error);
+    res.status(500).json({ error: 'Lỗi khi extract lại file', details: error.message });
   }
 });
 
@@ -192,37 +278,112 @@ router.post('/ai/create', authMiddleware, roleMiddleware(['student']), async (re
     
     if (cached.length > 0 && cached[0].extracted_content) {
       documentContent = cached[0].extracted_content;
-    } else {
-      // Extract từ file (đơn giản: chỉ đọc text file, PDF/Word cần thư viện khác)
-      // Extract content từ file
-      try {
-        documentContent = await fileExtractor.extractText(materialData.file_path, materialData.file_type);
-      } catch (err) {
-        console.warn('⚠️ Cannot extract file:', err.message);
-        // Nếu không extract được, thử dùng AI để đọc (nếu là PDF/Word)
-        if (['.pdf', '.docx', '.doc', '.pptx', '.ppt'].includes(materialData.file_type)) {
-          documentContent = `Tài liệu ${materialData.file_type.toUpperCase()} đã được upload. 
-Vui lòng mô tả nội dung tài liệu trong prompt để AI có thể tạo câu hỏi phù hợp.`;
-        } else {
-          documentContent = 'Nội dung tài liệu chưa được extract. Vui lòng thử lại sau.';
-        }
-      }
+      console.log(`✅ [Practice] Using cached content for material ${material_id} (${documentContent.length} chars)`);
+      console.log(`📄 [Practice] Cached content preview (first 500 chars): ${documentContent.substring(0, 500)}...`);
       
-      // Cache lại
-      if (documentContent && documentContent.length > 0) {
-        await req.db.query(
-          `INSERT INTO material_cache (material_id, extracted_content, word_count)
-           VALUES (?, ?, ?)
-           ON DUPLICATE KEY UPDATE 
-             extracted_content = VALUES(extracted_content),
-             word_count = VALUES(word_count)`,
-          [material_id, documentContent, documentContent.split(/\s+/).length]
-        );
+      // Kiểm tra cache có hợp lệ không
+      if (documentContent.includes('Please install') || 
+          documentContent.includes('not yet fully supported') ||
+          documentContent.includes('detected. Please') ||
+          documentContent.length < 50) {
+        console.warn(`⚠️ [Practice] Cached content is invalid, re-extracting...`);
+        // Xóa cache và extract lại
+        await req.db.query('DELETE FROM material_cache WHERE material_id = ?', [material_id]);
+        documentContent = ''; // Reset để extract lại
       }
     }
     
-    if (!documentContent || documentContent.trim().length === 0) {
-      return res.status(400).json({ error: 'Không thể đọc nội dung tài liệu' });
+    if (!documentContent || documentContent.length === 0) {
+      // Extract từ file
+      console.log(`📄 [Practice] Extracting content from file: ${materialData.file_path} (${materialData.file_type})`);
+      try {
+        documentContent = await fileExtractor.extractText(materialData.file_path, materialData.file_type);
+        
+        // Kiểm tra xem có phải là placeholder message không
+        if (documentContent.includes('Please install') || 
+            documentContent.includes('not yet fully supported') ||
+            documentContent.includes('detected. Please') ||
+            documentContent.length < 50) {
+          console.error(`❌ [Practice] File extraction returned placeholder or empty content`);
+          return res.status(400).json({ 
+            error: `Không thể đọc nội dung file ${materialData.file_type.toUpperCase()}. Vui lòng cài đặt thư viện cần thiết hoặc thử lại sau.`,
+            details: 'File extraction failed or returned placeholder content'
+          });
+        }
+        
+        console.log(`✅ [Practice] Successfully extracted ${documentContent.length} characters from file`);
+        console.log(`📄 [Practice] Extracted content preview (first 1000 chars): ${documentContent.substring(0, 1000)}...`);
+        console.log(`📄 [Practice] Extracted content preview (last 500 chars): ...${documentContent.substring(Math.max(0, documentContent.length - 500))}`);
+        
+        // Kiểm tra xem có phải là placeholder message không
+        if (documentContent.includes('Please install') || 
+            documentContent.includes('not yet fully supported') ||
+            documentContent.includes('detected. Please') ||
+            documentContent.length < 50) {
+          console.error(`❌ [Practice] File extraction returned placeholder or empty content`);
+          return res.status(400).json({ 
+            error: `Không thể đọc nội dung file ${materialData.file_type.toUpperCase()}. File có thể là ảnh scan hoặc không chứa text.`,
+            details: 'File extraction failed or returned placeholder content. The PDF might be scanned images without text.'
+          });
+        }
+        
+        // Cache lại nếu extract thành công
+        if (documentContent && documentContent.trim().length > 50) {
+          const wordCount = documentContent.split(/\s+/).length;
+          await req.db.query(
+            `INSERT INTO material_cache (material_id, extracted_content, word_count)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE 
+               extracted_content = VALUES(extracted_content),
+               word_count = VALUES(word_count)`,
+            [material_id, documentContent, wordCount]
+          );
+          console.log(`💾 [Practice] Cached content for material ${material_id} (${wordCount} words)`);
+        }
+      } catch (err) {
+        console.error(`❌ [Practice] Error extracting file ${materialData.file_type}:`, err);
+        return res.status(400).json({ 
+          error: `Không thể đọc nội dung file ${materialData.file_type.toUpperCase()}. Lỗi: ${err.message}`,
+          details: 'File extraction failed. Please ensure the file is valid and try again.'
+        });
+      }
+    }
+    
+    // Kiểm tra lại nội dung trước khi gửi cho AI
+    if (!documentContent || documentContent.trim().length < 50) {
+      console.error(`❌ [Practice] Document content too short or empty (${documentContent?.length || 0} chars)`);
+      return res.status(400).json({ 
+        error: 'Nội dung tài liệu quá ngắn hoặc không hợp lệ. Vui lòng kiểm tra lại file.',
+        details: 'Document content is too short or invalid'
+      });
+    }
+    
+    console.log(`📝 [Practice] Sending ${documentContent.length} characters to AI for question generation`);
+    console.log(`📄 [Practice] Document preview (first 500 chars): ${documentContent.substring(0, 500)}...`);
+    console.log(`💬 [Practice] Student prompt: ${prompt}`);
+    console.log(`⚙️ [Practice] Options:`, JSON.stringify(options));
+    
+    // Parse điểm tối đa từ prompt (nếu có)
+    // Tìm các pattern: "tối đa X điểm", "max X điểm", "mặc định X điểm", "tổng điểm X"
+    let maxPoints = null;
+    const maxPointsPatterns = [
+      /(?:tối đa|max|maximum|tổng điểm|mặc định|default)\s*(\d+)\s*(?:điểm|point)/i,
+      /(\d+)\s*(?:điểm|point)\s*(?:tối đa|max|maximum|tổng)/i
+    ];
+    
+    for (const pattern of maxPointsPatterns) {
+      const match = prompt.match(pattern);
+      if (match) {
+        maxPoints = parseFloat(match[1]);
+        console.log(`📊 [Practice] Found max points in prompt: ${maxPoints}`);
+        break;
+      }
+    }
+    
+    // Nếu không tìm thấy, mặc định là 10 điểm tổng
+    if (!maxPoints) {
+      maxPoints = 10;
+      console.log(`📊 [Practice] No max points found in prompt, using default: ${maxPoints} points`);
     }
     
     // Tạo câu hỏi bằng AI
@@ -235,9 +396,18 @@ Vui lòng mô tả nội dung tài liệu trong prompt để AI có thể tạo 
       }
     );
     
+    console.log(`✅ [Practice] AI generated ${questions.length} questions`);
+    if (questions.length > 0) {
+      console.log(`📋 [Practice] First question preview: ${questions[0].question_content?.substring(0, 100)}...`);
+    }
+    
     if (!questions || questions.length === 0) {
       return res.status(500).json({ error: 'AI không tạo được câu hỏi nào' });
     }
+    
+    // Tính điểm mỗi câu hỏi: LUÔN chia đều điểm tối đa cho số câu hỏi
+    const pointsPerQuestion = maxPoints / questions.length;
+    console.log(`📊 [Practice] Calculating points: ${maxPoints} total / ${questions.length} questions = ${pointsPerQuestion.toFixed(2)} per question`);
     
     // Tạo practice exam
     const [examResult] = await req.db.query(
@@ -255,16 +425,37 @@ Vui lòng mô tả nội dung tài liệu trong prompt để AI có thể tạo 
     
     const practiceExamId = examResult.insertId;
     
-    // Lưu câu hỏi
+    // Lưu câu hỏi với điểm đã tính toán
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
+      
+      // LUÔN sử dụng điểm đã tính toán (chia đều từ điểm tối đa)
+      const questionPoints = pointsPerQuestion;
       
       const [questionResult] = await req.db.query(
         `INSERT INTO practice_exam_questions
          (practice_exam_id, question_content, question_type, difficulty, points, question_order)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [practiceExamId, q.question_content, q.question_type, q.difficulty, q.points, i + 1]
+        [
+          practiceExamId, 
+          q.question_content, 
+          q.question_type, 
+          q.difficulty, 
+          questionPoints.toFixed(2), 
+          i + 1
+        ]
       );
+      
+      // Với Essay/FillInBlank, lưu correct_answer_text vào options (dùng option_content để lưu đáp án mẫu)
+      if ((q.question_type === 'Essay' || q.question_type === 'FillInBlank') && q.correct_answer_text) {
+        await req.db.query(
+          `INSERT INTO practice_exam_options
+           (practice_exam_id, question_order, option_content, is_correct, option_order)
+           VALUES (?, ?, ?, ?, ?)`,
+          [practiceExamId, i + 1, q.correct_answer_text, 1, 0]
+        );
+        console.log(`✅ [Practice] Saved correct_answer_text for ${q.question_type} question ${i + 1}`);
+      }
       
       // Lưu options nếu có
       if (q.options && q.options.length > 0) {

@@ -47,21 +47,29 @@ class FileExtractor {
      * Extract từ PDF (cần thư viện pdf-parse)
      */
     async extractFromPdf(filePath) {
+        // Kiểm tra xem có thư viện pdf-parse không
+        let pdfParse;
         try {
-            // Kiểm tra xem có thư viện pdf-parse không
-            let pdfParse;
-            try {
-                pdfParse = require('pdf-parse');
-            } catch (err) {
-                console.warn('⚠️ pdf-parse not installed, using fallback');
-                return 'PDF file detected. Please install pdf-parse package for full support.\nFor now, you can use AI to extract text from PDF.';
-            }
-            
+            pdfParse = require('pdf-parse');
+        } catch (err) {
+            console.error('❌ pdf-parse package is not installed!');
+            throw new Error('Thư viện pdf-parse chưa được cài đặt. Vui lòng chạy: npm install pdf-parse');
+        }
+        
+        try {
             const dataBuffer = await fs.readFile(filePath);
             const data = await pdfParse(dataBuffer);
+            
+            if (!data.text || data.text.trim().length === 0) {
+                throw new Error('PDF file không chứa text hoặc file bị lỗi');
+            }
+            
             return data.text;
         } catch (error) {
-            throw new Error(`Cannot extract PDF: ${error.message}`);
+            if (error.message.includes('pdf-parse')) {
+                throw error; // Re-throw lỗi thiếu package
+            }
+            throw new Error(`Không thể đọc file PDF: ${error.message}`);
         }
     }
 
@@ -69,20 +77,28 @@ class FileExtractor {
      * Extract từ Word (cần thư viện mammoth)
      */
     async extractFromWord(filePath) {
+        // Kiểm tra xem có thư viện mammoth không
+        let mammoth;
         try {
-            // Kiểm tra xem có thư viện mammoth không
-            let mammoth;
-            try {
-                mammoth = require('mammoth');
-            } catch (err) {
-                console.warn('⚠️ mammoth not installed, using fallback');
-                return 'Word file detected. Please install mammoth package for full support.\nFor now, you can use AI to extract text from Word.';
+            mammoth = require('mammoth');
+        } catch (err) {
+            console.error('❌ mammoth package is not installed!');
+            throw new Error('Thư viện mammoth chưa được cài đặt. Vui lòng chạy: npm install mammoth');
+        }
+        
+        try {
+            const result = await mammoth.extractRawText({ path: filePath });
+            
+            if (!result.value || result.value.trim().length === 0) {
+                throw new Error('Word file không chứa text hoặc file bị lỗi');
             }
             
-            const result = await mammoth.extractRawText({ path: filePath });
             return result.value;
         } catch (error) {
-            throw new Error(`Cannot extract Word: ${error.message}`);
+            if (error.message.includes('mammoth')) {
+                throw error; // Re-throw lỗi thiếu package
+            }
+            throw new Error(`Không thể đọc file Word: ${error.message}`);
         }
     }
 
@@ -118,6 +134,12 @@ class FileExtractor {
 }
 
 module.exports = new FileExtractor();
+
+
+
+
+
+
 
 
 

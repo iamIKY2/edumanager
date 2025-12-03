@@ -149,6 +149,236 @@ router.get('/:examId', authMiddleware, roleMiddleware(['student']), async (req, 
 });
 
 // ============================================
+// 📄 LẤY ATTEMPT HIỆN TẠI (KHI RELOAD TRANG)
+// ============================================
+router.get('/:examId/attempt/:attemptId', authMiddleware, roleMiddleware(['student']), async (req, res) => {
+  const { examId, attemptId } = req.params;
+  const studentId = req.user.id || req.user.user_id;
+
+  try {
+    // Kiểm tra quyền truy cập
+    const [attempt] = await req.db.query(
+      `SELECT ea.*, e.duration, e.exam_name, e.start_time as exam_start_time
+       FROM exam_attempts ea
+       JOIN exams e ON ea.exam_id = e.exam_id
+       WHERE ea.attempt_id = ? AND ea.student_id = ? AND ea.exam_id = ? AND ea.status = 'InProgress'`,
+      [attemptId, studentId, examId]
+    );
+
+    if (!attempt.length) {
+      return res.status(404).json({ error: 'Không tìm thấy attempt hoặc attempt đã kết thúc' });
+    }
+
+    const attemptData = attempt[0];
+
+    // ⭐ LẤY THÔNG TIN SHUFFLE TỪ EXAM
+    const [examSettings] = await req.db.query(
+      `SELECT shuffle_questions, shuffle_options FROM exams WHERE exam_id = ?`,
+      [examId]
+    );
+    const shouldShuffleQuestions = examSettings[0]?.shuffle_questions === 1 || examSettings[0]?.shuffle_questions === '1';
+    const shouldShuffleOptions = examSettings[0]?.shuffle_options === 1 || examSettings[0]?.shuffle_options === '1';
+    
+    console.log(`🔍 [Load Attempt] Exam ${examId}, Attempt ${attemptId}: shuffle_questions=${shouldShuffleQuestions}, shuffle_options=${shouldShuffleOptions}`);
+
+    // Lấy câu hỏi và đáp án đã lưu
+    let [questions] = await req.db.query(
+      `SELECT 
+        eq.question_id,
+        eq.points,
+        qb.question_content,
+        qb.question_type,
+        qb.difficulty,
+        eaa.option_id,
+        eaa.answer_text
+       FROM exam_questions eq
+       JOIN question_bank qb ON eq.question_id = qb.question_id
+       LEFT JOIN exam_attempt_answers eaa ON eq.question_id = eaa.question_id AND eaa.attempt_id = ?
+       WHERE eq.exam_id = ?
+       ORDER BY eq.question_order ASC`,
+      [attemptId, examId]
+    );
+
+    // ⭐ XÁO TRỘN CÂU HỎI NẾU BẬT - ĐẢM BẢO MỖI HỌC SINH CÓ THỨ TỰ KHÁC NHAU
+    if (shouldShuffleQuestions && questions.length > 0) {
+      console.log(`🔄 [Load Attempt - Shuffle Questions] Starting shuffle for student ${studentId}, attempt ${attemptId}, exam ${examId}`);
+      
+      // Tạo seed độc nhất từ nhiều yếu tố
+      const hashSeed = (str) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          const char = str.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash;
+        }
+        return Math.abs(hash) || 1;
+      };
+      
+      // ⭐ TẠO SEED ĐỘC NHẤT CHO MỖI HỌC SINH - DÙNG NHIỀU YẾU TỐ + TIMESTAMP
+      const examInfo = attemptData.exam_name || '';
+      const examHash = hashSeed(examInfo);
+      const startTime = new Date(attemptData.start_time).getTime(); // Thêm timestamp từ start_time
+      const seedString = `${studentId}_${attemptId}_${examId}_${questions.length}_${examHash}_${startTime}_${studentId * 7919 + attemptId * 1009}`;
+      let seed = hashSeed(seedString);
+      
+      // Đảm bảo seed đủ lớn và phân bố tốt
+      seed = (seed * 7919 + studentId * 1009 + attemptId * 997 + startTime % 10000) % 2147483647;
+      seed = (seed * 16807 + examHash) % 2147483647;
+      if (seed === 0) seed = studentId * 7919 + attemptId * 1009 + (startTime % 1000000) + 1;
+      
+      console.log(`   Seed string: ${seedString}`);
+      console.log(`   Final seed: ${seed}`);
+      
+      // Cải thiện thuật toán seeded random (Park-Miller LCG)
+      const seededRandom = (initialSeed) => {
+        let value = initialSeed || 1;
+        for (let i = 0; i < 20; i++) {
+          value = ((value * 16807) % 2147483647);
+        }
+        return () => {
+          value = ((value * 16807) % 2147483647);
+          return value / 2147483647;
+        };
+      };
+      const random = seededRandom(seed);
+      
+      // Fisher-Yates shuffle với seeded random
+      const shuffledQuestions = [...questions];
+      for (let i = shuffledQuestions.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
+      }
+      
+      questions = shuffledQuestions;
+      console.log(`✅ [Load Attempt - Shuffle Questions] Shuffled ${questions.length} questions`);
+    }
+
+    // Lấy options cho mỗi câu hỏi
+    const questionsWithOptions = await Promise.all(questions.map(async (q) => {
+      try {
+        let [options] = await req.db.query(
+          `SELECT option_id, option_content, is_correct 
+           FROM question_options 
+           WHERE question_id = ? 
+           ORDER BY option_id ASC`,
+          [q.question_id]
+        );
+
+        // ⭐ XÁO TRỘN OPTIONS NẾU BẬT (chỉ với trắc nghiệm) - ĐẢM BẢO MỖI HỌC SINH CÓ THỨ TỰ KHÁC NHAU
+        if (shouldShuffleOptions && (q.question_type === 'SingleChoice' || q.question_type === 'MultipleChoice') && options.length > 0) {
+          console.log(`🔄 [Load Attempt - Shuffle Options] Starting shuffle for question ${q.question_id}, student ${studentId}, attempt ${attemptId}`);
+          
+          // Tạo seed độc nhất từ nhiều yếu tố
+          const hashSeed = (str) => {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+              const char = str.charCodeAt(i);
+              hash = ((hash << 5) - hash) + char;
+              hash = hash & hash;
+            }
+            return Math.abs(hash) || 1;
+          };
+          
+          // ⭐ TẠO SEED ĐỘC NHẤT CHO MỖI HỌC SINH VÀ MỖI CÂU HỎI
+          const questionHash = hashSeed(q.question_content || '');
+          const startTime = new Date(attemptData.start_time).getTime(); // Thêm timestamp từ start_time
+          const seedString = `${studentId}_${attemptId}_${q.question_id}_${examId}_${options.length}_${questionHash}_${startTime}_${studentId * 7919 + attemptId * 1009 + q.question_id * 997}`;
+          let seed = hashSeed(seedString);
+          
+          // Đảm bảo seed đủ lớn và phân bố tốt
+          seed = (seed * 7919 + studentId * 1009 + attemptId * 997 + q.question_id * 503 + startTime % 10000) % 2147483647;
+          seed = (seed * 16807 + questionHash) % 2147483647;
+          if (seed === 0) seed = studentId * 7919 + attemptId * 1009 + q.question_id * 997 + (startTime % 1000000) + 1;
+          
+          // Cải thiện thuật toán seeded random (Park-Miller LCG)
+          const seededRandom = (initialSeed) => {
+            let value = initialSeed || 1;
+            for (let i = 0; i < 20; i++) {
+              value = ((value * 16807) % 2147483647);
+            }
+            return () => {
+              value = ((value * 16807) % 2147483647);
+              return value / 2147483647;
+            };
+          };
+          
+          const random = seededRandom(seed);
+          
+          // Fisher-Yates shuffle với seeded random
+          const shuffledOptions = [...options];
+          for (let i = shuffledOptions.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+          }
+          
+          options = shuffledOptions;
+          console.log(`✅ [Load Attempt - Shuffle Options] Shuffled ${options.length} options for question ${q.question_id}`);
+        }
+
+        // Xử lý saved_answer cho MultipleChoice (có thể có nhiều option_id)
+        let saved_answer = null;
+        if (q.option_id) {
+          // Nếu có option_id, có thể là SingleChoice hoặc MultipleChoice
+          // Kiểm tra question_type để xác định
+          if (q.question_type === 'MultipleChoice') {
+            // Lấy tất cả option_id cho MultipleChoice
+            const [allAnswers] = await req.db.query(
+              `SELECT option_id FROM exam_attempt_answers 
+               WHERE attempt_id = ? AND question_id = ?`,
+              [attemptId, q.question_id]
+            );
+            saved_answer = allAnswers.map(a => a.option_id);
+          } else {
+            saved_answer = q.option_id;
+          }
+        } else if (q.answer_text) {
+          saved_answer = q.answer_text;
+        }
+
+        return {
+          question_id: q.question_id,
+          question_content: q.question_content,
+          question_type: q.question_type,
+          difficulty: q.difficulty,
+          points: q.points,
+          options: options || [],
+          saved_answer: saved_answer
+        };
+      } catch (optionError) {
+        console.error(`❌ Error loading options for question ${q.question_id}:`, optionError);
+        return {
+          question_id: q.question_id,
+          question_content: q.question_content,
+          question_type: q.question_type,
+          difficulty: q.difficulty,
+          points: q.points,
+          options: [],
+          saved_answer: null
+        };
+      }
+    }));
+
+    res.json({
+      attempt: {
+        attempt_id: attemptData.attempt_id,
+        start_time: attemptData.start_time,
+        status: attemptData.status
+      },
+      exam: {
+        exam_id: parseInt(examId),
+        exam_name: attemptData.exam_name,
+        duration: attemptData.duration,
+        start_time: attemptData.exam_start_time
+      },
+      questions: questionsWithOptions
+    });
+  } catch (err) {
+    console.error('❌ Error loading attempt:', err);
+    res.status(500).json({ error: 'Lỗi khi load attempt', details: err.message });
+  }
+});
+
+// ============================================
 // ▶️ BẮT ĐẦU LÀM BÀI THI - ĐÃ SỬA
 // ============================================
 router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async (req, res) => {
@@ -229,9 +459,16 @@ router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async
     );
 
     let attemptId;
+    let attemptStartTime; // Lưu start_time để dùng cho shuffle
 
     if (existingAttempt.length > 0) {
       attemptId = existingAttempt[0].attempt_id;
+      // Lấy start_time từ attempt hiện có
+      const [attemptInfo] = await req.db.query(
+        'SELECT start_time FROM exam_attempts WHERE attempt_id = ?',
+        [attemptId]
+      );
+      attemptStartTime = attemptInfo[0]?.start_time ? new Date(attemptInfo[0].start_time).getTime() : Date.now();
     } else {
       const [result] = await req.db.query(
         `INSERT INTO exam_attempts (exam_id, student_id, start_time, status) 
@@ -239,6 +476,7 @@ router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async
         [examId, studentId]
       );
       attemptId = result.insertId;
+      attemptStartTime = Date.now(); // Dùng thời gian hiện tại vì vừa tạo với NOW()
       
       // ⭐ EMIT SOCKET ĐỂ THÔNG BÁO GIÁO VIÊN HỌC SINH BẮT ĐẦU LÀM BÀI
       if (req.io) {
@@ -302,17 +540,18 @@ router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async
         return Math.abs(hash) || 1;
       };
       
-      // ⭐ TẠO SEED ĐỘC NHẤT CHO MỖI HỌC SINH - DÙNG NHIỀU YẾU TỐ
-      // Thêm thông tin từ exam để đảm bảo mỗi bài thi khác nhau
+      // ⭐ TẠO SEED ĐỘC NHẤT CHO MỖI HỌC SINH - DÙNG NHIỀU YẾU TỐ + TIMESTAMP
+      // Thêm thông tin từ exam và timestamp để đảm bảo mỗi học sinh khác nhau
       const examInfo = exam.exam_name || '';
       const examHash = hashSeed(examInfo);
-      const seedString = `${studentId}_${attemptId}_${examId}_${questions.length}_${examHash}_${studentId * 7919 + attemptId * 1009}`;
+      const startTime = attemptStartTime; // Dùng start_time đã lấy ở trên
+      const seedString = `${studentId}_${attemptId}_${examId}_${questions.length}_${examHash}_${startTime}_${studentId * 7919 + attemptId * 1009}`;
       let seed = hashSeed(seedString);
       
       // Đảm bảo seed đủ lớn và phân bố tốt - dùng nhiều phép toán để tăng độ ngẫu nhiên
-      seed = (seed * 7919 + studentId * 1009 + attemptId * 997) % 2147483647;
+      seed = (seed * 7919 + studentId * 1009 + attemptId * 997 + startTime % 10000) % 2147483647;
       seed = (seed * 16807 + examHash) % 2147483647;
-      if (seed === 0) seed = studentId * 7919 + attemptId * 1009 + 1;
+      if (seed === 0) seed = studentId * 7919 + attemptId * 1009 + (startTime % 1000000) + 1;
       
       console.log(`   Seed string: ${seedString}`);
       console.log(`   Final seed: ${seed}`);
@@ -376,15 +615,16 @@ router.post('/:examId/start', authMiddleware, roleMiddleware(['student']), async
           };
           
           // ⭐ TẠO SEED ĐỘC NHẤT CHO MỖI HỌC SINH VÀ MỖI CÂU HỎI
-          // Thêm thông tin từ question để đảm bảo mỗi câu hỏi khác nhau
+          // Thêm thông tin từ question và timestamp để đảm bảo mỗi câu hỏi khác nhau
           const questionHash = hashSeed(q.question_content || '');
-          const seedString = `${studentId}_${attemptId}_${q.question_id}_${examId}_${options.length}_${questionHash}_${studentId * 7919 + attemptId * 1009 + q.question_id * 997}`;
+          const startTime = attemptStartTime; // Dùng start_time đã lấy ở trên
+          const seedString = `${studentId}_${attemptId}_${q.question_id}_${examId}_${options.length}_${questionHash}_${startTime}_${studentId * 7919 + attemptId * 1009 + q.question_id * 997}`;
           let seed = hashSeed(seedString);
           
           // Đảm bảo seed đủ lớn và phân bố tốt - dùng nhiều phép toán để tăng độ ngẫu nhiên
-          seed = (seed * 7919 + studentId * 1009 + attemptId * 997 + q.question_id * 503) % 2147483647;
+          seed = (seed * 7919 + studentId * 1009 + attemptId * 997 + q.question_id * 503 + startTime % 10000) % 2147483647;
           seed = (seed * 16807 + questionHash) % 2147483647;
-          if (seed === 0) seed = studentId * 7919 + attemptId * 1009 + q.question_id * 997 + 1;
+          if (seed === 0) seed = studentId * 7919 + attemptId * 1009 + q.question_id * 997 + (startTime % 1000000) + 1;
           
           console.log(`   Seed string: ${seedString}`);
           console.log(`   Final seed: ${seed}`);
@@ -575,10 +815,10 @@ router.post('/:examId/cheating-log', authMiddleware, roleMiddleware(['student'])
       return res.status(403).json({ error: 'Attempt không hợp lệ' });
     }
 
-    // Ghi log gian lận
+    // Ghi log gian lận (video sẽ được lưu riêng qua API khác)
     await req.db.query(
-      `INSERT INTO anti_cheating_logs (attempt_id, event_type, event_description, event_time)
-       VALUES (?, ?, ?, NOW())`,
+      `INSERT INTO anti_cheating_logs (attempt_id, event_type, event_description, event_time, is_recorded)
+       VALUES (?, ?, ?, NOW(), 0)`,
       [attempt_id, event_type, event_description || null]
     );
 
@@ -594,6 +834,130 @@ router.post('/:examId/cheating-log', authMiddleware, roleMiddleware(['student'])
     res.status(500).json({ error: 'Lỗi khi ghi log gian lận', details: err.message });
   }
 });
+
+// ============================================
+// 🎥 LƯU VIDEO KHI AI PHÁT HIỆN VI PHẠM
+// ============================================
+const multer = require('multer');
+const videoStorage = require('../../utils/videoStorage');
+
+// Cấu hình multer để nhận video
+const upload = multer({
+  storage: multer.memoryStorage(), // Lưu vào memory trước
+  limits: {
+    fileSize: 50 * 1024 * 1024 // Giới hạn 50MB
+  },
+  fileFilter: (req, file, cb) => {
+    // Chỉ chấp nhận file video
+    if (file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Chỉ chấp nhận file video!'), false);
+    }
+  }
+});
+
+router.post('/:examId/violation-video', 
+  authMiddleware, 
+  roleMiddleware(['student']), 
+  upload.single('video'),
+  async (req, res) => {
+    const { examId } = req.params;
+    const { attempt_id, event_type, violation_time, duration_before = 30, duration_after = 30 } = req.body;
+    const studentId = req.user.id || req.user.user_id;
+
+    try {
+      if (!attempt_id || !event_type) {
+        return res.status(400).json({ error: 'Thiếu attempt_id hoặc event_type' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'Không có file video' });
+      }
+
+      // Xác thực attempt
+      const [attempt] = await req.db.query(
+        `SELECT attempt_id FROM exam_attempts
+         WHERE attempt_id = ? AND student_id = ? AND exam_id = ?`,
+        [attempt_id, studentId, examId]
+      );
+
+      if (!attempt.length) {
+        return res.status(403).json({ error: 'Attempt không hợp lệ' });
+      }
+
+      // Lưu video vào thư mục
+      const videoPath = await videoStorage.saveVideo(
+        attempt_id,
+        req.file.buffer,
+        true, // isViolation = true
+        event_type
+      );
+
+      // Tính thời lượng video (giây)
+      const videoDuration = Math.ceil((parseInt(duration_before) + parseInt(duration_after)) / 1000);
+
+      // Tìm log mới nhất của attempt này với event_type này (trong vòng 60 giây)
+      // Để đảm bảo tìm đúng log vừa được tạo
+      const [latestLog] = await req.db.query(
+        `SELECT log_id FROM anti_cheating_logs 
+         WHERE attempt_id = ? AND event_type = ? 
+         AND event_time >= DATE_SUB(NOW(), INTERVAL 60 SECOND)
+         ORDER BY event_time DESC LIMIT 1`,
+        [attempt_id, event_type]
+      );
+
+      if (latestLog.length > 0) {
+        // Cập nhật log đã có
+        await req.db.query(
+          `UPDATE anti_cheating_logs 
+           SET video_path = ?, video_duration = ?, is_recorded = 1 
+           WHERE log_id = ?`,
+          [videoPath, videoDuration, latestLog[0].log_id]
+        );
+        console.log(`✅ [Video] Đã cập nhật video_path cho log_id: ${latestLog[0].log_id}`);
+      } else {
+        // Nếu không tìm thấy log trong 60 giây, tìm log mới nhất không có video
+        const [latestLogWithoutVideo] = await req.db.query(
+          `SELECT log_id FROM anti_cheating_logs 
+           WHERE attempt_id = ? AND event_type = ? 
+           AND (video_path IS NULL OR video_path = '')
+           ORDER BY event_time DESC LIMIT 1`,
+          [attempt_id, event_type]
+        );
+        
+        if (latestLogWithoutVideo.length > 0) {
+          await req.db.query(
+            `UPDATE anti_cheating_logs 
+             SET video_path = ?, video_duration = ?, is_recorded = 1 
+             WHERE log_id = ?`,
+            [videoPath, videoDuration, latestLogWithoutVideo[0].log_id]
+          );
+          console.log(`✅ [Video] Đã cập nhật video_path cho log_id (không có video): ${latestLogWithoutVideo[0].log_id}`);
+        } else {
+          // Tạo log mới nếu chưa có
+          await req.db.query(
+            `INSERT INTO anti_cheating_logs 
+             (attempt_id, event_type, event_description, event_time, video_path, video_duration, is_recorded)
+             VALUES (?, ?, ?, NOW(), ?, ?, 1)`,
+            [attempt_id, event_type, `Video vi phạm: ${event_type}`, videoPath, videoDuration]
+          );
+          console.log(`✅ [Video] Đã tạo log mới với video_path`);
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        video_path: videoPath,
+        file_size: req.file.size,
+        message: 'Đã lưu video vi phạm thành công' 
+      });
+    } catch (err) {
+      console.error('❌ Error saving violation video:', err);
+      res.status(500).json({ error: 'Lỗi khi lưu video', details: err.message });
+    }
+  }
+);
 
 // ============================================
 // 📤 NỘP BÀI THI - ĐÃ SỬA LOGIC TÍNH ĐIỂM

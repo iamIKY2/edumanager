@@ -712,9 +712,70 @@
             }
         }
 
-        // Hiển thị phần trăm (chỉ tính câu đã có kết quả)
-        const gradedQuestions = results.length - pendingCount;
-        const percentScore = gradedQuestions > 0 ? Math.round((correctCount / gradedQuestions) * 100) : 0;
+        // Tính tỷ lệ đạt:
+        // - Trắc nghiệm: % câu trả lời đúng
+        // - Tự luận: % điểm đạt được sau khi giáo viên chấm
+        let totalMultipleChoiceQuestions = 0;
+        let correctMultipleChoiceCount = 0;
+        let totalEssayPoints = 0;
+        let earnedEssayPoints = 0;
+        
+        results.forEach((r) => {
+            const hasAnswer = (r.option_id !== null && r.option_id !== undefined) || 
+                              (r.student_answer !== null && r.student_answer !== undefined && r.student_answer !== '');
+            
+            // Trắc nghiệm (SingleChoice, MultipleChoice)
+            if (r.question_type === 'SingleChoice' || r.question_type === 'MultipleChoice') {
+                totalMultipleChoiceQuestions++;
+                if (hasAnswer && r.is_correct === 1) {
+                    correctMultipleChoiceCount++;
+                }
+            }
+            // Tự luận (Essay, FillInBlank) - chỉ tính khi đã được chấm
+            else if ((r.question_type === 'Essay' || r.question_type === 'FillInBlank') && 
+                     r.teacher_score !== null && r.teacher_score !== undefined) {
+                const questionPoints = parseFloat(r.points) || 0;
+                const earnedPoints = parseFloat(r.teacher_score) || 0;
+                totalEssayPoints += questionPoints;
+                earnedEssayPoints += earnedPoints;
+            }
+        });
+        
+        // Tính tỷ lệ đạt
+        let percentScore = 0;
+        let percentLabel = 'Tỷ lệ đạt';
+        
+        if (totalMultipleChoiceQuestions > 0 && totalEssayPoints > 0) {
+            // Có cả trắc nghiệm và tự luận: tính tổng hợp dựa trên điểm số
+            const multipleChoicePercent = totalMultipleChoiceQuestions > 0 
+                ? (correctMultipleChoiceCount / totalMultipleChoiceQuestions) * 100 
+                : 0;
+            
+            const essayPercent = totalEssayPoints > 0 
+                ? (earnedEssayPoints / totalEssayPoints) * 100 
+                : 0;
+            
+            // Tính trung bình có trọng số dựa trên số câu hỏi
+            const totalQuestions = totalMultipleChoiceQuestions + (totalEssayPoints > 0 ? 1 : 0);
+            percentScore = Math.round((multipleChoicePercent * totalMultipleChoiceQuestions + essayPercent * (totalEssayPoints > 0 ? 1 : 0)) / totalQuestions);
+        } else if (totalMultipleChoiceQuestions > 0) {
+            // Chỉ có trắc nghiệm: tính % câu đúng
+            percentScore = totalMultipleChoiceQuestions > 0 
+                ? Math.round((correctMultipleChoiceCount / totalMultipleChoiceQuestions) * 100) 
+                : 0;
+            percentLabel = 'Tỷ lệ đạt (trắc nghiệm)';
+        } else if (totalEssayPoints > 0) {
+            // Chỉ có tự luận: tính % điểm đạt được
+            percentScore = totalEssayPoints > 0 
+                ? Math.round((earnedEssayPoints / totalEssayPoints) * 100) 
+                : 0;
+            percentLabel = 'Tỷ lệ đạt (tự luận)';
+        }
+        
+        // Nếu có câu hỏi đang chờ chấm, thêm "(tạm tính)"
+        if (hasPendingQuestions && !attempt.is_fully_graded) {
+            percentLabel += ' (tạm tính)';
+        }
         
         // Thêm card phần trăm
         const summaryGrid = document.getElementById('summaryGrid');
@@ -722,7 +783,7 @@
         percentCard.className = 'summary-card';
         percentCard.innerHTML = `
             <div class="summary-number" style="color: #667eea;">${percentScore}%</div>
-            <div class="summary-label">Tỷ lệ đạt${hasPendingQuestions ? ' (tạm tính)' : ''}</div>
+            <div class="summary-label">${percentLabel}</div>
         `;
         summaryGrid.appendChild(percentCard);
 
@@ -925,7 +986,16 @@
         }
 
         try {
-            const response = await fetch(`/api/teacher/materials/${materialId}/download`, {
+            // Sử dụng window.CONFIG để build URL đúng
+            let apiUrl = `/api/teacher/materials/${materialId}/download`;
+            if (window.CONFIG?.API_BASE_URL) {
+                const baseUrl = window.CONFIG.API_BASE_URL.endsWith('/') 
+                    ? window.CONFIG.API_BASE_URL.slice(0, -1) 
+                    : window.CONFIG.API_BASE_URL;
+                apiUrl = `${baseUrl}${apiUrl}`;
+            }
+            
+            const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -933,8 +1003,15 @@
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Lỗi khi tải tài liệu');
+                // Kiểm tra xem response có phải là JSON không
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Lỗi khi tải tài liệu');
+                } else {
+                    // Nếu không phải JSON, có thể là HTML error page
+                    throw new Error(`Lỗi ${response.status}: ${response.statusText}`);
+                }
             }
 
             // Lấy tên file từ header hoặc URL

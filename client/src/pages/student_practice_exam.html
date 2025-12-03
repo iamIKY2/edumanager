@@ -393,24 +393,38 @@
         
         let optionsHTML = '';
         
-        if (question.question_type === 'SingleChoice') {
-            optionsHTML = question.options.map((opt, i) => `
-                <div class="option ${answers[question.question_id] === opt.option_id ? 'selected' : ''}" onclick="selectOption(${i})">
-                    <input type="radio" name="answer_${question.question_id}" value="${opt.option_id}" 
-                           ${answers[question.question_id] === opt.option_id ? 'checked' : ''}>
-                    <span>${String.fromCharCode(65 + i)}. ${opt.option_content}</span>
-                </div>
-            `).join('');
+        // Xử lý Essay và FillInBlank trước (không cần options)
+        if (question.question_type === 'Essay' || question.question_type === 'FillInBlank') {
+            optionsHTML = `<textarea class="textarea-answer" id="textAnswer" placeholder="Nhập câu trả lời của bạn...">${answers[question.question_id] || ''}</textarea>`;
+        } else if (question.question_type === 'SingleChoice') {
+            // Kiểm tra có options không
+            if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
+                optionsHTML = '<div style="color: red; padding: 20px; text-align: center;">⚠️ Lỗi: Câu hỏi không có đáp án. Vui lòng liên hệ giáo viên.</div>';
+            } else {
+                optionsHTML = question.options.map((opt, i) => `
+                    <div class="option ${answers[question.question_id] === opt.option_id ? 'selected' : ''}" onclick="selectOption(${i})">
+                        <input type="radio" name="answer_${question.question_id}" value="${opt.option_id}" 
+                               ${answers[question.question_id] === opt.option_id ? 'checked' : ''}>
+                        <span>${String.fromCharCode(65 + i)}. ${opt.option_content}</span>
+                    </div>
+                `).join('');
+            }
         } else if (question.question_type === 'MultipleChoice') {
-            const savedAnswers = answers[question.question_id] || [];
-            optionsHTML = question.options.map((opt, i) => `
-                <div class="option ${savedAnswers.includes(opt.option_id) ? 'selected' : ''}" onclick="toggleOption(${i})">
-                    <input type="checkbox" name="answer_${question.question_id}" value="${opt.option_id}"
-                           ${savedAnswers.includes(opt.option_id) ? 'checked' : ''}>
-                    <span>${String.fromCharCode(65 + i)}. ${opt.option_content}</span>
-                </div>
-            `).join('');
+            // Kiểm tra có options không
+            if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
+                optionsHTML = '<div style="color: red; padding: 20px; text-align: center;">⚠️ Lỗi: Câu hỏi không có đáp án. Vui lòng liên hệ giáo viên.</div>';
+            } else {
+                const savedAnswers = answers[question.question_id] || [];
+                optionsHTML = question.options.map((opt, i) => `
+                    <div class="option ${savedAnswers.includes(opt.option_id) ? 'selected' : ''}" onclick="toggleOption(${i})">
+                        <input type="checkbox" name="answer_${question.question_id}" value="${opt.option_id}"
+                               ${savedAnswers.includes(opt.option_id) ? 'checked' : ''}>
+                        <span>${String.fromCharCode(65 + i)}. ${opt.option_content}</span>
+                    </div>
+                `).join('');
+            }
         } else {
+            // Fallback cho các loại câu hỏi khác
             optionsHTML = `<textarea class="textarea-answer" id="textAnswer" placeholder="Nhập câu trả lời của bạn...">${answers[question.question_id] || ''}</textarea>`;
         }
         

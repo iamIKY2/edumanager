@@ -90,6 +90,8 @@
             return !this.API_BASE_URL || this.API_BASE_URL === '';
         }
     };
+    
+    // Config đã được load (không log để giảm noise)
 })();
 
 

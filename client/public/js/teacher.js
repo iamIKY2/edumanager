@@ -773,12 +773,7 @@ function renderClassGrid() {
                     <div class="class-name">${cls.class_name}</div>
                     <div class="class-subject">${cls.subject_name} • Mã lớp: ${cls.class_code}</div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="font-size: 2rem;">${cls.icon}</div>
-                    <button class="btn-delete-class" onclick="event.stopPropagation(); deleteClass(${cls.class_id}, '${cls.class_name.replace(/'/g, "\\'")}')" title="Xóa lớp học">
-                        🗑️
-                    </button>
-                </div>
+                <div style="font-size: 2rem;">${cls.icon}</div>
             </div>
             <div class="class-info">
                 <div class="class-info-item">
@@ -830,12 +825,7 @@ function filterClasses(searchTerm, status = 'all') {
                     <div class="class-name">${cls.class_name}</div>
                     <div class="class-subject">${cls.subject_name} • Mã lớp: ${cls.class_code}</div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="font-size: 2rem;">${cls.icon}</div>
-                    <button class="btn-delete-class" onclick="event.stopPropagation(); deleteClass(${cls.class_id}, '${cls.class_name.replace(/'/g, "\\'")}')" title="Xóa lớp học">
-                        🗑️
-                    </button>
-                </div>
+                <div style="font-size: 2rem;">${cls.icon}</div>
             </div>
             <div class="class-info">
                 <div class="class-info-item">
@@ -908,40 +898,6 @@ function backToClassList() {
     document.getElementById('addStudentForm').style.display = 'none';
     document.getElementById('addExamForm').style.display = 'none';
     appData.currentClassId = null;
-}
-
-async function deleteClass(classId, className) {
-    // Xác nhận trước khi xóa
-    const confirmed = confirm(`Bạn có chắc chắn muốn xóa lớp học "${className}"?\n\nHành động này không thể hoàn tác.`);
-    
-    if (!confirmed) {
-        return;
-    }
-
-    try {
-        // Gọi API xóa lớp học
-        await apiDelete(`/api/teacher/classes/${classId}`);
-        
-        // Xóa lớp khỏi danh sách trong appData
-        appData.classes = appData.classes.filter(c => c.class_id !== classId);
-        
-        // Xóa các bài thi của lớp này khỏi danh sách
-        appData.exams = appData.exams.filter(e => e.class_id !== classId);
-        
-        // Nếu đang xem lớp này, quay lại danh sách
-        if (appData.currentClassId === classId) {
-            backToClassList();
-        }
-        
-        // Render lại danh sách lớp học
-        renderClassGrid();
-        
-        // Hiển thị thông báo thành công
-        showNotification(`✅ Đã xóa lớp học "${className}" thành công`, 'success');
-    } catch (error) {
-        console.error('❌ Error deleting class:', error);
-        showNotification(`❌ ${error.message || 'Lỗi khi xóa lớp học'}`, 'error');
-    }
 }
 
 function showCreateClass() {
@@ -3482,11 +3438,8 @@ async function proceedWithImport(buttonEl, inputId, examId, file) {
         : document.getElementById('importErrorsSection');
 
     try {
-        // Sử dụng apiPost từ api.js - với FormData cần dùng apiCall trực tiếp
-        const result = await apiCall(`/api/teacher/exams/${examId}/import-questions`, {
-            method: 'POST',
-            body: formData
-        });
+        // Sử dụng apiPost từ api.js - apiPost đã hỗ trợ FormData
+        const result = await apiPost(`/api/teacher/exams/${examId}/import-questions`, formData);
 
         // Khôi phục lại cấu trúc HTML gốc nếu đã bị thay thế
         if (isClassContext && !messageEl) {
@@ -3583,13 +3536,25 @@ async function proceedWithImport(buttonEl, inputId, examId, file) {
         fileInput.value = ''; // Reset input
     } catch (error) {
         console.error('❌ Error in import:', error);
-        showNotification(`❌ ${error.message}`, 'error');
-        resultContainer.style.display = 'block';
-        messageEl.textContent = 'Lỗi khi import câu hỏi';
-        successCountEl.textContent = '';
-        errorCountEl.textContent = '';
-        errorsEl.textContent = error.message;
-        fileInput.value = '';
+        showNotification(`❌ ${error.message || error.error || 'Lỗi không xác định'}`, 'error');
+        if (resultContainer) {
+            resultContainer.style.display = 'block';
+        }
+        if (messageEl) {
+            messageEl.textContent = 'Lỗi khi import câu hỏi';
+        }
+        if (successCountEl) {
+            successCountEl.textContent = '';
+        }
+        if (errorCountEl) {
+            errorCountEl.textContent = '';
+        }
+        if (errorsEl) {
+            errorsEl.textContent = error.message || error.error || 'Lỗi không xác định';
+        }
+        if (fileInput) {
+            fileInput.value = '';
+        }
     }
 }
 
@@ -3826,6 +3791,7 @@ async function viewStudentCheatingDetail(studentId, examId, attemptId) {
         
         // Sử dụng apiGet từ api.js
         const data = await apiGet(`/api/teacher/cheating/cheating-logs/${attemptId}`);
+        
         cheatingData.currentStudentDetail = data;
         // Toggle views
         const listCard = document.getElementById('cheatingListCard');
@@ -3866,7 +3832,16 @@ async function viewStudentCheatingDetail(studentId, examId, attemptId) {
                         </span>
                         <span class="notification-time">${new Date(log.event_time).toLocaleString('vi-VN')}</span>
                     </div>
-                    <div class="notification-content">${log.event_description || 'Không có mô tả'}</div>
+                    <div class="notification-content">
+                        ${log.event_description || 'Không có mô tả'}
+                        ${(log.is_recorded == 1 || log.video_path) ? `
+                            <div style="margin-top: 10px;">
+                                <button class="btn btn-sm btn-success" onclick="viewViolationVideo(${log.log_id}, 'teacher')" style="padding: 5px 15px;">
+                                    <i class="bi bi-play-circle"></i> Xem video vi phạm
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
             `;
         }).join('');
@@ -3876,6 +3851,75 @@ async function viewStudentCheatingDetail(studentId, examId, attemptId) {
         console.error('❌ [Detail] Error:', error);
         showNotification('❌ ' + error.message, 'error');
     }
+}
+
+// Hàm xem video vi phạm (Giáo viên)
+function viewViolationVideo(logId, userRole = 'teacher') {
+    const baseUrl = userRole === 'admin' 
+        ? '/api/admin/monitor/cheating/video'
+        : '/api/teacher/cheating/violation-video';
+    
+    const token = localStorage.getItem('token');
+    const videoUrl = `${baseUrl}/${logId}`;
+    
+    // Tạo modal để xem video
+    const modal = document.createElement('div');
+    modal.className = 'modal fade show';
+    modal.style.display = 'block';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    modal.style.zIndex = '9999';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🎥 Video Vi Phạm</h5>
+                    <button type="button" class="btn-close" onclick="this.closest('.modal').remove()"></button>
+                </div>
+                <div class="modal-body">
+                    <video controls autoplay style="width: 100%; max-height: 70vh;" id="violationVideoPlayer">
+                        <source src="${videoUrl}" type="video/mp4">
+                        Trình duyệt của bạn không hỗ trợ video.
+                    </video>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Đóng</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Đóng khi click bên ngoài
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+    
+    // Load video với token
+    const videoElement = modal.querySelector('#violationVideoPlayer');
+    fetch(videoUrl, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    }).then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('Không thể tải video');
+    }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        videoElement.src = url;
+    }).catch(error => {
+        console.error('Lỗi tải video:', error);
+        modal.querySelector('.modal-body').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> 
+                Không thể tải video: ${error.message}
+            </div>
+        `;
+    });
 }
 
 // Back to list
@@ -6454,12 +6498,18 @@ function displayAIResults(questions) {
     const otherCount = questions.filter(q => 
         q.type === 'Essay' || q.type === 'FillInBlank'
     ).length;
-    const totalPoints = questions.reduce((sum, q) => sum + (q.points || 10), 0);
+    // Tính tổng điểm dựa trên điểm tối đa từ form (nếu có) hoặc mặc định 10
+    const maxPointsEl = document.getElementById('aiMaxPoints');
+    const maxPoints = maxPointsEl ? parseFloat(maxPointsEl.value) || 10 : 10;
+    const totalPoints = maxPoints; // Tổng điểm = điểm tối đa
 
     document.getElementById('aiStatTotal').textContent = questions.length;
     document.getElementById('aiStatPoints').textContent = totalPoints;
     document.getElementById('aiStatChoice').textContent = choiceCount;
     document.getElementById('aiStatOther').textContent = otherCount;
+
+    // Tính điểm mỗi câu hỏi để hiển thị trong preview
+    const pointsPerQuestion = maxPoints / questions.length;
 
     const previewHTML = questions.map((q, index) => {
         const typeText = {
@@ -6495,7 +6545,7 @@ function displayAIResults(questions) {
                     <span class="ai-question-number">Câu ${index + 1}</span>
                     <div>
                         <span class="difficulty-badge difficulty-${q.difficulty}">${q.difficulty}</span>
-                        <span style="margin-left: 8px; color: #667eea; font-weight: 600; font-size: 13px;">${q.points || 10}đ</span>
+                        <span style="margin-left: 8px; color: #667eea; font-weight: 600; font-size: 13px;">${pointsPerQuestion.toFixed(2)}đ</span>
                     </div>
                 </div>
                 <div class="ai-question-text">${q.questionText}</div>
@@ -6518,13 +6568,26 @@ function displayAIResults(questions) {
 
 // Lưu đề thi
 async function saveAIExam() {
-    if (aiGeneratedQuestions.length === 0) {
+    console.log('💾 [saveAIExam] Bắt đầu lưu đề thi...');
+    console.log('🏫 [saveAIExam] selectedClassForAI:', selectedClassForAI);
+    
+    if (!aiGeneratedQuestions || aiGeneratedQuestions.length === 0) {
+        console.error('❌ [saveAIExam] Không có câu hỏi nào!');
         showAIAlert('Không có câu hỏi nào để lưu!', 'error');
         return;
     }
 
-    const subject = document.getElementById('aiSubject').value.trim();
-    const topic = document.getElementById('aiTopic').value.trim();
+    const subjectEl = document.getElementById('aiSubject');
+    const topicEl = document.getElementById('aiTopic');
+    
+    if (!subjectEl || !topicEl) {
+        console.error('❌ [saveAIExam] Không tìm thấy form elements!');
+        showAIAlert('Lỗi: Không tìm thấy form. Vui lòng thử lại!', 'error');
+        return;
+    }
+    
+    const subject = subjectEl.value.trim();
+    const topic = topicEl.value.trim();
     const token = localStorage.getItem('token');
 
     if (!token) {
@@ -6532,20 +6595,42 @@ async function saveAIExam() {
         return;
     }
 
-    // Kiểm tra classId
+    // Kiểm tra classId - nếu chưa có, thử lấy từ form
     if (!selectedClassForAI) {
-        showAIAlert(' Vui lòng chọn lớp học để gắn bài thi!', 'error');
-        return;
+        const classSelect = document.getElementById('aiClassSelect');
+        if (classSelect && classSelect.value) {
+            selectedClassForAI = classSelect.value;
+            console.log('✅ [saveAIExam] Đã lấy classId từ form:', selectedClassForAI);
+        } else {
+            console.error('❌ [saveAIExam] Không có classId!');
+            showAIAlert(' Vui lòng chọn lớp học để gắn bài thi!', 'error');
+            return;
+        }
     }
 
     try {
+        console.log('📝 [saveAIExam] Bắt đầu tạo exam...');
+        
         // Bước 1: Tạo exam - lấy thông tin từ form
         const examName = `${subject} - ${topic}`;
-        const examDate = document.getElementById('aiExamDate').value;
-        const examTime = document.getElementById('aiExamTime').value;
-        const duration = parseInt(document.getElementById('aiExamDuration').value) || 60;
-        const description = document.getElementById('aiExamDescription').value.trim() || 
+        const examDateEl = document.getElementById('aiExamDate');
+        const examTimeEl = document.getElementById('aiExamTime');
+        const durationEl = document.getElementById('aiExamDuration');
+        const descriptionEl = document.getElementById('aiExamDescription');
+        
+        if (!examDateEl || !examTimeEl) {
+            console.error('❌ [saveAIExam] Không tìm thấy examDate hoặc examTime!');
+            showAIAlert('Lỗi: Không tìm thấy thông tin ngày giờ thi. Vui lòng thử lại!', 'error');
+            return;
+        }
+        
+        const examDate = examDateEl.value;
+        const examTime = examTimeEl.value;
+        const duration = parseInt(durationEl?.value) || 60;
+        const description = descriptionEl?.value.trim() || 
                            `Đề thi được tạo tự động bằng AI - ${subject}: ${topic}`;
+
+        console.log('📅 [saveAIExam] Exam info:', { examName, examDate, examTime, duration, description });
 
         // Validate ngày giờ
         if (!examDate || !examTime) {
@@ -6578,7 +6663,13 @@ async function saveAIExam() {
             throw new Error('Không nhận được ID bài thi từ server');
         }
 
-        // Bước 2: Thêm các câu hỏi vào exam
+        // Bước 2: Tính điểm mỗi câu hỏi dựa trên điểm tối đa
+        const maxPointsEl = document.getElementById('aiMaxPoints');
+        const maxPoints = maxPointsEl ? parseFloat(maxPointsEl.value) || 10 : 10;
+        const pointsPerQuestion = maxPoints / aiGeneratedQuestions.length;
+        console.log(`📊 [saveAIExam] Calculating points: ${maxPoints} total / ${aiGeneratedQuestions.length} questions = ${pointsPerQuestion.toFixed(2)} per question`);
+
+        // Bước 3: Thêm các câu hỏi vào exam
         let successCount = 0;
         let errorCount = 0;
 
@@ -6613,9 +6704,9 @@ async function saveAIExam() {
                     throw new Error('Không nhận được ID câu hỏi');
                 }
 
-                // Gắn câu hỏi vào exam - sử dụng apiPost
+                // Gắn câu hỏi vào exam với điểm đã tính toán (chia đều từ điểm tối đa)
                 await apiPost(`/api/teacher/exams/${examId}/questions/${questionId}`, {
-                    points: q.points || 10
+                    points: parseFloat(pointsPerQuestion.toFixed(2))
                 });
 
                 successCount++;
@@ -6653,8 +6744,9 @@ async function saveAIExam() {
         }
 
     } catch (error) {
-        console.error('Error:', error);
-        showAIAlert(`❌ ${error.message}`, 'error');
+        console.error('❌ [saveAIExam] Error:', error);
+        console.error('❌ [saveAIExam] Error stack:', error.stack);
+        showAIAlert(`❌ ${error.message || 'Lỗi không xác định. Vui lòng kiểm tra console để biết thêm chi tiết.'}`, 'error');
     }
 }
 

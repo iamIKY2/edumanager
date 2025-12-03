@@ -31,7 +31,8 @@ router.get('/materials/test-route', (req, res) => {
 });
 
 // GET /api/teacher/materials/:materialId/download - Download tài liệu
-router.get('/materials/:materialId/download', (req, res, next) => {
+// QUAN TRỌNG: Route này phải match với /api/teacher/materials/:materialId/download
+router.get('/:materialId/download', (req, res, next) => {
   console.log('🔵 [MATERIALS DOWNLOAD] Route matched!', {
     path: req.path,
     url: req.url,

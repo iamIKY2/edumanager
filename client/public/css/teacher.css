@@ -462,27 +462,6 @@ body {
     color: #2d3748;
 }
 
-.btn-delete-class {
-    background: transparent;
-    border: none;
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 5px 8px;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    opacity: 0.6;
-}
-
-.btn-delete-class:hover {
-    background: rgba(245, 101, 101, 0.1);
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-.btn-delete-class:active {
-    transform: scale(0.95);
-}
-
 /* CLASS DETAIL VIEW */
 .class-detail {
     display: none;

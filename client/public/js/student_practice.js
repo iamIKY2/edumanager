@@ -307,17 +307,86 @@ async function loadPracticeMaterials() {
             response.materials.forEach(material => {
                 const option = document.createElement('option');
                 option.value = material.material_id;
-                option.textContent = `${material.title} (${material.file_type.toUpperCase()}) - ${material.teacher_name}`;
+                
+                // Hiển thị gợi ý số câu hỏi (không bắt buộc)
+                let questionInfo = '';
+                if (material.estimated_questions && material.estimated_questions > 0) {
+                    questionInfo = ` - Gợi ý: ~${material.estimated_questions} câu hỏi`;
+                } else if (material.word_count === 0 || !material.word_count) {
+                    questionInfo = ' - Chưa extract nội dung';
+                } else {
+                    questionInfo = ' - Đang xử lý...';
+                }
+                
+                // Hiển thị loại file với icon phù hợp
+                const fileTypeMap = {
+                    '.pdf': '📄 PDF',
+                    '.doc': '📝 Word',
+                    '.docx': '📝 Word',
+                    '.xls': '📊 Excel',
+                    '.xlsx': '📊 Excel',
+                    '.ppt': '📊 PowerPoint',
+                    '.pptx': '📊 PowerPoint',
+                    '.txt': '📄 Text'
+                };
+                const fileTypeLabel = fileTypeMap[material.file_type] || `📎 ${material.file_type.toUpperCase().replace('.', '')}`;
+                
+                option.textContent = `${material.title} (${fileTypeLabel}) - ${material.teacher_name}${questionInfo}`;
                 option.dataset.material = JSON.stringify(material);
                 select.appendChild(option);
             });
         } else {
             const option = document.createElement('option');
             option.value = '';
-            option.textContent = 'Không có tài liệu nào';
+            option.textContent = 'Không có tài liệu nào từ giáo viên';
             option.disabled = true;
             select.appendChild(option);
         }
+        
+        // Thêm event listener để cập nhật số câu hỏi tối đa khi chọn file
+        select.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.dataset.material) {
+                try {
+                    const material = JSON.parse(selectedOption.dataset.material);
+                    const numQuestionsInput = document.getElementById('practiceNumQuestions');
+                    
+                    if (numQuestionsInput && material.estimated_questions && material.estimated_questions > 0) {
+                        // Tăng max value lên cao để cho phép học sinh tự chọn linh hoạt
+                        // Không giới hạn chặt, chỉ đặt max cao (200 câu) để tránh nhập sai
+                        numQuestionsInput.max = 200;
+                        
+                        // Không ép buộc điều chỉnh giá trị hiện tại
+                        // Học sinh có thể tự chọn số câu hỏi mong muốn
+                        
+                        // Hiển thị gợi ý (không bắt buộc)
+                        const infoText = `💡 Gợi ý: File này có thể tạo khoảng ${material.estimated_questions} câu hỏi. Bạn có thể chọn số câu hỏi linh hoạt (1-200 câu).`;
+                        let infoEl = document.getElementById('materialQuestionInfo');
+                        if (!infoEl) {
+                            infoEl = document.createElement('small');
+                            infoEl.id = 'materialQuestionInfo';
+                            infoEl.style.cssText = 'color: #667eea; font-size: 12px; margin-top: 5px; display: block; font-weight: 500;';
+                            select.parentElement.appendChild(infoEl);
+                        }
+                        infoEl.textContent = infoText;
+                    } else {
+                        // Xóa thông báo nếu không có thông tin
+                        const infoEl = document.getElementById('materialQuestionInfo');
+                        if (infoEl) {
+                            infoEl.remove();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing material data:', e);
+                }
+            } else {
+                // Xóa thông báo khi không chọn file
+                const infoEl = document.getElementById('materialQuestionInfo');
+                if (infoEl) {
+                    infoEl.remove();
+                }
+            }
+        });
     } catch (error) {
         console.error('Error loading materials:', error);
         showNotification('❌ Lỗi khi tải danh sách tài liệu', 'error');

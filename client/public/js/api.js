@@ -120,8 +120,12 @@
         } catch (error) {
             // Nếu là network error, wrap lại với message rõ ràng hơn
             if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');
+                // KHÔNG throw - trả về error object để caller xử lý
+                const networkError = new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');
+                networkError.isNetworkError = true;
+                throw networkError;
             }
+            // Với các lỗi khác, vẫn throw nhưng wrap lại để caller có thể catch
             throw error;
         }
     };
@@ -176,4 +180,6 @@
             throw error;
         }
     };
+
+    // API helpers đã được load (không log để giảm noise)
 })();

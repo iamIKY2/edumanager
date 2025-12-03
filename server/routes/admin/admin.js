@@ -1888,6 +1888,7 @@ router.get('/subjects', authenticateToken, async (req, res) => {
       SELECT s.subject_id, s.subject_name, 
              COALESCE((SELECT COUNT(*) FROM question_bank qb WHERE qb.subject_id = s.subject_id), 0) as question_count,
              COALESCE((SELECT COUNT(*) FROM exams e WHERE e.subject_id = s.subject_id), 0) as exam_count,
+             COALESCE((SELECT COUNT(*) FROM classes c WHERE c.subject_id = s.subject_id AND c.status = 'active'), 0) as class_count,
              'active' as status
       FROM subjects s
       ORDER BY s.subject_name
@@ -1936,12 +1937,19 @@ router.delete('/subjects/:id', authenticateToken, async (req, res) => {
     const db = req.db;
     const subjectId = req.params.id;
     
-    // Kiểm tra môn học có kỳ thi hoặc câu hỏi không
+    // Kiểm tra môn học có kỳ thi, câu hỏi hoặc lớp không
     const [exams] = await db.query("SELECT COUNT(*) as count FROM exams WHERE subject_id = ?", [subjectId]);
     const [questions] = await db.query("SELECT COUNT(*) as count FROM question_bank WHERE subject_id = ?", [subjectId]);
+    const [classes] = await db.query("SELECT COUNT(*) as count FROM classes WHERE subject_id = ? AND status = 'active'", [subjectId]);
     
-    if (exams[0].count > 0 || questions[0].count > 0) {
-      return res.status(400).json({ error: 'Không thể xóa môn học đã có kỳ thi hoặc câu hỏi' });
+    if (exams[0].count > 0 || questions[0].count > 0 || classes[0].count > 0) {
+      const reasons = [];
+      if (exams[0].count > 0) reasons.push(`${exams[0].count} kỳ thi`);
+      if (questions[0].count > 0) reasons.push(`${questions[0].count} câu hỏi`);
+      if (classes[0].count > 0) reasons.push(`${classes[0].count} lớp học`);
+      return res.status(400).json({ 
+        error: `Không thể xóa môn học. Môn học này đang được sử dụng bởi: ${reasons.join(', ')}` 
+      });
     }
     
     await db.query("DELETE FROM subjects WHERE subject_id = ?", [subjectId]);
@@ -2388,6 +2396,7 @@ router.get('/monitor/cheating', authMiddleware, async (req, res) => {
     
     let query = `
       SELECT acl.log_id, acl.attempt_id, acl.event_type, acl.event_description, acl.event_time,
+              acl.video_path, acl.video_duration, acl.is_recorded,
               e.exam_id, e.exam_name, u.full_name AS student_name, u.user_id AS student_id,
               t.full_name AS teacher_name, t.user_id AS teacher_id,
               c.class_name, c.class_id,
@@ -2543,35 +2552,246 @@ router.get('/monitor/cheating/export', authMiddleware, async (req, res) => {
   }
 
   try {
-    const [logs] = await req.db.query(
-      `SELECT acl.log_id, acl.event_type, acl.event_description, acl.event_time,
-              e.exam_name, u.full_name AS student_name, c.class_name
+    const { exam_id, student_id, event_type, start_date, end_date } = req.query;
+    
+    let query = `
+      SELECT acl.log_id, acl.event_type, acl.event_description, acl.event_time,
+              e.exam_name, u.full_name AS student_name, u.email AS student_email,
+              COALESCE(c.class_name, 'N/A') AS class_name,
+              t.full_name AS teacher_name
        FROM anti_cheating_logs acl
        JOIN exam_attempts ea ON acl.attempt_id = ea.attempt_id
        JOIN exams e ON ea.exam_id = e.exam_id
        JOIN users u ON ea.student_id = u.user_id
-       JOIN classes c ON e.class_id = c.class_id
-       ORDER BY acl.event_time DESC`
-    );
+       LEFT JOIN classes c ON e.class_id = c.class_id
+       LEFT JOIN users t ON e.teacher_id = t.user_id
+       WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (exam_id && exam_id !== 'all' && exam_id !== '') {
+      query += ' AND e.exam_id = ?';
+      params.push(exam_id);
+    }
+    
+    if (student_id && student_id !== 'all' && student_id !== '') {
+      query += ' AND u.user_id = ?';
+      params.push(student_id);
+    }
+    
+    if (event_type && event_type !== 'all' && event_type !== '') {
+      query += ' AND acl.event_type = ?';
+      params.push(event_type);
+    }
+    
+    if (start_date) {
+      query += ' AND DATE(acl.event_time) >= ?';
+      params.push(start_date);
+    }
+    
+    if (end_date) {
+      query += ' AND DATE(acl.event_time) <= ?';
+      params.push(end_date);
+    }
+    
+    query += ' ORDER BY acl.event_time DESC';
+    
+    const [logs] = await req.db.query(query, params);
 
-    const csvData = [
-      ['Log ID', 'Event Type', 'Description', 'Time', 'Exam', 'Student', 'Class'],
-      ...logs.map(log => [
-        log.log_id,
-        log.event_type,
-        log.event_description,
-        log.event_time,
-        log.exam_name,
-        log.student_name,
-        log.class_name
-      ])
-    ].map(row => row.join(',')).join('\n');
+    // Hàm escape CSV value
+    const escapeCsvValue = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      // Nếu có dấu phẩy, dấu ngoặc kép hoặc xuống dòng, cần đặt trong dấu ngoặc kép
+      if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
 
-    res.header('Content-Type', 'text/csv');
-    res.attachment('cheating_logs.csv');
-    res.send(csvData);
+    // Tạo header CSV với BOM cho UTF-8 (hỗ trợ tiếng Việt)
+    const headers = ['Log ID', 'Loại vi phạm', 'Mô tả', 'Thời gian', 'Kỳ thi', 'Học sinh', 'Email', 'Lớp', 'Giáo viên'];
+    const csvRows = [
+      headers.map(escapeCsvValue).join(',')
+    ];
+
+    // Thêm dữ liệu
+    logs.forEach(log => {
+      const row = [
+        log.log_id || '',
+        log.event_type || '',
+        log.event_description || '',
+        log.event_time ? new Date(log.event_time).toLocaleString('vi-VN') : '',
+        log.exam_name || '',
+        log.student_name || '',
+        log.student_email || '',
+        log.class_name || 'N/A',
+        log.teacher_name || ''
+      ];
+      csvRows.push(row.map(escapeCsvValue).join(','));
+    });
+
+    const csvData = csvRows.join('\n');
+    
+    // Set headers cho CSV với UTF-8 BOM
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="log_gian_lan_${new Date().toISOString().split('T')[0]}.csv"`);
+    
+    // Thêm BOM UTF-8 để Excel hiển thị đúng tiếng Việt
+    const BOM = '\uFEFF';
+    res.send(BOM + csvData);
   } catch (err) {
     console.error('Lỗi xuất CSV:', err);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+  }
+});
+
+// API xem video vi phạm (Admin)
+router.get('/monitor/cheating/video/:log_id', async (req, res) => {
+  // Hỗ trợ token từ query string (cho video element) hoặc header
+  const token = req.query.token || req.headers.authorization?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Không có token' });
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== 'Admin') {
+      return res.status(403).json({ error: 'Chỉ admin có quyền truy cập' });
+    }
+    req.user = decoded;
+  } catch (err) {
+    return res.status(401).json({ error: 'Token không hợp lệ' });
+  }
+  
+  const { log_id } = req.params;
+
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    const videoStorage = require('../../utils/videoStorage');
+
+    // Lấy thông tin log
+    const [logs] = await req.db.query(`
+      SELECT 
+        acl.log_id,
+        acl.attempt_id,
+        acl.video_path,
+        acl.event_type
+      FROM anti_cheating_logs acl
+      WHERE acl.log_id = ?
+    `, [log_id]);
+
+    if (logs.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy log' });
+    }
+
+    const log = logs[0];
+    if (!log.video_path) {
+      console.log(`❌ [Video] Log ${log_id} không có video_path`);
+      return res.status(404).json({ error: 'Không có video cho log này' });
+    }
+
+    console.log(`🔍 [Video] Log ${log_id} video_path từ DB: ${log.video_path}`);
+
+    // Lấy đường dẫn tuyệt đối
+    const videoPath = videoStorage.getAbsolutePath(log.video_path);
+    console.log(`🔍 [Video] Absolute path sau convert: ${videoPath}`);
+    
+    // Kiểm tra file có tồn tại không
+    if (!fs.existsSync(videoPath)) {
+      console.error(`❌ [Video] File không tồn tại: ${videoPath}`);
+      console.error(`   Video_path từ DB: ${log.video_path}`);
+      
+      // Thử tìm file với các đường dẫn khác nhau
+      const possiblePaths = [
+        videoPath,
+        path.join(__dirname, '../../', log.video_path),
+        path.join(__dirname, '../../uploads', log.video_path),
+        path.join(__dirname, '../../uploads/videos', log.video_path.replace(/^videos\//, '')),
+        path.join(__dirname, '../../server/uploads', log.video_path),
+      ];
+      
+      console.error(`   Đang thử các đường dẫn khác:`);
+      for (const testPath of possiblePaths) {
+        const exists = fs.existsSync(testPath);
+        console.error(`     ${exists ? '✅' : '❌'} ${testPath}`);
+        if (exists) {
+          // Dùng đường dẫn này
+          console.log(`   ✅ Tìm thấy file tại: ${testPath}`);
+          const stat = fs.statSync(testPath);
+          const fileSize = stat.size;
+          const range = req.headers.range;
+
+          if (range) {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunksize = (end - start) + 1;
+            const file = fs.createReadStream(testPath, { start, end });
+            const head = {
+              'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+              'Accept-Ranges': 'bytes',
+              'Content-Length': chunksize,
+              'Content-Type': 'video/mp4',
+            };
+            res.writeHead(206, head);
+            file.pipe(res);
+            return;
+          } else {
+            const head = {
+              'Content-Length': fileSize,
+              'Content-Type': 'video/mp4',
+            };
+            res.writeHead(200, head);
+            fs.createReadStream(testPath).pipe(res);
+            return;
+          }
+        }
+      }
+      
+      return res.status(404).json({ 
+        error: 'File video không tồn tại',
+        details: `Path: ${videoPath}`,
+        tried_paths: possiblePaths
+      });
+    }
+    
+    console.log(`✅ [Video] File tồn tại: ${videoPath}`);
+
+    // Set headers để stream video
+    const stat = fs.statSync(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      // Hỗ trợ range requests (cho video streaming)
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(videoPath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4',
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      // Trả về toàn bộ file
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(videoPath).pipe(res);
+    }
+  } catch (err) {
+    console.error('Lỗi xem video:', err);
     res.status(500).json({ error: 'Lỗi server', details: err.message });
   }
 });

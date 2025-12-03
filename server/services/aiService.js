@@ -69,11 +69,17 @@ class AIService {
         // Tạo prompt tương tự Groq
         const prompt = this.createPromptForGemini(documentContent, studentPrompt, options);
         
+        // Log để debug
+        console.log(`📄 [Gemini] Document content length: ${documentContent.length} chars`);
+        console.log(`💬 [Gemini] Student prompt: ${studentPrompt}`);
+        console.log(`📋 [Gemini] Prompt preview (first 1000 chars): ${prompt.substring(0, 1000)}...`);
+        
         try {
             if (!geminiService.genAI) {
                 throw new Error('Gemini service is not initialized');
             }
             
+            console.log('🤖 [Gemini] Generating questions...');
             const model = geminiService.genAI.getGenerativeModel({ 
                 model: 'gemini-2.5-flash'
             });
@@ -81,6 +87,9 @@ class AIService {
             const result = await model.generateContent(prompt);
             const response = result.response;
             const text = response.text();
+            
+            console.log('✅ [Gemini] Response received');
+            console.log(`📥 [Gemini] Response preview (first 500 chars): ${text.substring(0, 500)}...`);
             
             // Parse response
             let jsonText = text
@@ -145,30 +154,56 @@ class AIService {
             'Essay': 'Tự luận'
         };
 
-        return `Từ tài liệu sau, tạo ${numberOfQuestions} câu hỏi ${typeMapping[questionType] || questionType} độ khó ${difficultyText[difficulty] || difficulty}:
+        return `BẠN LÀ MỘT CHUYÊN GIA GIÁO DỤC. NHIỆM VỤ CỦA BẠN LÀ TẠO CÂU HỎI TỪ NỘI DUNG TÀI LIỆU ĐƯỢC CUNG CẤP DƯỚI ĐÂY.
 
-TÀI LIỆU:
+⚠️ QUAN TRỌNG: 
+- BẠN PHẢI ĐỌC KỸ NỘI DUNG TÀI LIỆU
+- TẤT CẢ CÂU HỎI PHẢI DỰA TRÊN NỘI DUNG THỰC TẾ TRONG TÀI LIỆU
+- KHÔNG ĐƯỢC TẠO CÂU HỎI CHUNG CHUNG HOẶC PLACEHOLDER
+- MỖI CÂU HỎI PHẢI LIÊN QUAN ĐẾN KIẾN THỨC CỤ THỂ TRONG TÀI LIỆU
+
+TÀI LIỆU NGUỒN:
 ${processedDoc}
 
-YÊU CẦU HỌC SINH:
+YÊU CẦU CỦA HỌC SINH:
 ${studentPrompt}
 
-Trả về JSON với cấu trúc:
+NHIỆM VỤ: Tạo ${numberOfQuestions} câu hỏi ${typeMapping[questionType] || questionType} độ khó ${difficultyText[difficulty] || difficulty} DỰA TRÊN NỘI DUNG TÀI LIỆU TRÊN.
+
+CẤU TRÚC JSON (CHỈ LÀ VÍ DỤ VỀ FORMAT, KHÔNG COPY NỘI DUNG):
 {
   "questions": [
     {
-      "question_content": "Nội dung câu hỏi",
+      "question_content": "[Câu hỏi cụ thể về nội dung trong tài liệu, ví dụ: 'Trong C#, từ khóa nào được dùng để khai báo biến?']",
       "question_type": "${questionType}",
-      "options": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
+      "options": [
+        "A. [Đáp án cụ thể từ tài liệu]",
+        "B. [Đáp án cụ thể từ tài liệu]", 
+        "C. [Đáp án cụ thể từ tài liệu]",
+        "D. [Đáp án cụ thể từ tài liệu]"
+      ],
       "correct_answer": "A",
       "difficulty": "${difficulty}",
       "points": 1,
-      "explanation": "Giải thích"
+      "explanation": "[Giải thích dựa trên nội dung tài liệu]"
     }
   ]
 }
 
-CHỈ TRẢ VỀ JSON, KHÔNG CÓ MARKDOWN!`;
+QUY ĐỊNH:
+- Với SingleChoice: correct_answer là 1 chữ cái (A, B, C, D)
+- Với MultipleChoice: correct_answer là nhiều chữ cái cách nhau dấu phẩy (A,B,C)
+- Với FillInBlank/Essay: options là mảng rỗng [], correct_answer là đáp án đúng
+- Câu hỏi PHẢI dựa trên nội dung thực tế trong tài liệu
+- Đáp án phải chính xác theo nội dung tài liệu
+- Đáp án sai phải hợp lý, liên quan đến chủ đề nhưng không đúng
+
+LƯU Ý: 
+- ĐỌC KỸ TÀI LIỆU TRƯỚC KHI TẠO CÂU HỎI
+- MỖI CÂU HỎI PHẢI CÓ THỂ TÌM THẤY THÔNG TIN TRẢ LỜI TRONG TÀI LIỆU
+- KHÔNG TẠO CÂU HỎI CHUNG CHUNG NHƯ "Nội dung câu hỏi" HOẶC "Đáp án 1"
+
+CHỈ TRẢ VỀ JSON, KHÔNG THÊM BẤT KỲ TEXT NÀO KHÁC!`;
     }
 
     /**

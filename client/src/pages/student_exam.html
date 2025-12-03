@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
     <script src="/client/public/js/config.js"></script>
     <script src="/client/public/js/api.js"></script>
+    <script src="/client/public/js/aiCheatingDetection.js"></script>
     <style>
         * {
             margin: 0;
@@ -555,10 +556,112 @@
                 padding: 12px;
             }
         }
+
+        /* Log Panel Styles */
+        .log-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 600px;
+            max-height: 85vh;
+            background: rgba(0, 0, 0, 0.98);
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            border: 2px solid #0f0;
+            border-radius: 8px;
+            z-index: 10000;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.5);
+        }
+
+        .log-panel.visible {
+            display: flex;
+        }
+
+        .log-panel-header {
+            background: #0f0;
+            color: #000;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            cursor: move;
+        }
+
+        .log-panel-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-panel-btn {
+            background: #000;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        .log-panel-btn:hover {
+            background: #0f0;
+            color: #000;
+        }
+
+        .log-panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            max-height: calc(80vh - 60px);
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            padding: 2px 4px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .log-entry.error {
+            color: #f00;
+        }
+
+        .log-entry.warn {
+            color: #ff0;
+        }
+
+        .log-entry.info {
+            color: #0ff;
+        }
+
+        .log-entry.debug {
+            color: #0f0;
+        }
+
+        .log-timestamp {
+            color: #888;
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="warning-banner" id="warningBanner"></div>
+    
+    <!-- Log Panel -->
+    <div class="log-panel" id="logPanel">
+        <div class="log-panel-header" id="logPanelHeader">
+            <span>📋 Debug Log (Nhấn Ctrl+Shift+L để mở/đóng)</span>
+            <div class="log-panel-controls">
+                <button class="log-panel-btn" onclick="clearLogs()">Clear</button>
+                <button class="log-panel-btn" onclick="copyLogs()">Copy</button>
+                <button class="log-panel-btn" onclick="toggleLogPanel()">✕</button>
+            </div>
+        </div>
+        <div class="log-panel-content" id="logPanelContent"></div>
+    </div>
 
     <div class="exam-container">
         <div class="exam-header">
@@ -569,7 +672,10 @@
                     <span id="tabSwitchWarning">Chuyển tab: 0/3</span>
                 </div>
             </div>
-            <div class="timer" id="timer">00:00:00</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <!-- Đã bỏ nút 📋 Log, chỉ giữ đồng hồ -->
+                <div class="timer" id="timer">00:00:00</div>
+            </div>
         </div>
 
         <div class="exam-body">
@@ -620,6 +726,165 @@
     </div>
 
 <script>
+    // ⭐ LOG PANEL SYSTEM - Lưu tất cả log để không bị mất khi reload
+    const logStorage = {
+        logs: [],
+        maxLogs: 1000,
+        
+        init() {
+            // Load logs từ localStorage nếu có
+            try {
+                const saved = localStorage.getItem('debug_logs');
+                if (saved) {
+                    this.logs = JSON.parse(saved);
+                    this.renderLogs();
+                }
+            } catch (e) {
+                console.error('Lỗi load logs:', e);
+            }
+            
+            // Override console methods
+            this.overrideConsole();
+            
+            // Keyboard shortcut để toggle log panel (CHỈ dùng Ctrl+Shift+L, KHÔNG đụng F12)
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && e.key === 'L') {
+                    e.preventDefault();
+                    toggleLogPanel();
+                }
+            });
+        },
+        
+        overrideConsole() {
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            const originalInfo = console.info;
+            
+            const addLog = (type, args) => {
+                const timestamp = new Date().toLocaleTimeString('vi-VN');
+                const message = args.map(arg => {
+                    if (typeof arg === 'object') {
+                        try {
+                            return JSON.stringify(arg, null, 2);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }
+                    return String(arg);
+                }).join(' ');
+                
+                const logEntry = {
+                    type: type,
+                    timestamp: timestamp,
+                    message: message,
+                    fullMessage: args.map(arg => {
+                        if (typeof arg === 'object') {
+                            try {
+                                return JSON.stringify(arg, null, 2);
+                            } catch (e) {
+                                return String(arg);
+                            }
+                        }
+                        return String(arg);
+                    }).join(' ')
+                };
+                
+                this.logs.push(logEntry);
+                if (this.logs.length > this.maxLogs) {
+                    this.logs.shift();
+                }
+                
+                // Lưu vào localStorage
+                try {
+                    localStorage.setItem('debug_logs', JSON.stringify(this.logs));
+                } catch (e) {
+                    // localStorage đầy, xóa logs cũ
+                    this.logs = this.logs.slice(-500);
+                    localStorage.setItem('debug_logs', JSON.stringify(this.logs));
+                }
+                
+                // Render vào UI
+                this.renderLogs();
+                
+                // Gọi original console method
+                return { type, args };
+            };
+            
+            console.log = function(...args) {
+                const result = addLog('debug', args);
+                originalLog.apply(console, args);
+            };
+            
+            console.error = function(...args) {
+                const result = addLog('error', args);
+                originalError.apply(console, args);
+            };
+            
+            console.warn = function(...args) {
+                const result = addLog('warn', args);
+                originalWarn.apply(console, args);
+            };
+            
+            console.info = function(...args) {
+                const result = addLog('info', args);
+                originalInfo.apply(console, args);
+            };
+        },
+        
+        renderLogs() {
+            const panel = document.getElementById('logPanelContent');
+            if (!panel) return;
+            
+            panel.innerHTML = '';
+            this.logs.forEach(log => {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${log.type}`;
+                entry.innerHTML = `<span class="log-timestamp">[${log.timestamp}]</span>${log.message}`;
+                panel.appendChild(entry);
+            });
+            
+            // Auto scroll to bottom
+            panel.scrollTop = panel.scrollHeight;
+        },
+        
+        clear() {
+            this.logs = [];
+            localStorage.removeItem('debug_logs');
+            this.renderLogs();
+        },
+        
+        copy() {
+            const text = this.logs.map(log => 
+                `[${log.timestamp}] [${log.type.toUpperCase()}] ${log.fullMessage}`
+            ).join('\n');
+            
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ Đã copy log vào clipboard!');
+            }).catch(err => {
+                console.error('Lỗi copy:', err);
+            });
+        }
+    };
+    
+    function toggleLogPanel() {
+        const panel = document.getElementById('logPanel');
+        if (panel) {
+            panel.classList.toggle('visible');
+        }
+    }
+    
+    function clearLogs() {
+        logStorage.clear();
+    }
+    
+    function copyLogs() {
+        logStorage.copy();
+    }
+    
+    // Khởi tạo log system ngay khi script load
+    logStorage.init();
+    
     const token = localStorage.getItem('token');
     const userId = localStorage.getItem('user_id');
     
@@ -630,6 +895,144 @@
     let tabSwitchCount = 0;
     let timerInterval = null;
     let timeRemaining = 0;
+    let aiDetection = null; // AI cheating detection instance
+
+    // QUAN TRỌNG: Bắt lỗi unhandled promise rejection để tránh reload
+    window.addEventListener('unhandledrejection', (event) => {
+        console.error('🔍 [DEBUG] [UnhandledRejection] ⚠️ PHÁT HIỆN UNHANDLED REJECTION!');
+        console.error('🔍 [DEBUG] [UnhandledRejection] Reason:', event.reason);
+        console.error('🔍 [DEBUG] [UnhandledRejection] Promise:', event.promise);
+        console.error('🔍 [DEBUG] [UnhandledRejection] Stack trace:', new Error().stack);
+        
+        // Log chi tiết error object
+        if (event.reason instanceof Error) {
+            console.error('🔍 [DEBUG] [UnhandledRejection] Error details:', {
+                message: event.reason.message,
+                name: event.reason.name,
+                stack: event.reason.stack,
+                cause: event.reason.cause
+            });
+        }
+        
+        // Kiểm tra xem có phải từ AI Detection không
+        const reasonStr = String(event.reason || '');
+        const reasonStack = event.reason?.stack || '';
+        const isFromAIDetection = reasonStr.includes('AI Detection') || 
+                                 reasonStr.includes('aiCheatingDetection') ||
+                                 reasonStack.includes('aiCheatingDetection') ||
+                                 reasonStack.includes('handleViolation') ||
+                                 reasonStack.includes('_recordViolationVideo') ||
+                                 reasonStack.includes('logCheating') ||
+                                 reasonStack.includes('onViolationDetected');
+        
+        if (isFromAIDetection) {
+            console.error('🔍 [DEBUG] [UnhandledRejection] ⚠️⚠️⚠️ LỖI TỪ AI DETECTION! ⚠️⚠️⚠️');
+        }
+        
+        // Ngăn không cho trình duyệt reload
+        event.preventDefault();
+        console.log('🔍 [DEBUG] [UnhandledRejection] Đã preventDefault - không reload');
+        // Chỉ log lỗi, không làm gì khác
+        return false; // Ngăn không cho trình duyệt xử lý lỗi
+    });
+    
+    // QUAN TRỌNG: Bắt lỗi JavaScript để tránh reload
+    window.addEventListener('error', (event) => {
+        console.error('🔍 [DEBUG] [GlobalError] ⚠️ PHÁT HIỆN JAVASCRIPT ERROR!');
+        console.error('🔍 [DEBUG] [GlobalError] Message:', event.message);
+        console.error('🔍 [DEBUG] [GlobalError] Source:', event.filename, 'Line:', event.lineno, 'Col:', event.colno);
+        console.error('🔍 [DEBUG] [GlobalError] Error:', event.error);
+        console.error('🔍 [DEBUG] [GlobalError] Stack trace:', event.error?.stack);
+        
+        // Kiểm tra xem có phải từ AI Detection không
+        const isFromAIDetection = event.filename?.includes('aiCheatingDetection') ||
+                                 event.error?.stack?.includes('aiCheatingDetection') ||
+                                 event.error?.stack?.includes('handleViolation') ||
+                                 event.error?.stack?.includes('_recordViolationVideo');
+        
+        if (isFromAIDetection) {
+            console.error('🔍 [DEBUG] [GlobalError] ⚠️⚠️⚠️ LỖI TỪ AI DETECTION! ⚠️⚠️⚠️');
+        }
+        
+        // Ngăn không cho trình duyệt reload
+        event.preventDefault();
+        console.log('🔍 [DEBUG] [GlobalError] Đã preventDefault - không reload');
+        return false; // Ngăn không cho trình duyệt xử lý lỗi
+    });
+    
+    // QUAN TRỌNG: Ngăn không cho trình duyệt tự động reload khi có lỗi
+    const originalReload = window.location.reload;
+    
+    // Helper function để track tất cả active timeouts
+    const activeTimeouts = new Map();
+    const originalSetTimeout = window.setTimeout;
+    window.setTimeout = function(...args) {
+        const timeoutId = originalSetTimeout.apply(this, args);
+        const delay = args[1] || 0;
+        activeTimeouts.set(timeoutId, {
+            delay: delay,
+            createdAt: Date.now(),
+            stack: new Error().stack
+        });
+        console.log(`🔍 [Timeout] Created timeout ID: ${timeoutId}, delay: ${delay}ms, active count: ${activeTimeouts.size}`);
+        // Auto remove sau khi timeout chạy
+        originalSetTimeout(() => {
+            activeTimeouts.delete(timeoutId);
+        }, delay + 100);
+        return timeoutId;
+    };
+    
+    const originalClearTimeout = window.clearTimeout;
+    window.clearTimeout = function(timeoutId) {
+        if (activeTimeouts.has(timeoutId)) {
+            console.log(`🔍 [Timeout] Cleared timeout ID: ${timeoutId}`);
+            activeTimeouts.delete(timeoutId);
+        }
+        return originalClearTimeout.apply(this, arguments);
+    };
+    
+    function getAllActiveTimeouts() {
+        const now = Date.now();
+        return Array.from(activeTimeouts.entries()).map(([id, info]) => ({
+            id: id,
+            delay: info.delay,
+            elapsed: now - info.createdAt,
+            remaining: Math.max(0, info.delay - (now - info.createdAt)),
+            stack: info.stack
+        }));
+    }
+    
+    window.location.reload = function(forcedReload) {
+        const reloadId = `reload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.error(`🔍 [DEBUG] [${reloadId}] ⚠️⚠️⚠️ PHÁT HIỆN ATTEMPT TO RELOAD PAGE! ⚠️⚠️⚠️`);
+        console.error(`🔍 [DEBUG] [${reloadId}] Forced reload:`, forcedReload);
+        console.error(`🔍 [DEBUG] [${reloadId}] Stack trace:`, new Error().stack);
+        console.error(`🔍 [DEBUG] [${reloadId}] Active timeouts:`, getAllActiveTimeouts());
+        console.warn(`⚠️ [Blocked] Attempt to reload page blocked - ID: ${reloadId}`);
+        
+        // Tự động mở log panel khi có attempt reload
+        setTimeout(() => {
+            const panel = document.getElementById('logPanel');
+            if (panel && !panel.classList.contains('visible')) {
+                panel.classList.add('visible');
+            }
+        }, 100);
+        
+        // KHÔNG reload - chỉ log
+        return false;
+    };
+    
+    // ⭐ XÓA HOÀN TOÀN beforeunload listener - KHÔNG CẦN THIẾT
+    // Browser sẽ tự động hiển thị popup nếu có beforeunload listener
+    // Thay vào đó, chúng ta block reload bằng cách override window.location.reload (đã có ở trên)
+    // KHÔNG thêm listener này để tránh popup xuất hiện
+    
+    // Chỉ log khi có attempt reload (từ window.location.reload override)
+    // KHÔNG dùng beforeunload event
+    
+    // ⭐ XÓA unload listener - KHÔNG CẦN THIẾT
+    // unload event có thể trigger khi page reload, gây ra vòng lặp
+    // Chỉ log khi có attempt reload từ window.location.reload override (đã có ở trên)
 
     document.addEventListener('DOMContentLoaded', async function() {
         if (!token) {
@@ -638,14 +1041,300 @@
             return;
         }
 
-        const examInfo = localStorage.getItem('current_exam');
-        if (!examInfo) {
-            alert('❌ Không tìm thấy thông tin bài thi!');
-            window.location.href = './student_dashboard.html';
-            return;
+        // Kiểm tra URL có attempt_id không (khi reload trang)
+        const urlParams = new URLSearchParams(window.location.search);
+        let attemptIdFromUrl = urlParams.get('attempt_id');
+        let examIdFromUrl = urlParams.get('exam_id');
+        
+        // QUAN TRỌNG: Clear answers cũ nếu attempt_id khác với attempt_id trong localStorage
+        // Đảm bảo mỗi attempt chỉ load answers của chính nó
+        const savedExamInfo = localStorage.getItem('current_exam');
+        if (savedExamInfo) {
+            try {
+                const savedExam = JSON.parse(savedExamInfo);
+                // Nếu attempt_id trong localStorage khác với attempt_id trong URL, clear localStorage
+                if (savedExam.attempt_id && attemptIdFromUrl && 
+                    String(savedExam.attempt_id) !== String(attemptIdFromUrl)) {
+                    console.warn('⚠️ [Security] Attempt ID khác nhau, clear localStorage cũ');
+                    localStorage.removeItem('exam_answers');
+                    localStorage.removeItem('current_exam');
+                }
+            } catch (e) {
+                console.error('❌ Lỗi parse savedExamInfo:', e);
+            }
         }
 
-        examData = JSON.parse(examInfo);
+        // Kiểm tra localStorage trước để lấy attempt_id và exam_id
+        const examInfo = localStorage.getItem('current_exam');
+        let attemptId = attemptIdFromUrl;
+        let examId = examIdFromUrl;
+        
+        // Xử lý trường hợp exam_id hoặc attempt_id là "null" (string) hoặc null
+        if (examId === 'null' || examId === null || !examId) {
+            examId = null;
+        }
+        if (attemptId === 'null' || attemptId === null || !attemptId) {
+            attemptId = null;
+        }
+        
+        // Nếu URL không có hoặc là null, lấy từ localStorage
+        if (!attemptId || !examId) {
+            if (examInfo) {
+                try {
+                    const savedExamData = JSON.parse(examInfo);
+                    if (savedExamData.attempt_id && savedExamData.exam_id) {
+                        attemptId = savedExamData.attempt_id;
+                        examId = savedExamData.exam_id;
+                        
+                        // Cập nhật URL ngay lập tức để có attempt_id và exam_id hợp lệ
+                        // CHỈ cập nhật nếu URL hiện tại khác với URL mới (tránh trigger reload không cần thiết)
+                        const currentUrl = new URL(window.location.href);
+                        const currentExamId = currentUrl.searchParams.get('exam_id');
+                        const currentAttemptId = currentUrl.searchParams.get('attempt_id');
+                        
+                        if (currentExamId !== String(examId) || currentAttemptId !== String(attemptId)) {
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.set('exam_id', examId);
+                            newUrl.searchParams.set('attempt_id', attemptId);
+                            window.history.replaceState({}, '', newUrl);
+                        }
+                    }
+                } catch (e) {
+                    console.error('❌ Lỗi parse examInfo từ localStorage:', e);
+                }
+            }
+        }
+        
+        // Kiểm tra lại sau khi lấy từ localStorage
+        if (!attemptId || !examId || examId === 'null' || attemptId === 'null') {
+            // Nếu vẫn không có, thử lấy từ localStorage một lần nữa
+            if (examInfo) {
+                try {
+                    const savedExamData = JSON.parse(examInfo);
+                    if (savedExamData.attempt_id && savedExamData.exam_id) {
+                        attemptId = savedExamData.attempt_id;
+                        examId = savedExamData.exam_id;
+                        console.log('✅ Đã lấy exam_id và attempt_id từ localStorage:', { examId, attemptId });
+                        
+                        // ⭐ CẬP NHẬT URL NGAY LẬP TỨC nếu URL có exam_id=null
+                        const currentUrl = new URL(window.location.href);
+                        const currentExamId = currentUrl.searchParams.get('exam_id');
+                        const currentAttemptId = currentUrl.searchParams.get('attempt_id');
+                        
+                        if (currentExamId === 'null' || currentExamId === null || 
+                            currentAttemptId === 'null' || currentAttemptId === null ||
+                            currentExamId !== String(examId) || currentAttemptId !== String(attemptId)) {
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.set('exam_id', examId);
+                            newUrl.searchParams.set('attempt_id', attemptId);
+                            console.log('✅ Cập nhật URL từ null thành:', newUrl.href);
+                            window.history.replaceState({}, '', newUrl);
+                        }
+                    }
+                } catch (e) {
+                    console.error('❌ Lỗi parse examInfo:', e);
+                }
+            }
+            
+            // ⭐ NẾU VẪN KHÔNG CÓ exam_id hoặc attempt_id, REDIRECT VỀ DASHBOARD
+            if (!attemptId || !examId || examId === 'null' || attemptId === 'null') {
+                console.error('❌ Không tìm thấy exam_id hoặc attempt_id hợp lệ!');
+                console.error('❌ examId:', examId, 'attemptId:', attemptId);
+                console.error('❌ examInfo từ localStorage:', examInfo);
+                alert('❌ Không tìm thấy thông tin bài thi! Vui lòng quay lại trang chủ.');
+                window.location.href = './student_dashboard.html';
+                return;
+            }
+            
+            // Nếu vẫn không có, dùng localStorage để load exam
+            if (!attemptId || !examId) {
+                if (examInfo) {
+                    try {
+                        examData = JSON.parse(examInfo);
+                        // QUAN TRỌNG: Reset answers và chỉ load từ localStorage nếu attempt_id khớp
+                        answers = {};
+                        const savedAttemptId = localStorage.getItem('current_attempt_id');
+                        
+                        // Chỉ load answers từ localStorage nếu attempt_id khớp
+                        if (examData.attempt_id && savedAttemptId && String(examData.attempt_id) === String(savedAttemptId)) {
+                            const savedAnswers = localStorage.getItem('exam_answers');
+                            if (savedAnswers) {
+                                try {
+                                    answers = JSON.parse(savedAnswers);
+                                } catch (e) {
+                                    console.error('❌ Lỗi parse saved answers:', e);
+                                    answers = {};
+                                }
+                            }
+                        } else {
+                            // Nếu attempt_id không khớp, clear localStorage
+                            console.warn('⚠️ [Security] Attempt ID không khớp, clear answers cũ');
+                            localStorage.removeItem('exam_answers');
+                            answers = {};
+                        }
+                        
+                        // Cập nhật URL nếu có attempt_id và exam_id
+                        // CHỈ cập nhật nếu URL hiện tại khác với URL mới (tránh trigger reload không cần thiết)
+                        if (examData.attempt_id && examData.exam_id) {
+                            const currentUrl = new URL(window.location.href);
+                            const currentExamId = currentUrl.searchParams.get('exam_id');
+                            const currentAttemptId = currentUrl.searchParams.get('attempt_id');
+                            
+                            if (currentExamId !== String(examData.exam_id) || currentAttemptId !== String(examData.attempt_id)) {
+                                const newUrl = new URL(window.location.href);
+                                newUrl.searchParams.set('exam_id', examData.exam_id);
+                                newUrl.searchParams.set('attempt_id', examData.attempt_id);
+                                window.history.replaceState({}, '', newUrl);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('❌ Lỗi parse examInfo:', e);
+                        alert('❌ Không tìm thấy thông tin bài thi! Vui lòng quay lại trang chủ.');
+                        window.location.href = './student_dashboard.html';
+                        return;
+                    }
+                } else {
+                    alert('❌ Không tìm thấy thông tin bài thi! Vui lòng quay lại trang chủ.');
+                    window.location.href = './student_dashboard.html';
+                    return;
+                }
+            }
+        }
+        
+        // ⭐ ĐẢM BẢO examData ĐƯỢC SET ĐÚNG TRƯỚC KHI TIẾP TỤC
+        if (!examData || !examData.exam_id || !examData.attempt_id) {
+            // Nếu chưa có examData, tạo từ examId và attemptId
+            if (examId && attemptId && examId !== 'null' && attemptId !== 'null') {
+                examData = {
+                    exam_id: parseInt(examId),
+                    attempt_id: parseInt(attemptId)
+                };
+                console.log('✅ Đã tạo examData từ URL:', examData);
+            } else if (examInfo) {
+                // Nếu vẫn không có, load từ localStorage
+                try {
+                    examData = JSON.parse(examInfo);
+                    console.log('✅ Đã load examData từ localStorage:', examData);
+                } catch (e) {
+                    console.error('❌ Lỗi parse examInfo từ localStorage:', e);
+                    alert('❌ Không tìm thấy thông tin bài thi! Vui lòng quay lại trang chủ.');
+                    window.location.href = './student_dashboard.html';
+                    return;
+                }
+            } else {
+                alert('❌ Không tìm thấy thông tin bài thi! Vui lòng quay lại trang chủ.');
+                window.location.href = './student_dashboard.html';
+                return;
+            }
+        }
+        
+        if (attemptId && examId && examId !== 'null' && attemptId !== 'null') {
+            // Reload trang - cần load lại attempt từ server để lấy start_time và đáp án đã lưu
+            try {
+                const attemptData = await apiGet(`/api/student/exams/${examId}/attempt/${attemptId}`);
+                
+                if (attemptData && attemptData.attempt) {
+                    // Cập nhật examData với start_time từ server
+                    examData = {
+                        ...attemptData.exam,
+                        attempt_id: parseInt(attemptId),
+                        start_time: attemptData.attempt.start_time,
+                        questions: attemptData.questions || []
+                    };
+                    
+                    // QUAN TRỌNG: Reset answers object để tránh dùng answers cũ từ attempt khác
+                    answers = {};
+                    
+                    // Khôi phục đáp án đã chọn từ server (CHỈ từ server, không từ localStorage)
+                    if (attemptData.questions) {
+                        attemptData.questions.forEach(q => {
+                            if (q.saved_answer !== null && q.saved_answer !== undefined) {
+                                if (q.question_type === 'MultipleChoice') {
+                                    // MultipleChoice có thể có nhiều đáp án
+                                    answers[q.question_id] = Array.isArray(q.saved_answer) 
+                                        ? q.saved_answer.map(a => String(a)) // Convert to string để so sánh
+                                        : [String(q.saved_answer)];
+                                } else {
+                                    // SingleChoice hoặc TextAnswer - convert to string để so sánh
+                                    answers[q.question_id] = String(q.saved_answer);
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Lưu lại vào localStorage với attempt_id để kiểm tra sau này
+                    localStorage.setItem('current_exam', JSON.stringify(examData));
+                    localStorage.setItem('exam_answers', JSON.stringify(answers));
+                    localStorage.setItem('current_attempt_id', String(attemptId));
+                } else {
+                    throw new Error('Không tìm thấy attempt');
+                }
+            } catch (error) {
+                console.error('❌ [Reload] Lỗi load attempt:', error);
+                // Fallback: dùng localStorage
+                if (examInfo) {
+                    examData = JSON.parse(examInfo);
+                    // Khôi phục answers từ localStorage nếu có
+                    const savedAnswers = localStorage.getItem('exam_answers');
+                    if (savedAnswers) {
+                        try {
+                            answers = JSON.parse(savedAnswers);
+                        } catch (e) {
+                            console.error('❌ Lỗi parse saved answers:', e);
+                        }
+                    }
+                } else {
+                    alert('❌ Không thể load lại bài thi!');
+                    window.location.href = './student_dashboard.html';
+                    return;
+                }
+            }
+        } else {
+            // Lần đầu vào trang - lấy từ localStorage
+            if (!examInfo) {
+                alert('❌ Không tìm thấy thông tin bài thi!');
+                window.location.href = './student_dashboard.html';
+                return;
+            }
+            examData = JSON.parse(examInfo);
+            
+            // QUAN TRỌNG: Reset answers object và chỉ load từ localStorage nếu attempt_id khớp
+            answers = {};
+            const savedAttemptId = localStorage.getItem('current_attempt_id');
+            
+            // Chỉ load answers từ localStorage nếu attempt_id khớp
+            if (examData.attempt_id && savedAttemptId && String(examData.attempt_id) === String(savedAttemptId)) {
+                const savedAnswers = localStorage.getItem('exam_answers');
+                if (savedAnswers) {
+                    try {
+                        answers = JSON.parse(savedAnswers);
+                    } catch (e) {
+                        console.error('❌ Lỗi parse saved answers:', e);
+                        answers = {};
+                    }
+                }
+            } else {
+                // Nếu attempt_id không khớp, clear localStorage và bắt đầu với answers rỗng
+                console.warn('⚠️ [Security] Attempt ID không khớp, clear answers cũ');
+                localStorage.removeItem('exam_answers');
+                answers = {};
+            }
+            
+            // Cập nhật URL để có attempt_id và exam_id
+            // CHỈ cập nhật nếu URL hiện tại khác với URL mới (tránh trigger reload không cần thiết)
+            if (examData.attempt_id && examData.exam_id) {
+                const currentUrl = new URL(window.location.href);
+                const currentExamId = currentUrl.searchParams.get('exam_id');
+                const currentAttemptId = currentUrl.searchParams.get('attempt_id');
+                
+                if (currentExamId !== String(examData.exam_id) || currentAttemptId !== String(examData.attempt_id)) {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('exam_id', examData.exam_id);
+                    newUrl.searchParams.set('attempt_id', examData.attempt_id);
+                    window.history.replaceState({}, '', newUrl);
+                }
+            }
+        }
         
         initSocket();
         initWebcam();
@@ -660,7 +1349,67 @@
             auth: { token }
         });
 
+        // ⭐ INTERCEPT WEBSOCKET MESSAGES TRỰC TIẾP (low-level)
+        if (socket.io && socket.io.engine && socket.io.engine.transport) {
+            const transport = socket.io.engine.transport;
+            if (transport.socket) {
+                const originalOnMessage = transport.socket.onmessage;
+                transport.socket.onmessage = function(event) {
+                    const msgId = `ws_msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    console.log(`🔵 [WebSocket] [${msgId}] Raw message received:`, event.data);
+                    console.log(`🔵 [WebSocket] [${msgId}] Message stack:`, new Error().stack);
+                    
+                    // ⭐ KIỂM TRA VÀ BLOCK TẤT CẢ MESSAGES CÓ THỂ GÂY RELOAD
+                    let shouldBlock = false;
+                    try {
+                        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                        if (data && (
+                            data.type === 'reload' || 
+                            data.action === 'reload' || 
+                            data.reload === true ||
+                            data.type === 'redirect' ||
+                            data.action === 'redirect' ||
+                            data.redirect === true ||
+                            data.command === 'reload' ||
+                            data.command === 'redirect'
+                        )) {
+                            console.error(`🔴 [WebSocket] [${msgId}] ⚠️⚠️⚠️ PHÁT HIỆN MESSAGE GÂY RELOAD/REDIRECT - ĐÃ BLOCK!`, data);
+                            shouldBlock = true;
+                        }
+                    } catch (e) {
+                        // Không phải JSON, kiểm tra string
+                        if (typeof event.data === 'string') {
+                            const dataStr = event.data.toLowerCase();
+                            if (dataStr.includes('reload') || 
+                                dataStr.includes('redirect') ||
+                                dataStr.includes('location.reload') ||
+                                dataStr.includes('window.location') ||
+                                dataStr.includes('location.href')) {
+                                console.error(`🔴 [WebSocket] [${msgId}] ⚠️⚠️⚠️ PHÁT HIỆN STRING MESSAGE GÂY RELOAD - ĐÃ BLOCK!`, event.data);
+                                shouldBlock = true;
+                            }
+                        }
+                    }
+                    
+                    // ⭐ BLOCK MESSAGE NÀY HOÀN TOÀN
+                    if (shouldBlock) {
+                        return; // KHÔNG gọi originalOnMessage
+                    }
+                    
+                    return originalOnMessage.call(this, event);
+                };
+            }
+        }
+
+        // ⭐ LOG TẤT CẢ SOCKET EVENTS để debug
+        const socketOriginalEmit = socket.emit.bind(socket);
+        socket.emit = function(event, ...args) {
+            console.log(`🔵 [Socket] Emitting: ${event}`, args);
+            return socketOriginalEmit(event, ...args);
+        };
+
         socket.on('connect', () => {
+            console.log('🔵 [Socket] Connected');
             socket.emit('join', `user_${userId}`);
             socket.emit('join_exam', {
                 exam_id: examData.exam_id,
@@ -668,34 +1417,94 @@
             });
         });
 
+        // ⭐ LOG TẤT CẢ SOCKET EVENTS NHẬN ĐƯỢC
+        socket.onAny((eventName, ...args) => {
+            const eventId = `socket_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            console.log(`🔵 [Socket] [${eventId}] Received event: ${eventName}`, args);
+            console.log(`🔵 [Socket] [${eventId}] Event stack:`, new Error().stack);
+            
+            // ⚠️ CẢNH BÁO NẾU EVENT CÓ THỂ GÂY RELOAD
+            if (eventName.includes('reload') || eventName.includes('redirect') || eventName.includes('ban')) {
+                console.error(`🔴 [Socket] [${eventId}] ⚠️⚠️⚠️ PHÁT HIỆN EVENT CÓ THỂ GÂY RELOAD: ${eventName}`);
+            }
+        });
+        
+        // ⭐ INTERCEPT SOCKET.IO INTERNAL MESSAGES (nếu có)
+        const socketOriginalOn = socket.on.bind(socket);
+        
+        // Wrap socket.on để log tất cả handlers
+        socket.on = function(eventName, handler) {
+            console.log(`🔵 [Socket] Registering handler for event: ${eventName}`);
+            return socketOriginalOn(eventName, function(...args) {
+                const handlerId = `handler_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                console.log(`🔵 [Socket] [${handlerId}] Handler called for: ${eventName}`, args);
+                console.log(`🔵 [Socket] [${handlerId}] Handler stack:`, new Error().stack);
+                try {
+                    const result = handler.apply(this, args);
+                    console.log(`🔵 [Socket] [${handlerId}] Handler completed`);
+                    return result;
+                } catch (error) {
+                    console.error(`🔴 [Socket] [${handlerId}] Handler error:`, error);
+                    console.error(`🔴 [Socket] [${handlerId}] Handler error stack:`, error.stack);
+                    throw error;
+                }
+            });
+        };
+
         socket.on('exam_banned', (data) => {
+            console.error('🔵 [Socket] exam_banned event received:', data);
             alert(`⛔ Bạn đã bị cấm thi!\nLý do: ${data.reason}`);
             window.location.href = './student_dashboard.html';
         });
 
         socket.on('points_deducted', (data) => {
+            console.log('🔵 [Socket] points_deducted event received:', data);
             showToast(`⚠️ Bạn đã bị trừ ${data.points_deducted} điểm!\nLý do: ${data.reason}`, 'warning');
         });
 
         socket.on('answerSaved', (data) => {
+            console.log('🔵 [Socket] answerSaved event received:', data);
             // Đáp án đã được lưu tự động
         });
 
-        socket.on('disconnect', () => {
-            // Socket disconnected
+        socket.on('disconnect', (reason) => {
+            console.log('🔵 [Socket] Disconnected, reason:', reason);
+        });
+
+        // ⭐ CATCH TẤT CẢ SOCKET ERRORS
+        socket.on('error', (error) => {
+            console.error('🔵 [Socket] Error:', error);
+            console.error('🔵 [Socket] Error stack:', new Error().stack);
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('🔵 [Socket] Connect error:', error);
+            console.error('🔵 [Socket] Connect error stack:', new Error().stack);
         });
     }
 
     async function initWebcam() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: true,
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: 'user'
+                },
                 audio: false
             });
             
-            document.getElementById('localVideo').srcObject = stream;
+            const videoElement = document.getElementById('localVideo');
+            videoElement.srcObject = stream;
             document.getElementById('webcamStatus').textContent = '🟢 Đang giám sát';
             document.getElementById('webcamStatus').style.background = '#26de81';
+            
+            // Lưu attempt_id vào global để AI module có thể dùng
+            window.currentAttemptId = examData.attempt_id;
+            window.examData = examData;
+            
+            // Khởi tạo AI detection
+            await initAIDetection(videoElement, stream);
             
         } catch (error) {
             console.error('❌ Webcam error:', error);
@@ -707,6 +1516,92 @@
             if (!confirm('❌ Không thể bật camera!\nBạn có muốn tiếp tục?')) {
                 window.location.href = './student_dashboard.html';
             }
+        }
+    }
+
+    // Khởi tạo AI phát hiện gian lận
+    async function initAIDetection(videoElement, stream) {
+        try {
+            
+            // Tạo instance AI detection
+            aiDetection = new AICheatingDetection({
+                videoElement: videoElement,
+                detectionInterval: 3000, // Tăng lên 3 giây để giảm lag
+                onViolationDetected: async (violation) => {
+                    const callbackId = `callback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    console.warn(`🔍 [DEBUG] [${callbackId}] onViolationDetected START:`, violation);
+                    console.warn(`🔍 [DEBUG] [${callbackId}] Callback stack:`, new Error().stack);
+                    
+                    try {
+                        // Ghi log vi phạm - KHÔNG await để không block UI
+                        // Chạy trong background, không ảnh hưởng đến việc làm bài
+                        console.log(`🔍 [DEBUG] [${callbackId}] Calling logCheating...`);
+                        const logPromise = logCheating(violation.type, violation.description);
+                        if (logPromise && typeof logPromise.catch === 'function') {
+                            logPromise.catch(logError => {
+                                console.error(`❌ [DEBUG] [${callbackId}] Lỗi ghi log:`, logError);
+                                console.error(`❌ [DEBUG] [${callbackId}] Log error stack:`, logError.stack);
+                                // Không throw error để không ảnh hưởng đến UI
+                            });
+                        }
+                        console.log(`🔍 [DEBUG] [${callbackId}] logCheating đã được gọi (không await)`);
+                        
+                        // Hiển thị cảnh báo
+                        console.log(`🔍 [DEBUG] [${callbackId}] Calling showWarning...`);
+                        try {
+                            showWarning(`⚠️ Cảnh báo: ${violation.description}`);
+                            console.log(`🔍 [DEBUG] [${callbackId}] showWarning OK`);
+                        } catch (showWarningError) {
+                            console.error(`❌ [DEBUG] [${callbackId}] Lỗi showWarning:`, showWarningError);
+                        }
+                        
+                        // Gửi socket alert - KHÔNG await để không block
+                        if (socket) {
+                            console.log(`🔍 [DEBUG] [${callbackId}] Sending socket alert...`);
+                            try {
+                                socket.emit('cheating_alert', {
+                                    exam_id: examData.exam_id,
+                                    attempt_id: examData.attempt_id,
+                                    student_id: userId,
+                                    event_type: violation.type,
+                                    event_description: violation.description
+                                });
+                                console.log(`🔍 [DEBUG] [${callbackId}] Socket alert sent OK`);
+                            } catch (socketError) {
+                                console.warn(`⚠️ [DEBUG] [${callbackId}] Lỗi gửi alert:`, socketError);
+                                console.warn(`⚠️ [DEBUG] [${callbackId}] Socket error stack:`, socketError.stack);
+                            }
+                        } else {
+                            console.warn(`⚠️ [DEBUG] [${callbackId}] Socket không có`);
+                        }
+                        
+                        console.log(`🔍 [DEBUG] [${callbackId}] onViolationDetected END`);
+                    } catch (callbackError) {
+                        console.error(`❌ [DEBUG] [${callbackId}] Lỗi trong onViolationDetected (sync):`, callbackError);
+                        console.error(`❌ [DEBUG] [${callbackId}] Callback error stack:`, callbackError.stack);
+                        // KHÔNG throw - chỉ log
+                    }
+                },
+                onVideoReady: () => {
+                }
+            });
+
+            // Load AI models (có thể mất vài giây)
+            const modelsLoaded = await aiDetection.initialize();
+            
+            if (modelsLoaded) {
+                // Bắt đầu phát hiện với AI models
+                await aiDetection.startDetection(stream);
+                document.getElementById('webcamStatus').textContent = '🤖 AI Đang giám sát';
+            } else {
+                // Fallback: dùng phát hiện đơn giản
+                await aiDetection.startDetection(stream);
+                document.getElementById('webcamStatus').textContent = '📹 Đang giám sát';
+            }
+            
+        } catch (error) {
+            console.error('❌ Lỗi khởi tạo AI detection:', error);
+            // Tiếp tục với phát hiện cơ bản
         }
     }
 
@@ -774,15 +1669,53 @@
     }
 
     async function logCheating(eventType, description) {
+        const logId = `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`🔍 [DEBUG] [${logId}] logCheating START: ${eventType} - ${description}`);
+        console.log(`🔍 [DEBUG] [${logId}] logCheating stack:`, new Error().stack);
+        
         try {
-            // Sử dụng apiPost từ api.js
-            await apiPost(`/api/student/exams/${examData.exam_id}/cheating-log`, {
-                attempt_id: examData.attempt_id,
-                event_type: eventType,
-                event_description: description
-            });
+            // Kiểm tra examData và attempt_id
+            if (!examData || !examData.exam_id || !examData.attempt_id) {
+                console.error(`❌ [DEBUG] [${logId}] Thiếu examData hoặc attempt_id:`, examData);
+                return null; // Trả về null thay vì undefined
+            }
+            console.log(`🔍 [DEBUG] [${logId}] examData OK:`, { exam_id: examData.exam_id, attempt_id: examData.attempt_id });
+            
+            // Sử dụng apiPost từ api.js - wrap trong try-catch để tránh throw
+            try {
+                console.log(`🔍 [DEBUG] [${logId}] Calling apiPost...`);
+                const result = await apiPost(`/api/student/exams/${examData.exam_id}/cheating-log`, {
+                    attempt_id: examData.attempt_id,
+                    event_type: eventType,
+                    event_description: description
+                });
+                console.log(`🔍 [DEBUG] [${logId}] apiPost SUCCESS:`, result);
+                return result;
+            } catch (apiError) {
+                // Bắt lỗi từ apiPost và log, KHÔNG throw
+                console.error(`❌ [DEBUG] [${logId}] Lỗi API:`, apiError);
+                console.error(`❌ [DEBUG] [${logId}] API error message:`, apiError.message);
+                console.error(`❌ [DEBUG] [${logId}] API error stack:`, apiError.stack);
+                console.error(`❌ [DEBUG] [${logId}] API error details:`, {
+                    message: apiError.message,
+                    name: apiError.name,
+                    stack: apiError.stack,
+                    data: apiError.data,
+                    response: apiError.response
+                });
+                // Trả về null thay vì throw để không gây unhandled rejection
+                return null;
+            }
         } catch (error) {
-            console.error('Error logging cheating:', error);
+            console.error(`❌ [DEBUG] [${logId}] Lỗi ghi log (sync):`, error);
+            console.error(`❌ [DEBUG] [${logId}] Error details:`, {
+                message: error.message,
+                data: error.data,
+                exam_id: examData?.exam_id,
+                attempt_id: examData?.attempt_id
+            });
+            // KHÔNG throw - trả về null để không gây unhandled rejection
+            return null;
         }
     }
 
@@ -790,6 +1723,22 @@
         document.getElementById('examTitle').textContent = examData.exam_name;
         
         const questions = examData.questions;
+        
+        // Kiểm tra và log để debug
+        if (!questions || questions.length === 0) {
+            console.error('❌ [loadExam] Không có câu hỏi!');
+            document.getElementById('questionContainer').innerHTML = 
+                '<div style="color: red; padding: 20px; text-align: center;">⚠️ Lỗi: Không có câu hỏi. Vui lòng reload trang.</div>';
+            return;
+        }
+        
+        // Kiểm tra xem questions có options không
+        questions.forEach((q, i) => {
+            if (!q.options || !Array.isArray(q.options) || q.options.length === 0) {
+                console.error(`❌ [loadExam] Question ${i + 1} (ID: ${q.question_id}) không có options:`, q);
+            }
+        });
+        
         const nav = document.getElementById('questionNav');
         
         nav.innerHTML = questions.map((q, i) => 
@@ -798,6 +1747,8 @@
         
         updateProgress();
         showQuestion(0);
+        // Cập nhật trạng thái đã trả lời sau khi load exam
+        updateAnsweredStatus();
     }
 
     function showQuestion(index) {
@@ -810,24 +1761,53 @@
         
         let optionsHTML = '';
         
-        if (question.question_type === 'SingleChoice') {
-            optionsHTML = question.options.map((opt, i) => `
-                <div class="option ${answers[question.question_id] === opt.option_id ? 'selected' : ''}" onclick="selectOption(${i})">
+        // Xử lý Essay và FillInBlank trước (không cần options)
+        if (question.question_type === 'Essay' || question.question_type === 'FillInBlank') {
+            optionsHTML = `<textarea class="textarea-answer" id="textAnswer" placeholder="Nhập câu trả lời của bạn...">${answers[question.question_id] || ''}</textarea>`;
+        } else if (question.question_type === 'SingleChoice') {
+            // Kiểm tra có options không
+            if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
+                console.error('❌ [showQuestion] Question không có options:', question);
+                optionsHTML = '<div style="color: red; padding: 20px; text-align: center;">⚠️ Lỗi: Câu hỏi không có đáp án. Vui lòng liên hệ giáo viên.</div>';
+            } else {
+            // Kiểm tra answers có giá trị không (có thể là số hoặc string)
+            const selectedAnswer = answers[question.question_id];
+            optionsHTML = question.options.map((opt, i) => {
+                // So sánh linh hoạt (== thay vì === để xử lý string vs number)
+                const isChecked = selectedAnswer !== undefined && selectedAnswer !== null && 
+                                (selectedAnswer == opt.option_id || String(selectedAnswer) === String(opt.option_id));
+                return `
+                <div class="option ${isChecked ? 'selected' : ''}" onclick="selectOption(${i})">
                     <input type="radio" name="answer_${question.question_id}" value="${opt.option_id}" 
-                           ${answers[question.question_id] === opt.option_id ? 'checked' : ''}>
+                           ${isChecked ? 'checked' : ''}>
                     <span>${String.fromCharCode(65 + i)}. ${opt.option_content}</span>
                 </div>
-            `).join('');
+            `;
+            }).join('');
+            }
         } else if (question.question_type === 'MultipleChoice') {
-            const savedAnswers = answers[question.question_id] || [];
-            optionsHTML = question.options.map((opt, i) => `
-                <div class="option ${savedAnswers.includes(opt.option_id) ? 'selected' : ''}" onclick="toggleOption(${i})">
-                    <input type="checkbox" name="answer_${question.question_id}" value="${opt.option_id}"
-                           ${savedAnswers.includes(opt.option_id) ? 'checked' : ''}>
-                    <span>${String.fromCharCode(65 + i)}. ${opt.option_content}</span>
-                </div>
-            `).join('');
+            // Kiểm tra có options không
+            if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
+                console.error('❌ [showQuestion] Question không có options:', question);
+                optionsHTML = '<div style="color: red; padding: 20px; text-align: center;">⚠️ Lỗi: Câu hỏi không có đáp án. Vui lòng liên hệ giáo viên.</div>';
+            } else {
+                const savedAnswers = answers[question.question_id] || [];
+                // Đảm bảo savedAnswers là mảng và convert sang string để so sánh
+                const answersArray = Array.isArray(savedAnswers) ? savedAnswers.map(a => String(a)) : [String(savedAnswers)].filter(Boolean);
+                optionsHTML = question.options.map((opt, i) => {
+                    const optIdStr = String(opt.option_id);
+                    const isChecked = answersArray.some(a => String(a) === optIdStr);
+                    return `
+                    <div class="option ${isChecked ? 'selected' : ''}" onclick="toggleOption(${i})">
+                        <input type="checkbox" name="answer_${question.question_id}" value="${opt.option_id}"
+                               ${isChecked ? 'checked' : ''}>
+                        <span>${String.fromCharCode(65 + i)}. ${opt.option_content}</span>
+                    </div>
+                `;
+                }).join('');
+            }
         } else {
+            // Fallback cho các loại câu hỏi khác
             optionsHTML = `<textarea class="textarea-answer" id="textAnswer" placeholder="Nhập câu trả lời của bạn...">${answers[question.question_id] || ''}</textarea>`;
         }
         
@@ -845,12 +1825,15 @@
         document.querySelectorAll('.question-nav-btn').forEach(btn => {
             btn.classList.remove('active');
         });
-        document.querySelector(`.question-nav-btn[data-index="${index}"]`).classList.add('active');
+        const activeBtn = document.querySelector(`.question-nav-btn[data-index="${index}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
         
         document.getElementById('prevBtn').disabled = (index === 0);
         document.getElementById('nextBtn').disabled = (index === examData.questions.length - 1);
         
         updateProgress();
+        // Cập nhật trạng thái đã trả lời sau khi render
+        updateAnsweredStatus();
     }
 
     function debounce(func, wait) {
@@ -961,8 +1944,28 @@
     }
 
     function startTimer() {
-        const duration = examData.duration;
-        timeRemaining = duration * 60;
+        // Tính thời gian còn lại dựa trên start_time từ database (không reset khi reload)
+        if (examData.start_time) {
+            const startTime = new Date(examData.start_time).getTime();
+            const durationMs = examData.duration * 60 * 1000;
+            const endTime = startTime + durationMs;
+            const currentTime = Date.now();
+            
+            // Tính thời gian còn lại (giây)
+            timeRemaining = Math.max(0, Math.floor((endTime - currentTime) / 1000));
+            
+            console.log('⏰ [Timer] Khởi tạo timer:', {
+                start_time: examData.start_time,
+                duration: examData.duration,
+                current_time: new Date(currentTime).toISOString(),
+                end_time: new Date(endTime).toISOString(),
+                time_remaining: timeRemaining
+            });
+        } else {
+            // Fallback: nếu không có start_time, dùng duration (lần đầu vào trang)
+            const duration = examData.duration;
+            timeRemaining = duration * 60;
+        }
         
         timerInterval = setInterval(() => {
             timeRemaining--;
@@ -1079,6 +2082,10 @@
 
     // Function nộp bài thực sự (đã kiểm tra)
     async function submitExamActual() {
+        // Dừng AI detection trước khi nộp bài
+        if (aiDetection) {
+            aiDetection.stopDetection();
+        }
         if (!isExamActive()) {
             showToast('⏰ Bài thi đã hết giờ! Đang nộp bài tự động...', 'warning');
         }
@@ -1214,35 +2221,53 @@
     }
 
     function showWarning(message) {
-        const banner = document.getElementById('warningBanner');
-        banner.textContent = message;
-        banner.classList.add('show');
+        const warningId = `warning_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`🔍 [DEBUG] [${warningId}] showWarning START:`, message);
+        console.log(`🔍 [DEBUG] [${warningId}] showWarning stack:`, new Error().stack);
         
-        setTimeout(() => {
-            banner.classList.remove('show');
-        }, 3000);
+        try {
+            const banner = document.getElementById('warningBanner');
+            if (!banner) {
+                console.error(`❌ [DEBUG] [${warningId}] Không tìm thấy warningBanner element!`);
+                return;
+            }
+            console.log(`🔍 [DEBUG] [${warningId}] Banner element found, setting message...`);
+            banner.textContent = message;
+            banner.classList.add('show');
+            console.log(`🔍 [DEBUG] [${warningId}] Banner đã hiển thị`);
+            
+            setTimeout(() => {
+                console.log(`🔍 [DEBUG] [${warningId}] Hiding banner after 3s...`);
+                banner.classList.remove('show');
+                console.log(`🔍 [DEBUG] [${warningId}] Banner đã ẩn`);
+            }, 3000);
+            console.log(`🔍 [DEBUG] [${warningId}] showWarning END`);
+        } catch (error) {
+            console.error(`❌ [DEBUG] [${warningId}] Lỗi showWarning:`, error);
+            console.error(`❌ [DEBUG] [${warningId}] Error stack:`, error.stack);
+        }
     }
 
-    window.addEventListener('beforeunload', (e) => {
-        e.preventDefault();
-        e.returnValue = 'Bạn có chắc muốn rời khỏi trang? Bài thi của bạn chưa được nộp!';
-        return e.returnValue;
-    });
+    // Lưu dữ liệu định kỳ để tránh mất dữ liệu khi reload
+    setInterval(() => {
+        if (examData && examData.attempt_id && examData.exam_id) {
+            try {
+                localStorage.setItem('exam_answers', JSON.stringify(answers));
+                localStorage.setItem('current_exam', JSON.stringify(examData));
+            } catch (err) {
+                console.error('❌ Lỗi lưu dữ liệu:', err);
+            }
+        }
+    }, 5000); // Lưu mỗi 5 giây
 
-    window.addEventListener('unload', () => {
-        if (socket) {
-            socket.emit('leave_exam', {
-                exam_id: examData.exam_id,
-                attempt_id: examData.attempt_id
-            });
-            socket.disconnect();
-        }
-        
-        const video = document.getElementById('localVideo');
-        if (video && video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-        }
-    });
+    // ⭐ XÓA beforeunload listener này - đã có listener ở trên để block reload
+    // Dữ liệu đã được lưu định kỳ mỗi 5 giây, không cần listener này
+    // KHÔNG thêm listener mới để tránh conflict và popup
+
+    // ⭐ XÓA pagehide listener - KHÔNG CẦN THIẾT
+    // pagehide event có thể trigger khi page reload, gây ra vòng lặp
+    // Thay vào đó, chỉ cleanup khi user thực sự submit exam hoặc đóng tab
+    // KHÔNG cleanup khi page reload tự động
 
     document.addEventListener('input', (e) => {
         if (e.target.id === 'textAnswer') {

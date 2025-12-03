@@ -314,13 +314,16 @@
         <div class="content-section" id="create-practice">
             <div class="card">
                 <h2 class="card-title">✨ Tạo đề luyện tập bằng AI</h2>
-                <p style="color: #666; margin-bottom: 20px;">Chọn tài liệu từ giáo viên và nhập prompt để AI tạo đề thi luyện tập cho bạn</p>
+                <p style="color: #666; margin-bottom: 20px;">Chọn tài liệu từ giáo viên đã upload (PDF, Word, Excel, PowerPoint, Text...) và nhập prompt để AI tạo đề thi luyện tập cho bạn. Số câu hỏi có thể tạo phụ thuộc vào độ dài nội dung tài liệu.</p>
                 
                 <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">📚 Chọn tài liệu:</label>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">📚 Chọn tài liệu từ giáo viên:</label>
                     <select id="practiceMaterialSelect" class="input-field" style="width: 100%; padding: 12px;">
                         <option value="">-- Chọn tài liệu --</option>
                     </select>
+                    <small style="color: #718096; font-size: 12px; margin-top: 5px; display: block;">
+                        💡 Hiển thị tất cả tài liệu (PDF, Word, Excel, PowerPoint, Text...) từ các giáo viên của bạn. Số câu hỏi có thể tạo được hiển thị bên cạnh tên file.
+                    </small>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
@@ -333,7 +336,7 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div>
                             <label>Số câu hỏi:</label>
-                            <input type="number" id="practiceNumQuestions" class="input-field" value="10" min="1" max="50">
+                            <input type="number" id="practiceNumQuestions" class="input-field" value="10" min="1" max="200" placeholder="Chọn số câu hỏi bạn muốn">
                         </div>
                         <div>
                             <label>Độ khó:</label>

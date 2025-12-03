@@ -1382,9 +1382,17 @@
                     </div>
 
                     <div class="ai-form-group">
-                        <label>📝 Mô tả bài thi</label>
-                        <input type="text" id="aiExamDescription" placeholder="Mô tả về bài thi...">
+                        <label>⭐ Điểm tối đa <span class="required">*</span></label>
+                        <input type="number" id="aiMaxPoints" min="1" value="10" required>
+                        <small style="color: #718096; display: block; margin-top: 5px; font-size: 0.85rem;">
+                            Tổng điểm tối đa của bài thi (sẽ chia đều cho các câu hỏi)
+                        </small>
                     </div>
+                </div>
+
+                <div class="ai-form-group">
+                    <label>📝 Mô tả bài thi</label>
+                    <input type="text" id="aiExamDescription" placeholder="Mô tả về bài thi...">
                 </div>
 
                 <div class="ai-form-group">

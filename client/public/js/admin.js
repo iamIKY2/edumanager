@@ -1213,7 +1213,10 @@ async function loadDashboardData() {
                 student: chartsData.userChart?.students || [],
                 teacher: chartsData.userChart?.teachers || []
             };
+            const chartLabels = chartsData.userChart?.labels || [];
+            
             userChartCtx.chartData = chartData;
+            userChartCtx.chartLabels = chartLabels; // Lưu labels để dùng sau
             userChartCtx.currentType = userChartType;
             userChartCtx.isStudent = isStudent;
             
@@ -1222,8 +1225,11 @@ async function loadDashboardData() {
             const areaBackground = isStudent ? ADMIN_PRIMARY_BG : 'rgba(25, 135, 84, 0.15)';
             const currentLabel = isStudent ? 'Sinh viên mới' : 'Giáo viên mới';
             
+            // Chart.js không có type "area", cần dùng "line" với fill: true
+            const chartType = userChartType === 'area' ? 'line' : userChartType;
+            
             let chartConfig = {
-                labels: chartsData.userChart?.labels || [],
+                labels: chartLabels,
                 datasets: [{
                     label: currentLabel,
                     data: currentData,
@@ -1234,7 +1240,7 @@ async function loadDashboardData() {
                 }]
             };
             
-            recreateChart(userChartCtx, userChartType, chartConfig, {
+            recreateChart(userChartCtx, chartType, chartConfig, {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: { legend: { display: false } },
@@ -1450,20 +1456,27 @@ function setupChartTypeListeners() {
                 const currentData = isStudent ? userChartCtx.chartData.student : userChartCtx.chartData.teacher;
                 const currentColor = isStudent ? ADMIN_PRIMARY_COLOR : '#198754';
                 const currentLabel = isStudent ? 'Sinh viên mới' : 'Giáo viên mới';
+                const areaBackground = isStudent ? ADMIN_PRIMARY_BG : 'rgba(25, 135, 84, 0.15)';
+                
+                // Lấy labels từ dữ liệu đã lưu, nếu không có thì dùng mặc định
+                const chartLabels = userChartCtx.chartLabels || ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+                
+                // Chart.js không có type "area", cần dùng "line" với fill: true
+                const chartType = newType === 'area' ? 'line' : newType;
                 
                 const chartConfig = {
-                    labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
+                    labels: chartLabels,
                     datasets: [{
                         label: currentLabel,
                         data: currentData,
                         borderColor: currentColor,
-                        backgroundColor: newType === 'area' ? (isStudent ? ADMIN_PRIMARY_BG : 'rgba(25, 135, 84, 0.15)') : currentColor,
+                        backgroundColor: newType === 'area' ? areaBackground : currentColor,
                         tension: newType === 'line' || newType === 'area' ? 0.4 : 0,
                         fill: newType === 'area'
                     }]
                 };
                 
-                recreateChart(userChartCtx, newType, chartConfig, {
+                recreateChart(userChartCtx, chartType, chartConfig, {
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: { legend: { display: false } },
@@ -1623,6 +1636,10 @@ function setupUserRoleButtons() {
                 userChartCtx.chartInstance.data.datasets[0].backgroundColor = chartType === 'area' 
                     ? ADMIN_PRIMARY_BG 
                     : ADMIN_PRIMARY_COLOR;
+                // Đảm bảo fill được set đúng cho biểu đồ vùng
+                if (userChartCtx.chartInstance.data.datasets[0].fill !== undefined) {
+                    userChartCtx.chartInstance.data.datasets[0].fill = chartType === 'area';
+                }
                 userChartCtx.chartInstance.update();
             }
         });
@@ -1634,11 +1651,15 @@ function setupUserRoleButtons() {
                 const chartType = userChartCtx.currentType || 'line';
                 userChartCtx.isStudent = false;
                 userChartCtx.chartInstance.data.datasets[0].label = 'Giáo viên mới';
-        userChartCtx.chartInstance.data.datasets[0].data = userChartCtx.chartData.teacher;
+                userChartCtx.chartInstance.data.datasets[0].data = userChartCtx.chartData.teacher;
                 userChartCtx.chartInstance.data.datasets[0].borderColor = '#198754';
                 userChartCtx.chartInstance.data.datasets[0].backgroundColor = chartType === 'area'
                     ? 'rgba(25, 135, 84, 0.15)'
                     : '#198754';
+                // Đảm bảo fill được set đúng cho biểu đồ vùng
+                if (userChartCtx.chartInstance.data.datasets[0].fill !== undefined) {
+                    userChartCtx.chartInstance.data.datasets[0].fill = chartType === 'area';
+                }
                 userChartCtx.chartInstance.update();
             }
         });
@@ -1942,8 +1963,6 @@ async function viewSubject(subjectId) {
         loadSubjectsData();
       };
     }
-
-    showNotification('Đã tải chi tiết môn học thành công!', 'success');
   } catch (err) {
     console.error('Lỗi tải chi tiết môn học:', err);
     showNotification('Lỗi tải chi tiết môn học: ' + err.message, 'error');
@@ -1968,13 +1987,14 @@ async function loadSubjectsData() {
                     <tr>
                         <td><strong>${subject.subject_id}</strong></td>
                         <td>${subject.subject_name}</td>
-                        <td>${subject.question_count}</td>
-                        <td>${subject.exam_count}</td>
+                        <td>${subject.question_count || 0}</td>
+                        <td>${subject.exam_count || 0}</td>
+                        <td>${subject.class_count || 0}</td>
                         <td><span class="badge bg-success">${subject.status}</span></td>
                         <td>
                             <div class="action-buttons">
                                 <button class="btn btn-sm btn-info" onclick="viewSubject(${subject.subject_id})"><i class="bi bi-eye"></i></button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteSubject(${subject.subject_id})"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteSubject(${subject.subject_id}, '${subject.subject_name.replace(/'/g, "\\'")}')"><i class="bi bi-trash"></i></button>
                             </div>
                         </td>
                     </tr>
@@ -2313,8 +2333,12 @@ async function deleteQuestion(questionId) {
     }
 }
 
-async function deleteSubject(subjectId) {
-    if (!confirm('Bạn có chắc muốn xóa môn học này?')) return;
+async function deleteSubject(subjectId, subjectName = '') {
+    const confirmMsg = subjectName 
+        ? `Bạn có chắc muốn xóa môn học "${subjectName}"?`
+        : 'Bạn có chắc muốn xóa môn học này?';
+    
+    if (!confirm(confirmMsg)) return;
 
     try {
         // Sử dụng apiDelete từ api.js
@@ -2325,7 +2349,9 @@ async function deleteSubject(subjectId) {
         showNotification('Xóa môn học thành công!', 'success');
         loadSubjectsData();
     } catch (err) {
-        showNotification('Lỗi: ' + err.message, 'error');
+        // Hiển thị thông báo lỗi chi tiết từ server
+        const errorMsg = err.error?.error || err.message || 'Không thể xóa môn học';
+        showNotification('Lỗi: ' + errorMsg, 'error');
     }
 }
 
@@ -2385,6 +2411,13 @@ function filterCheatingLogs() {
                 <td><span class="badge ${eventClass}">${eventLabels[log.event_type] || log.event_type}</span></td>
                 <td><small>${log.event_description || 'Không có mô tả'}</small></td>
                 <td><small>${new Date(log.event_time).toLocaleString('vi-VN')}</small></td>
+                <td>
+                    ${log.video_path ? `
+                        <button class="btn btn-sm btn-success" onclick="viewViolationVideo(${log.log_id}, 'admin')" title="Xem video vi phạm">
+                            <i class="bi bi-play-circle"></i> Video
+                        </button>
+                    ` : '<span class="text-muted">-</span>'}
+                </td>
                 <td>${statusBadge}</td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
@@ -2547,11 +2580,74 @@ async function loadCheatingData() {
             loadCheatingData();
         });
 
-        // Gắn sự kiện xuất CSV
-        document.getElementById('exportCheatingCsv')?.addEventListener('click', () => {
-            // Sử dụng CONFIG để build URL
-            window.location.href = (window.CONFIG?.API_BASE_URL || '') + '/api/admin/monitor/cheating/export';
-        });
+        // Gắn sự kiện xuất CSV với filter hiện tại
+        const exportBtn = document.getElementById('exportCheatingCsv');
+        if (exportBtn) {
+            // Xóa event listener cũ nếu có
+            const newExportBtn = exportBtn.cloneNode(true);
+            exportBtn.parentNode.replaceChild(newExportBtn, exportBtn);
+            
+            newExportBtn.addEventListener('click', () => {
+                // Lấy các filter hiện tại
+                const examId = document.getElementById('examFilter')?.value || '';
+                const studentId = document.getElementById('studentFilter')?.value || '';
+                const eventType = document.getElementById('eventTypeFilter')?.value || '';
+                const startDate = document.getElementById('startDateFilter')?.value || '';
+                const endDate = document.getElementById('endDateFilter')?.value || '';
+                
+                // Build URL với query params
+                let url = (window.CONFIG?.API_BASE_URL || '') + '/api/admin/monitor/cheating/export?';
+                const params = [];
+                if (examId) params.push(`exam_id=${encodeURIComponent(examId)}`);
+                if (studentId) params.push(`student_id=${encodeURIComponent(studentId)}`);
+                if (eventType) params.push(`event_type=${encodeURIComponent(eventType)}`);
+                if (startDate) params.push(`start_date=${encodeURIComponent(startDate)}`);
+                if (endDate) params.push(`end_date=${encodeURIComponent(endDate)}`);
+                url += params.join('&');
+                
+                // Tạo form ẩn để submit với token
+                const form = document.createElement('form');
+                form.method = 'GET';
+                form.action = url;
+                form.style.display = 'none';
+                
+                // Thêm token vào header thông qua fetch thay vì form submit
+                const token = localStorage.getItem('token');
+                if (token) {
+                    fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Lỗi khi xuất CSV');
+                        }
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        // Tạo link download
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.download = `log_gian_lan_${new Date().toISOString().split('T')[0]}.csv`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(downloadUrl);
+                        showNotification('Xuất CSV thành công!', 'success');
+                    })
+                    .catch(err => {
+                        console.error('Lỗi xuất CSV:', err);
+                        showNotification('Lỗi khi xuất CSV: ' + err.message, 'error');
+                    });
+                } else {
+                    // Nếu không có token, dùng window.location (sẽ redirect đến login nếu cần)
+                    window.location.href = url;
+                }
+            });
+        }
     } catch (err) {
         console.error('Lỗi tải dữ liệu gian lận:', err);
         showNotification('Lỗi tải dữ liệu gian lận: ' + err.message, 'error');
@@ -2592,6 +2688,74 @@ async function penalize(attemptId, action, examName = '', studentId = null) {
 }
 
 // Hàm xem chi tiết vi phạm
+// Hàm xem video vi phạm
+function viewViolationVideo(logId, userRole = 'admin') {
+    // Sử dụng API base URL từ config
+    const apiBaseUrl = window.CONFIG?.API_BASE_URL || '';
+    const basePath = userRole === 'admin' 
+        ? '/api/admin/monitor/cheating/video'
+        : '/api/teacher/cheating/violation-video';
+    
+    // Build full URL
+    let videoUrl = `${basePath}/${logId}`;
+    if (apiBaseUrl) {
+        const base = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
+        videoUrl = `${base}${videoUrl}`;
+    }
+    
+    const token = localStorage.getItem('token');
+    
+    // Thêm token vào query string (video element không thể set Authorization header)
+    // Tuy không an toàn lắm nhưng đơn giản và hoạt động với video element
+    const separator = videoUrl.includes('?') ? '&' : '?';
+    videoUrl = `${videoUrl}${separator}token=${encodeURIComponent(token)}`;
+    
+    // Tạo modal để xem video
+    const modal = document.createElement('div');
+    modal.className = 'modal fade show';
+    modal.style.display = 'block';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🎥 Video Vi Phạm</h5>
+                    <button type="button" class="btn-close" onclick="this.closest('.modal').remove()"></button>
+                </div>
+                <div class="modal-body">
+                    <video controls autoplay style="width: 100%; max-height: 70vh;" id="violationVideoPlayer">
+                        <source src="${videoUrl}" type="video/mp4">
+                        Trình duyệt của bạn không hỗ trợ video.
+                    </video>
+                    <div id="videoError" style="display: none; color: red; margin-top: 10px;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Đóng</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Xử lý lỗi video
+    const videoPlayer = modal.querySelector('#violationVideoPlayer');
+    const videoError = modal.querySelector('#videoError');
+    
+    videoPlayer.addEventListener('error', (e) => {
+        console.error('❌ [Video] Error loading video:', e);
+        videoError.style.display = 'block';
+        videoError.textContent = 'Không thể tải video. Vui lòng kiểm tra lại.';
+    });
+    
+    // Đóng khi click bên ngoài
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
 async function viewCheatingDetail(attemptId) {
     try {
         const log = allCheatingLogs.find(l => l.attempt_id === attemptId);
@@ -2972,7 +3136,11 @@ async function viewUser(userId) {
         const data = await apiGet(`/api/admin/users/${userId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        const { user, stats, recentActivity } = data;
+        const { user, stats = {}, recentActivity = [] } = data;
+        
+        // Xử lý an toàn cho full_name
+        const fullName = user.full_name || user.username || 'N/A';
+        const avatarInitial = fullName && fullName !== 'N/A' ? fullName.charAt(0).toUpperCase() : '?';
         
         // Định dạng giới tính
         const genderText = {
@@ -2980,7 +3148,7 @@ async function viewUser(userId) {
             'female': 'Nữ',
             'other': 'Khác',
             'Chưa cập nhật': 'Chưa cập nhật'
-        }[user.gender] || user.gender;
+        }[user.gender] || (user.gender || 'Chưa cập nhật');
         
         // Định dạng vai trò
         const roleText = {
@@ -3007,9 +3175,9 @@ async function viewUser(userId) {
                         <div class="card-body">
                             <div class="text-center mb-3">
                                 <div class="avatar-lg mx-auto mb-2" style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 32px; font-weight: bold;">
-                                    ${user.full_name.charAt(0).toUpperCase()}
+                                    ${avatarInitial}
                                 </div>
-                                <h5 class="mb-1">${user.full_name}</h5>
+                                <h5 class="mb-1">${fullName}</h5>
                                 <span class="badge ${roleClass}">${roleText}</span>
                             </div>
                             <hr>
@@ -3031,11 +3199,11 @@ async function viewUser(userId) {
                             </div>
                             <div class="mb-2">
                                 <small class="text-muted">Số điện thoại:</small>
-                                <div>${user.phone}</div>
+                                <div>${user.phone || 'Chưa cập nhật'}</div>
                             </div>
                             <div class="mb-2">
                                 <small class="text-muted">Ngày sinh:</small>
-                                <div>${user.dob !== 'Chưa cập nhật' ? new Date(user.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</div>
+                                <div>${user.dob && user.dob !== 'Chưa cập nhật' ? new Date(user.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</div>
                             </div>
                             <hr>
                             <div class="mb-2">
@@ -3813,8 +3981,6 @@ async function loadReportsData() {
         // Cập nhật bảng chi tiết
         allReportsData = data.details || [];
         renderReportTable(allReportsData);
-        
-        showNotification('Đã tải báo cáo thành công!', 'success');
         
     } catch (err) {
         console.error('Lỗi tải báo cáo:', err);

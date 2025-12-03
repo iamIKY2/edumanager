@@ -277,9 +277,12 @@ router.post('/generate-exam', authMiddleware, roleMiddleware(['teacher']), async
 
     // Sử dụng AI service chung (hỗ trợ cả Groq và Gemini)
     let result;
+    const groqService = require('../../services/groqService');
+    
     if (ai_model === 'groq') {
-      // Groq cần format khác, tạm thời dùng Gemini format
-      result = await geminiService.generateExam({
+      console.log('🤖 [GROQ] Generating exam...');
+      // Sử dụng Groq service
+      result = await groqService.generateExam({
         subject,
         topic,
         numQuestions: num,
@@ -287,8 +290,10 @@ router.post('/generate-exam', authMiddleware, roleMiddleware(['teacher']), async
         questionTypes,
         additionalRequirements: additionalRequirements || ''
       });
+      console.log('✅ [GROQ] Exam generated successfully');
     } else {
-      // Gemini
+      console.log('🤖 [GEMINI] Generating exam...');
+      // Sử dụng Gemini service
       result = await geminiService.generateExam({
         subject,
         topic,
@@ -297,6 +302,7 @@ router.post('/generate-exam', authMiddleware, roleMiddleware(['teacher']), async
         questionTypes,
         additionalRequirements: additionalRequirements || ''
       });
+      console.log('✅ [GEMINI] Exam generated successfully');
     }
     
     // Log usage

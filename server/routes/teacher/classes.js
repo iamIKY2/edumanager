@@ -723,48 +723,6 @@ router.put('/:classId', authMiddleware, roleMiddleware(['teacher']), async (req,
   }
 });
 
-// Xóa lớp học
-router.delete('/:classId', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
-  const { classId } = req.params;
-  const teacherId = req.user.id || req.user.user_id;
-
-  try {
-    // Kiểm tra lớp có tồn tại và thuộc về giáo viên này không
-    const [classResult] = await req.db.query(
-      `SELECT class_id, class_name, teacher_id FROM classes WHERE class_id = ? AND teacher_id = ?`,
-      [classId, teacherId]
-    );
-
-    if (classResult.length === 0) {
-      return res.status(403).json({ error: 'Bạn không có quyền xóa lớp này hoặc lớp không tồn tại' });
-    }
-
-    const className = classResult[0].class_name;
-
-    // Cập nhật trạng thái lớp thành 'deleted' thay vì xóa thật sự (soft delete)
-    await req.db.query(
-      `UPDATE classes SET status = 'deleted' WHERE class_id = ?`,
-      [classId]
-    );
-
-    // Tạo thông báo
-    await createNotification(
-      req.db,
-      req.io,
-      teacherId,
-      `Lớp học "${className}" đã được xóa`,
-      'Info',
-      classId,
-      'Class'
-    );
-
-    res.json({ message: 'Xóa lớp học thành công' });
-  } catch (err) {
-    console.error('❌ Error deleting class:', err);
-    res.status(500).json({ error: 'Lỗi khi xóa lớp học', details: err.message });
-  }
-});
-
 // Lấy TẤT CẢ bài thi của giáo viên (cho tab "Tạo bài thi")
 router.get('/exams/all', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
   const teacherId = req.user.id || req.user.user_id;
